@@ -58,8 +58,8 @@
 
     <div class="sidebar-footer">
       <div class="std-pallet">
-        <span class="std-label">GMA STANDARD</span>
-        <span class="std-value">48 × 40 in</span>
+        <span class="std-label">GMA PALLET</span>
+        <span class="std-value">40 × 48 × 5.5 in</span>
       </div>
     </div>
   </aside>
@@ -124,12 +124,39 @@
               <span class="chip-val" id="info-maxh">—</span>
             </div>
             <div class="info-chip">
-              <span class="chip-label">PALLET</span>
-              <span class="chip-val" id="info-pallet">—</span>
-            </div>
-            <div class="info-chip">
               <span class="chip-label">DBL STACK</span>
               <span class="chip-val" id="info-ds">—</span>
+            </div>
+          </div>
+
+          <!-- Inline retailer editor -->
+          <div class="inline-editor" id="inline-editor" style="display:none">
+            <div class="ie-header">
+              <span class="panel-label">CONFIGURE RETAILER</span>
+              <button class="ie-toggle" id="ie-toggle" title="collapse">▲</button>
+            </div>
+            <div class="ie-body" id="ie-body">
+              <div class="ie-row">
+                <div class="field-group" style="flex:2">
+                  <label class="field-label">NAME</label>
+                  <input type="text" id="ie-name" class="ie-text-input">
+                </div>
+                <div class="field-group" style="flex:1">
+                  <label class="field-label">MAX HEIGHT</label>
+                  <div class="field-wrap">
+                    <input type="number" id="ie-maxh" class="dim-input" step="0.5">
+                    <span class="field-unit">in</span>
+                  </div>
+                </div>
+              </div>
+              <div class="ie-row" style="margin-top:8px">
+                <label class="toggle-label">
+                  <input type="checkbox" id="ie-ds" class="toggle-input">
+                  <span class="toggle-track"><span class="toggle-thumb"></span></span>
+                  <span class="toggle-text">Double Stack Allowed</span>
+                </label>
+                <button class="ie-save-btn" id="ie-save-btn">SAVE</button>
+              </div>
             </div>
           </div>
 
@@ -140,6 +167,13 @@
               <input type="checkbox" id="double-stack" class="toggle-input">
               <span class="toggle-track"><span class="toggle-thumb"></span></span>
               <span class="toggle-text">Double Stack</span>
+            </label>
+          </div>
+          <div class="opts-row" style="margin-top:8px">
+            <label class="toggle-label">
+              <input type="checkbox" id="no-pallet" class="toggle-input">
+              <span class="toggle-track"><span class="toggle-thumb"></span></span>
+              <span class="toggle-text">No Pallet (DI Retailer)</span>
             </label>
           </div>
 
@@ -230,6 +264,13 @@
               <input type="checkbox" id="bulk-ds" class="toggle-input">
               <span class="toggle-track"><span class="toggle-thumb"></span></span>
               <span class="toggle-text">Double Stack</span>
+            </label>
+          </div>
+          <div class="opts-row" style="margin-top:8px">
+            <label class="toggle-label">
+              <input type="checkbox" id="bulk-no-pallet" class="toggle-input">
+              <span class="toggle-track"><span class="toggle-thumb"></span></span>
+              <span class="toggle-text">No Pallet (DI)</span>
             </label>
           </div>
           <div class="divider"></div>

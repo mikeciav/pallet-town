@@ -9,22 +9,27 @@ app = Flask(__name__)
 
 RETAILERS_FILE = os.path.join(os.path.dirname(__file__), "retailers.json")
 
+# Fixed pallet dimensions — not configurable per retailer
+PALLET_L = 48.0
+PALLET_W = 40.0
+PALLET_H = 5.5
+
 DEFAULT_RETAILERS = [
-    {"id": 1,  "name": "Walmart",       "max_height": 60,  "pallet_length": 48, "pallet_width": 40, "pallet_height": 6.5, "double_stack_allowed": False},
-    {"id": 2,  "name": "Target",        "max_height": 60,  "pallet_length": 48, "pallet_width": 40, "pallet_height": 6.5, "double_stack_allowed": False},
-    {"id": 3,  "name": "Costco",        "max_height": 58,  "pallet_length": 48, "pallet_width": 40, "pallet_height": 6.5, "double_stack_allowed": True},
-    {"id": 4,  "name": "Amazon",        "max_height": 50,  "pallet_length": 48, "pallet_width": 40, "pallet_height": 6.5, "double_stack_allowed": True},
-    {"id": 5,  "name": "Home Depot",    "max_height": 60,  "pallet_length": 48, "pallet_width": 40, "pallet_height": 6.5, "double_stack_allowed": False},
-    {"id": 6,  "name": "Lowe's",        "max_height": 60,  "pallet_length": 48, "pallet_width": 40, "pallet_height": 6.5, "double_stack_allowed": False},
-    {"id": 7,  "name": "Kroger",        "max_height": 60,  "pallet_length": 48, "pallet_width": 40, "pallet_height": 6.5, "double_stack_allowed": False},
-    {"id": 8,  "name": "Sam's Club",    "max_height": 60,  "pallet_length": 48, "pallet_width": 40, "pallet_height": 6.5, "double_stack_allowed": True},
-    {"id": 9,  "name": "Dollar General","max_height": 57,  "pallet_length": 48, "pallet_width": 40, "pallet_height": 6.5, "double_stack_allowed": False},
-    {"id": 10, "name": "Dollar Tree",   "max_height": 57,  "pallet_length": 48, "pallet_width": 40, "pallet_height": 6.5, "double_stack_allowed": False},
-    {"id": 11, "name": "Walgreens",     "max_height": 60,  "pallet_length": 48, "pallet_width": 40, "pallet_height": 6.5, "double_stack_allowed": False},
-    {"id": 12, "name": "CVS",           "max_height": 60,  "pallet_length": 48, "pallet_width": 40, "pallet_height": 6.5, "double_stack_allowed": False},
-    {"id": 13, "name": "Best Buy",      "max_height": 60,  "pallet_length": 48, "pallet_width": 40, "pallet_height": 6.5, "double_stack_allowed": False},
-    {"id": 14, "name": "Whole Foods",   "max_height": 60,  "pallet_length": 48, "pallet_width": 40, "pallet_height": 6.5, "double_stack_allowed": False},
-    {"id": 15, "name": "BJ's Wholesale","max_height": 60,  "pallet_length": 48, "pallet_width": 40, "pallet_height": 6.5, "double_stack_allowed": True},
+    {"id": 1,  "name": "Walmart",        "max_height": 60, "double_stack_allowed": False},
+    {"id": 2,  "name": "Target",         "max_height": 60, "double_stack_allowed": False},
+    {"id": 3,  "name": "Costco",         "max_height": 58, "double_stack_allowed": True},
+    {"id": 4,  "name": "Amazon",         "max_height": 50, "double_stack_allowed": True},
+    {"id": 5,  "name": "Home Depot",     "max_height": 60, "double_stack_allowed": False},
+    {"id": 6,  "name": "Lowe's",         "max_height": 60, "double_stack_allowed": False},
+    {"id": 7,  "name": "Kroger",         "max_height": 60, "double_stack_allowed": False},
+    {"id": 8,  "name": "Sam's Club",     "max_height": 60, "double_stack_allowed": True},
+    {"id": 9,  "name": "Dollar General", "max_height": 57, "double_stack_allowed": False},
+    {"id": 10, "name": "Dollar Tree",    "max_height": 57, "double_stack_allowed": False},
+    {"id": 11, "name": "Walgreens",      "max_height": 60, "double_stack_allowed": False},
+    {"id": 12, "name": "CVS",            "max_height": 60, "double_stack_allowed": False},
+    {"id": 13, "name": "Best Buy",       "max_height": 60, "double_stack_allowed": False},
+    {"id": 14, "name": "Whole Foods",    "max_height": 60, "double_stack_allowed": False},
+    {"id": 15, "name": "BJ's Wholesale", "max_height": 60, "double_stack_allowed": True},
 ]
 
 
@@ -45,9 +50,6 @@ def _parse_retailer_body(data: dict, base=None) -> dict:
     return {
         "name":                 str(data.get("name", base.get("name", "Retailer"))),
         "max_height":           float(data.get("max_height", base.get("max_height", 60))),
-        "pallet_length":        float(data.get("pallet_length", base.get("pallet_length", 48))),
-        "pallet_width":         float(data.get("pallet_width", base.get("pallet_width", 40))),
-        "pallet_height":        float(data.get("pallet_height", base.get("pallet_height", 6.5))),
         "double_stack_allowed": bool(data.get("double_stack_allowed",
                                               base.get("double_stack_allowed", False))),
     }
@@ -113,14 +115,15 @@ def api_calculate():
     if not retailer:
         return jsonify({"error": "Retailer not found"}), 404
 
+    exclude_pallet = bool(data.get("exclude_pallet_height", False))
     result = calculate(
         carton_l=carton_l,
         carton_w=carton_w,
         carton_h=carton_h,
         max_height=retailer["max_height"],
-        pallet_l=retailer["pallet_length"],
-        pallet_w=retailer["pallet_width"],
-        pallet_h=retailer["pallet_height"],
+        pallet_l=PALLET_L,
+        pallet_w=PALLET_W,
+        pallet_h=0.0 if exclude_pallet else PALLET_H,
         double_stack=bool(data.get("double_stack", False)),
     )
     return jsonify(result)
@@ -139,7 +142,8 @@ def api_calculate_bulk():
     if not cartons:
         return jsonify({"error": "No cartons provided"}), 400
 
-    double_stack = bool(data.get("double_stack", False))
+    double_stack    = bool(data.get("double_stack", False))
+    exclude_pallet  = bool(data.get("exclude_pallet_height", False))
     results = []
     for carton in cartons:
         try:
@@ -154,9 +158,9 @@ def api_calculate_bulk():
         r = calculate(
             carton_l=l, carton_w=w, carton_h=h,
             max_height=retailer["max_height"],
-            pallet_l=retailer["pallet_length"],
-            pallet_w=retailer["pallet_width"],
-            pallet_h=retailer["pallet_height"],
+            pallet_l=PALLET_L,
+            pallet_w=PALLET_W,
+            pallet_h=0.0 if exclude_pallet else PALLET_H,
             double_stack=double_stack,
         )
         results.append({
