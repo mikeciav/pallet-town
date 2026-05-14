@@ -1,0 +1,174 @@
+"""Pallet Town — Flask application."""
+
+import json
+import os
+from flask import Flask, jsonify, render_template, request
+from calculator import calculate
+
+app = Flask(__name__)
+
+RETAILERS_FILE = os.path.join(os.path.dirname(__file__), "retailers.json")
+
+DEFAULT_RETAILERS = [
+    {"id": 1,  "name": "Walmart",       "max_height": 60,  "pallet_length": 48, "pallet_width": 40, "pallet_height": 6.5, "double_stack_allowed": False},
+    {"id": 2,  "name": "Target",        "max_height": 60,  "pallet_length": 48, "pallet_width": 40, "pallet_height": 6.5, "double_stack_allowed": False},
+    {"id": 3,  "name": "Costco",        "max_height": 58,  "pallet_length": 48, "pallet_width": 40, "pallet_height": 6.5, "double_stack_allowed": True},
+    {"id": 4,  "name": "Amazon",        "max_height": 50,  "pallet_length": 48, "pallet_width": 40, "pallet_height": 6.5, "double_stack_allowed": True},
+    {"id": 5,  "name": "Home Depot",    "max_height": 60,  "pallet_length": 48, "pallet_width": 40, "pallet_height": 6.5, "double_stack_allowed": False},
+    {"id": 6,  "name": "Lowe's",        "max_height": 60,  "pallet_length": 48, "pallet_width": 40, "pallet_height": 6.5, "double_stack_allowed": False},
+    {"id": 7,  "name": "Kroger",        "max_height": 60,  "pallet_length": 48, "pallet_width": 40, "pallet_height": 6.5, "double_stack_allowed": False},
+    {"id": 8,  "name": "Sam's Club",    "max_height": 60,  "pallet_length": 48, "pallet_width": 40, "pallet_height": 6.5, "double_stack_allowed": True},
+    {"id": 9,  "name": "Dollar General","max_height": 57,  "pallet_length": 48, "pallet_width": 40, "pallet_height": 6.5, "double_stack_allowed": False},
+    {"id": 10, "name": "Dollar Tree",   "max_height": 57,  "pallet_length": 48, "pallet_width": 40, "pallet_height": 6.5, "double_stack_allowed": False},
+    {"id": 11, "name": "Walgreens",     "max_height": 60,  "pallet_length": 48, "pallet_width": 40, "pallet_height": 6.5, "double_stack_allowed": False},
+    {"id": 12, "name": "CVS",           "max_height": 60,  "pallet_length": 48, "pallet_width": 40, "pallet_height": 6.5, "double_stack_allowed": False},
+    {"id": 13, "name": "Best Buy",      "max_height": 60,  "pallet_length": 48, "pallet_width": 40, "pallet_height": 6.5, "double_stack_allowed": False},
+    {"id": 14, "name": "Whole Foods",   "max_height": 60,  "pallet_length": 48, "pallet_width": 40, "pallet_height": 6.5, "double_stack_allowed": False},
+    {"id": 15, "name": "BJ's Wholesale","max_height": 60,  "pallet_length": 48, "pallet_width": 40, "pallet_height": 6.5, "double_stack_allowed": True},
+]
+
+
+def load_retailers():
+    if os.path.exists(RETAILERS_FILE):
+        with open(RETAILERS_FILE) as f:
+            return json.load(f)
+    return DEFAULT_RETAILERS.copy()
+
+
+def save_retailers(retailers) -> None:
+    with open(RETAILERS_FILE, "w") as f:
+        json.dump(retailers, f, indent=2)
+
+
+def _parse_retailer_body(data: dict, base=None) -> dict:
+    base = base or {}
+    return {
+        "name":                 str(data.get("name", base.get("name", "Retailer"))),
+        "max_height":           float(data.get("max_height", base.get("max_height", 60))),
+        "pallet_length":        float(data.get("pallet_length", base.get("pallet_length", 48))),
+        "pallet_width":         float(data.get("pallet_width", base.get("pallet_width", 40))),
+        "pallet_height":        float(data.get("pallet_height", base.get("pallet_height", 6.5))),
+        "double_stack_allowed": bool(data.get("double_stack_allowed",
+                                              base.get("double_stack_allowed", False))),
+    }
+
+
+# ── Routes ────────────────────────────────────────────────────────────────────
+
+@app.route("/")
+def index():
+    return render_template("index.html")
+
+
+@app.route("/api/retailers", methods=["GET"])
+def api_retailers_list():
+    return jsonify(load_retailers())
+
+
+@app.route("/api/retailers", methods=["POST"])
+def api_retailers_create():
+    data = request.get_json(force=True) or {}
+    retailers = load_retailers()
+    new_id = max((r["id"] for r in retailers), default=0) + 1
+    retailer = {"id": new_id, **_parse_retailer_body(data)}
+    retailers.append(retailer)
+    save_retailers(retailers)
+    return jsonify(retailer), 201
+
+
+@app.route("/api/retailers/<int:rid>", methods=["PUT"])
+def api_retailers_update(rid: int):
+    data = request.get_json(force=True) or {}
+    retailers = load_retailers()
+    for r in retailers:
+        if r["id"] == rid:
+            r.update(_parse_retailer_body(data, r))
+            save_retailers(retailers)
+            return jsonify(r)
+    return jsonify({"error": "Not found"}), 404
+
+
+@app.route("/api/retailers/<int:rid>", methods=["DELETE"])
+def api_retailers_delete(rid: int):
+    retailers = [r for r in load_retailers() if r["id"] != rid]
+    save_retailers(retailers)
+    return "", 204
+
+
+@app.route("/api/calculate", methods=["POST"])
+def api_calculate():
+    data = request.get_json(force=True) or {}
+    try:
+        carton_l = float(data["length"])
+        carton_w = float(data["width"])
+        carton_h = float(data["height"])
+    except (KeyError, TypeError, ValueError):
+        return jsonify({"error": "length, width, height are required numbers"}), 400
+
+    if carton_l <= 0 or carton_w <= 0 or carton_h <= 0:
+        return jsonify({"error": "Dimensions must be positive"}), 400
+
+    retailers = load_retailers()
+    retailer = next((r for r in retailers if str(r["id"]) == str(data.get("retailer_id"))), None)
+    if not retailer:
+        return jsonify({"error": "Retailer not found"}), 404
+
+    result = calculate(
+        carton_l=carton_l,
+        carton_w=carton_w,
+        carton_h=carton_h,
+        max_height=retailer["max_height"],
+        pallet_l=retailer["pallet_length"],
+        pallet_w=retailer["pallet_width"],
+        pallet_h=retailer["pallet_height"],
+        double_stack=bool(data.get("double_stack", False)),
+    )
+    return jsonify(result)
+
+
+@app.route("/api/calculate-bulk", methods=["POST"])
+def api_calculate_bulk():
+    data = request.get_json(force=True) or {}
+
+    retailers = load_retailers()
+    retailer = next((r for r in retailers if str(r["id"]) == str(data.get("retailer_id"))), None)
+    if not retailer:
+        return jsonify({"error": "Retailer not found"}), 404
+
+    cartons = data.get("cartons", [])
+    if not cartons:
+        return jsonify({"error": "No cartons provided"}), 400
+
+    double_stack = bool(data.get("double_stack", False))
+    results = []
+    for carton in cartons:
+        try:
+            l = float(carton["length"])
+            w = float(carton["width"])
+            h = float(carton["height"])
+        except (KeyError, TypeError, ValueError):
+            continue
+        if l <= 0 or w <= 0 or h <= 0:
+            continue
+
+        r = calculate(
+            carton_l=l, carton_w=w, carton_h=h,
+            max_height=retailer["max_height"],
+            pallet_l=retailer["pallet_length"],
+            pallet_w=retailer["pallet_width"],
+            pallet_h=retailer["pallet_height"],
+            double_stack=double_stack,
+        )
+        results.append({
+            "sku": str(carton.get("sku", "")),
+            "length": l, "width": w, "height": h,
+            **r,
+        })
+
+    return jsonify(results)
+
+
+if __name__ == "__main__":
+    if not os.path.exists(RETAILERS_FILE):
+        save_retailers(DEFAULT_RETAILERS)
+    app.run(debug=True, port=5001)

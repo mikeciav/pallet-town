@@ -1,0 +1,319 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Pallet Town</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@300;400;500;600;700&family=JetBrains+Mono:wght@300;400;500;700&family=DM+Sans:opsz,wght@9..40,300;9..40,400;9..40,500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/static/css/style.css">
+</head>
+<body>
+
+  <!-- ── Sidebar ─────────────────────────────────────────────── -->
+  <aside class="sidebar">
+    <div class="sidebar-header">
+      <div class="logo">
+        <div class="logo-mark">PT</div>
+        <div class="logo-text">
+          <span class="logo-primary">PALLET</span>
+          <span class="logo-secondary">TOWN</span>
+        </div>
+      </div>
+      <span class="version-tag">v1.0</span>
+    </div>
+
+    <nav class="nav">
+      <button class="nav-item active" data-tab="calculator">
+        <span class="nav-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+            <rect x="3" y="3" width="18" height="18" rx="1"/>
+            <path d="M3 9h18M9 21V9"/>
+          </svg>
+        </span>
+        <span>Calculator</span>
+      </button>
+      <button class="nav-item" data-tab="bulk">
+        <span class="nav-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+            <polyline points="14,2 14,8 20,8"/>
+            <line x1="16" y1="13" x2="8" y2="13"/>
+            <line x1="16" y1="17" x2="8" y2="17"/>
+          </svg>
+        </span>
+        <span>Bulk Import</span>
+      </button>
+      <button class="nav-item" data-tab="retailers">
+        <span class="nav-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+            <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>
+            <polyline points="9,22 9,12 15,12 15,22"/>
+          </svg>
+        </span>
+        <span>Retailers</span>
+      </button>
+    </nav>
+
+    <div class="sidebar-footer">
+      <div class="std-pallet">
+        <span class="std-label">GMA STANDARD</span>
+        <span class="std-value">48 × 40 in</span>
+      </div>
+    </div>
+  </aside>
+
+  <!-- ── Main ────────────────────────────────────────────────── -->
+  <main class="main">
+
+    <header class="topbar">
+      <span class="topbar-title" id="page-title">SINGLE CARTON CALCULATOR</span>
+      <div class="status-pill">
+        <span class="status-dot"></span>
+        <span id="status-text">Ready</span>
+      </div>
+    </header>
+
+    <!-- ── Tab: Calculator ──────────────────────────────────── -->
+    <section class="tab-content active" id="tab-calculator">
+      <div class="calc-layout">
+
+        <!-- Input panel -->
+        <div class="panel input-panel">
+          <div class="panel-header">
+            <span class="panel-label">CARTON DIMENSIONS</span>
+            <span class="panel-hint">inches</span>
+          </div>
+
+          <div class="dim-grid">
+            <div class="field-group">
+              <label class="field-label">LENGTH</label>
+              <div class="field-wrap">
+                <input type="number" id="c-l" class="dim-input" placeholder="0.0" min="0.1" step="0.1">
+                <span class="field-unit">in</span>
+              </div>
+            </div>
+            <div class="field-group">
+              <label class="field-label">WIDTH</label>
+              <div class="field-wrap">
+                <input type="number" id="c-w" class="dim-input" placeholder="0.0" min="0.1" step="0.1">
+                <span class="field-unit">in</span>
+              </div>
+            </div>
+            <div class="field-group">
+              <label class="field-label">HEIGHT</label>
+              <div class="field-wrap">
+                <input type="number" id="c-h" class="dim-input" placeholder="0.0" min="0.1" step="0.1">
+                <span class="field-unit">in</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="divider"></div>
+
+          <div class="panel-header">
+            <span class="panel-label">RETAILER</span>
+          </div>
+          <div class="select-wrap">
+            <select id="retailer-select" class="pt-select"></select>
+          </div>
+          <div class="info-bar">
+            <div class="info-chip">
+              <span class="chip-label">MAX HEIGHT</span>
+              <span class="chip-val" id="info-maxh">—</span>
+            </div>
+            <div class="info-chip">
+              <span class="chip-label">PALLET</span>
+              <span class="chip-val" id="info-pallet">—</span>
+            </div>
+            <div class="info-chip">
+              <span class="chip-label">DBL STACK</span>
+              <span class="chip-val" id="info-ds">—</span>
+            </div>
+          </div>
+
+          <div class="divider"></div>
+
+          <div class="opts-row">
+            <label class="toggle-label">
+              <input type="checkbox" id="double-stack" class="toggle-input">
+              <span class="toggle-track"><span class="toggle-thumb"></span></span>
+              <span class="toggle-text">Double Stack</span>
+            </label>
+          </div>
+
+          <button class="pt-btn" id="calc-btn">
+            <span id="calc-btn-text">CALCULATE</span>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="btn-arrow">
+              <path d="M5 12h14M12 5l7 7-7 7"/>
+            </svg>
+          </button>
+        </div>
+
+        <!-- Results panel -->
+        <div class="panel results-panel">
+          <div class="panel-header">
+            <span class="panel-label">RESULTS</span>
+            <span class="results-meta" id="results-meta"></span>
+          </div>
+
+          <div class="metrics-grid">
+            <div class="metric-card" id="mc-ti">
+              <div class="metric-label">Ti</div>
+              <div class="metric-val" id="val-ti">—</div>
+              <div class="metric-sub">CARTONS / LAYER</div>
+            </div>
+            <div class="metric-card" id="mc-hi">
+              <div class="metric-label">Hi</div>
+              <div class="metric-val" id="val-hi">—</div>
+              <div class="metric-sub">LAYERS HIGH</div>
+            </div>
+            <div class="metric-card metric-card--accent" id="mc-total">
+              <div class="metric-label">Total</div>
+              <div class="metric-val metric-val--xl" id="val-total">—</div>
+              <div class="metric-sub">CARTONS / PALLET</div>
+            </div>
+          </div>
+
+          <div class="divider"></div>
+
+          <div class="panel-header">
+            <span class="panel-label">LAYER DIAGRAM</span>
+            <span class="panel-hint" id="diagram-hint">top-down view · 1 layer</span>
+          </div>
+
+          <div class="diagram-box" id="diagram-box">
+            <div class="diagram-empty">
+              <svg viewBox="0 0 200 160" fill="none">
+                <rect x="20" y="10" width="160" height="130" stroke="#2a3347" stroke-width="1" stroke-dasharray="4 3"/>
+                <text x="100" y="82" text-anchor="middle" font-family="JetBrains Mono,monospace" font-size="10" fill="#2a3347">awaiting calculation</text>
+              </svg>
+            </div>
+          </div>
+
+          <div class="detail-strip" id="detail-strip" style="display:none">
+            <div class="detail-item">
+              <span class="detail-label">Pattern</span>
+              <span class="detail-val" id="d-pattern">—</span>
+            </div>
+            <div class="detail-item">
+              <span class="detail-label">Floor Efficiency</span>
+              <span class="detail-val" id="d-efficiency">—</span>
+            </div>
+            <div class="detail-item">
+              <span class="detail-label">Stack Height</span>
+              <span class="detail-val" id="d-height">—</span>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </section>
+
+    <!-- ── Tab: Bulk Import ─────────────────────────────────── -->
+    <section class="tab-content" id="tab-bulk">
+      <div class="bulk-layout">
+
+        <div class="panel bulk-config">
+          <div class="panel-header">
+            <span class="panel-label">CONFIGURATION</span>
+          </div>
+          <div class="field-group" style="margin-bottom:1rem">
+            <label class="field-label">RETAILER</label>
+            <div class="select-wrap">
+              <select id="bulk-retailer" class="pt-select"></select>
+            </div>
+          </div>
+          <div class="opts-row">
+            <label class="toggle-label">
+              <input type="checkbox" id="bulk-ds" class="toggle-input">
+              <span class="toggle-track"><span class="toggle-thumb"></span></span>
+              <span class="toggle-text">Double Stack</span>
+            </label>
+          </div>
+          <div class="divider"></div>
+          <div class="panel-header">
+            <span class="panel-label">CSV FORMAT</span>
+          </div>
+          <div class="code-block">
+            <code>sku,length,width,height
+ITEM-001,12,8,6
+ITEM-002,10,10,8</code>
+          </div>
+          <a class="text-link" id="dl-template" href="#">Download template</a>
+        </div>
+
+        <div class="panel bulk-upload">
+          <div class="panel-header">
+            <span class="panel-label">IMPORT CSV</span>
+          </div>
+          <div class="drop-zone" id="drop-zone">
+            <div class="drop-icon">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                <polyline points="17,8 12,3 7,8"/>
+                <line x1="12" y1="3" x2="12" y2="15"/>
+              </svg>
+            </div>
+            <p class="drop-text">Drop CSV or <label for="file-input" class="file-link">browse</label></p>
+            <p class="drop-hint">sku · length · width · height</p>
+            <input type="file" id="file-input" accept=".csv" style="display:none">
+          </div>
+          <div class="bulk-status" id="bulk-status"></div>
+          <button class="pt-btn" id="bulk-calc-btn" disabled>
+            <span id="bulk-btn-text">CALCULATE ALL</span>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="btn-arrow">
+              <path d="M5 12h14M12 5l7 7-7 7"/>
+            </svg>
+          </button>
+        </div>
+
+        <div class="panel bulk-results" id="bulk-results" style="display:none">
+          <div class="panel-header">
+            <span class="panel-label">RESULTS</span>
+            <button class="ghost-btn" id="export-btn">EXPORT CSV</button>
+          </div>
+          <div class="table-scroll">
+            <table class="data-table" id="data-table">
+              <thead>
+                <tr>
+                  <th>SKU</th>
+                  <th>L × W × H</th>
+                  <th>Ti</th>
+                  <th>Hi</th>
+                  <th>Total</th>
+                  <th>Pattern</th>
+                  <th>Efficiency</th>
+                </tr>
+              </thead>
+              <tbody id="table-body"></tbody>
+            </table>
+          </div>
+        </div>
+
+      </div>
+    </section>
+
+    <!-- ── Tab: Retailers ───────────────────────────────────── -->
+    <section class="tab-content" id="tab-retailers">
+      <div class="retailers-layout">
+        <div class="panel retailers-header">
+          <div class="panel-header">
+            <span class="panel-label">RETAILER CONFIGURATIONS</span>
+            <button class="ghost-btn" id="add-retailer-btn">+ ADD RETAILER</button>
+          </div>
+          <p class="panel-desc">
+            Preset loading heights and pallet specs per retailer.
+            Changes persist to <code>retailers.json</code> and load on next start.
+          </p>
+        </div>
+        <div class="retailers-grid" id="retailers-grid"></div>
+      </div>
+    </section>
+
+  </main>
+
+  <script src="/static/js/app.js"></script>
+</body>
+</html>
