@@ -138,6 +138,15 @@ def generate_positions(config: Dict) -> List[Dict]:
     return positions
 
 
+def pod_dimensions(positions: List[Dict]) -> tuple:
+    """Bounding box of all carton footprints (excludes pallet itself)."""
+    if not positions:
+        return 0.0, 0.0
+    max_x = max(c["x"] + c["w"] for c in positions)
+    max_y = max(c["y"] + c["h"] for c in positions)
+    return round(max_x, 3), round(max_y, 3)
+
+
 def arrangement_description(config: Optional[Dict], ti: int) -> str:
     if not config:
         return f"{ti} cartons"
@@ -190,6 +199,7 @@ def calculate(
 
     positions = generate_positions(config) if config else []
     desc = arrangement_description(config, ti)
+    p_len, p_wid = pod_dimensions(positions)
 
     return {
         "ti": ti,
@@ -199,6 +209,8 @@ def calculate(
         "efficiency": round(efficiency, 4),
         "pallet_length": pallet_l,
         "pallet_width": pallet_w,
+        "pod_length": p_len,
+        "pod_width": p_wid,
         "arrangement": positions,
         "arrangement_desc": desc,
         "double_stack": double_stack,
