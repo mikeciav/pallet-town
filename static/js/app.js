@@ -113,6 +113,7 @@ function setupCalculator() {
     document.getElementById(id).addEventListener('blur',  saveInlineRetailer);
   });
   document.getElementById('ie-ds').addEventListener('change', saveInlineRetailer);
+  document.getElementById('ie-nopallet').addEventListener('change', saveInlineRetailer);
 
   // Inline editor: collapse toggle
   document.getElementById('ie-toggle').addEventListener('click', () => {
@@ -132,6 +133,7 @@ async function saveInlineRetailer() {
     max_height:            parseFloat(document.getElementById('ie-maxh').value),
     max_pallets_per_floor: parseInt(document.getElementById('ie-pallets').value, 10),
     double_stack_allowed:  document.getElementById('ie-ds').checked,
+    no_pallet:             document.getElementById('ie-nopallet').checked,
   };
   if (!payload.name || isNaN(payload.max_height) || isNaN(payload.max_pallets_per_floor)) return;
   try {
@@ -156,10 +158,11 @@ function updateInfoBar() {
 
   if (!r) { editor.style.display = 'none'; return; }
 
-  document.getElementById('ie-name').value    = r.name;
-  document.getElementById('ie-maxh').value    = r.max_height;
-  document.getElementById('ie-pallets').value = r.max_pallets_per_floor ?? 26;
-  document.getElementById('ie-ds').checked    = r.double_stack_allowed;
+  document.getElementById('ie-name').value       = r.name;
+  document.getElementById('ie-maxh').value       = r.max_height;
+  document.getElementById('ie-pallets').value    = r.max_pallets_per_floor ?? 26;
+  document.getElementById('ie-ds').checked       = r.double_stack_allowed;
+  document.getElementById('ie-nopallet').checked = r.no_pallet ?? false;
   editor.style.display = 'block';
 }
 
@@ -169,7 +172,6 @@ async function doCalculate() {
   const h  = parseFloat(document.getElementById('c-h').value);
   const cp  = Math.max(1, parseInt(document.getElementById('c-cp').value, 10) || 1);
   const rid = document.getElementById('retailer-select').value;
-  const nop = document.getElementById('no-pallet').checked;
 
   if (!rid)                        { flashBtn('SELECT RETAILER'); return; }
   if (!l || !w || !h || l<=0 || w<=0 || h<=0) { flashBtn('CHECK DIMENSIONS'); return; }
@@ -182,7 +184,7 @@ async function doCalculate() {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ length: l, width: w, height: h, retailer_id: rid,
-                             exclude_pallet_height: nop, case_pack_qty: cp }),
+                             case_pack_qty: cp }),
     });
     const data = await res.json();
     if (!res.ok) { flashBtn(data.error || 'ERROR'); setStatus(data.error || 'Error', true); return; }
@@ -215,9 +217,9 @@ function renderResults(d) {
   document.getElementById('detail-strip').style.display = 'flex';
   document.getElementById('d-pattern').textContent    = d.arrangement_desc || '—';
   document.getElementById('d-efficiency').textContent = pct(d.efficiency);
-  const nop = document.getElementById('no-pallet').checked;
+  const r = retailerById(document.getElementById('retailer-select').value);
   document.getElementById('d-height').textContent =
-    `${d.stack_height}"${nop ? ' · no pallet' : ''}`;
+    `${d.stack_height}"${r?.no_pallet ? ' · no pallet' : ''}`;
   document.getElementById('d-pod-l').textContent = d.pod_length ? `${d.pod_length}"` : '—';
   document.getElementById('d-pod-w').textContent = d.pod_width  ? `${d.pod_width}"` : '—';
   document.getElementById('diagram-hint').textContent =
@@ -379,7 +381,6 @@ function parseCSV(text, filename) {
 
 async function doBulkCalc() {
   const rid = document.getElementById('bulk-retailer').value;
-  const nop = document.getElementById('bulk-no-pallet').checked;
   const cp  = Math.max(1, parseInt(document.getElementById('bulk-cp').value, 10) || 1);
 
   if (!rid)              { setBulkStatus('Select a retailer.', true); return; }
@@ -392,8 +393,7 @@ async function doBulkCalc() {
     const res  = await fetch(API.bulkCalc, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ cartons: bulkData, retailer_id: rid,
-                             exclude_pallet_height: nop, case_pack_qty: cp }),
+      body: JSON.stringify({ cartons: bulkData, retailer_id: rid, case_pack_qty: cp }),
     });
     bulkResults = await res.json();
     if (!res.ok) { setBulkStatus(bulkResults.error || 'Error', true); return; }
@@ -473,6 +473,13 @@ function cardHTML(r) {
           <span class="toggle-text">Double Stack Allowed</span>
         </label>
       </div>
+      <div class="r-field r-field-full" style="margin-top:4px">
+        <label class="toggle-label">
+          <input type="checkbox" id="r-np-${r.id}" class="toggle-input" ${r.no_pallet ? 'checked' : ''}>
+          <span class="toggle-track"><span class="toggle-thumb"></span></span>
+          <span class="toggle-text">No Pallet (DI)</span>
+        </label>
+      </div>
     </div>
   </div>`;
 }
@@ -486,6 +493,7 @@ function bindCardAutoSave(id) {
   document.getElementById(`r-pf-${id}`).addEventListener('input',  save);
   document.getElementById(`r-pf-${id}`).addEventListener('blur',   () => saveCardRetailer(id));
   document.getElementById(`r-ds-${id}`).addEventListener('change', () => saveCardRetailer(id));
+  document.getElementById(`r-np-${id}`).addEventListener('change', () => saveCardRetailer(id));
 }
 
 async function saveCardRetailer(id) {
@@ -494,6 +502,7 @@ async function saveCardRetailer(id) {
     max_height:            parseFloat(document.getElementById(`r-mh-${id}`).value),
     max_pallets_per_floor: parseInt(document.getElementById(`r-pf-${id}`).value, 10),
     double_stack_allowed:  document.getElementById(`r-ds-${id}`).checked,
+    no_pallet:             document.getElementById(`r-np-${id}`).checked,
   };
   if (!payload.name || isNaN(payload.max_height) || isNaN(payload.max_pallets_per_floor)) return;
   try {
