@@ -15,21 +15,21 @@ PALLET_W = 40.0
 PALLET_H = 5.5
 
 DEFAULT_RETAILERS = [
-    {"id": 1,  "name": "Walmart",        "max_height": 60, "double_stack_allowed": False},
-    {"id": 2,  "name": "Target",         "max_height": 60, "double_stack_allowed": False},
-    {"id": 3,  "name": "Costco",         "max_height": 58, "double_stack_allowed": True},
-    {"id": 4,  "name": "Amazon",         "max_height": 50, "double_stack_allowed": True},
-    {"id": 5,  "name": "Home Depot",     "max_height": 60, "double_stack_allowed": False},
-    {"id": 6,  "name": "Lowe's",         "max_height": 60, "double_stack_allowed": False},
-    {"id": 7,  "name": "Kroger",         "max_height": 60, "double_stack_allowed": False},
-    {"id": 8,  "name": "Sam's Club",     "max_height": 60, "double_stack_allowed": True},
-    {"id": 9,  "name": "Dollar General", "max_height": 57, "double_stack_allowed": False},
-    {"id": 10, "name": "Dollar Tree",    "max_height": 57, "double_stack_allowed": False},
-    {"id": 11, "name": "Walgreens",      "max_height": 60, "double_stack_allowed": False},
-    {"id": 12, "name": "CVS",            "max_height": 60, "double_stack_allowed": False},
-    {"id": 13, "name": "Best Buy",       "max_height": 60, "double_stack_allowed": False},
-    {"id": 14, "name": "Whole Foods",    "max_height": 60, "double_stack_allowed": False},
-    {"id": 15, "name": "BJ's Wholesale", "max_height": 60, "double_stack_allowed": True},
+    {"id": 1,  "name": "Walmart",        "max_height": 60, "double_stack_allowed": False, "max_pallets_per_floor": 26},
+    {"id": 2,  "name": "Target",         "max_height": 60, "double_stack_allowed": False, "max_pallets_per_floor": 26},
+    {"id": 3,  "name": "Costco",         "max_height": 58, "double_stack_allowed": True,  "max_pallets_per_floor": 26},
+    {"id": 4,  "name": "Amazon",         "max_height": 50, "double_stack_allowed": True,  "max_pallets_per_floor": 26},
+    {"id": 5,  "name": "Home Depot",     "max_height": 60, "double_stack_allowed": False, "max_pallets_per_floor": 26},
+    {"id": 6,  "name": "Lowe's",         "max_height": 60, "double_stack_allowed": False, "max_pallets_per_floor": 26},
+    {"id": 7,  "name": "Kroger",         "max_height": 60, "double_stack_allowed": False, "max_pallets_per_floor": 26},
+    {"id": 8,  "name": "Sam's Club",     "max_height": 60, "double_stack_allowed": True,  "max_pallets_per_floor": 26},
+    {"id": 9,  "name": "Dollar General", "max_height": 57, "double_stack_allowed": False, "max_pallets_per_floor": 26},
+    {"id": 10, "name": "Dollar Tree",    "max_height": 57, "double_stack_allowed": False, "max_pallets_per_floor": 26},
+    {"id": 11, "name": "Walgreens",      "max_height": 60, "double_stack_allowed": False, "max_pallets_per_floor": 26},
+    {"id": 12, "name": "CVS",            "max_height": 60, "double_stack_allowed": False, "max_pallets_per_floor": 26},
+    {"id": 13, "name": "Best Buy",       "max_height": 60, "double_stack_allowed": False, "max_pallets_per_floor": 26},
+    {"id": 14, "name": "Whole Foods",    "max_height": 60, "double_stack_allowed": False, "max_pallets_per_floor": 26},
+    {"id": 15, "name": "BJ's Wholesale", "max_height": 60, "double_stack_allowed": True,  "max_pallets_per_floor": 26},
 ]
 
 
@@ -48,10 +48,12 @@ def save_retailers(retailers) -> None:
 def _parse_retailer_body(data: dict, base=None) -> dict:
     base = base or {}
     return {
-        "name":                 str(data.get("name", base.get("name", "Retailer"))),
-        "max_height":           float(data.get("max_height", base.get("max_height", 60))),
-        "double_stack_allowed": bool(data.get("double_stack_allowed",
-                                              base.get("double_stack_allowed", False))),
+        "name":                  str(data.get("name", base.get("name", "Retailer"))),
+        "max_height":            float(data.get("max_height", base.get("max_height", 60))),
+        "double_stack_allowed":  bool(data.get("double_stack_allowed",
+                                               base.get("double_stack_allowed", False))),
+        "max_pallets_per_floor": int(data.get("max_pallets_per_floor",
+                                              base.get("max_pallets_per_floor", 26))),
     }
 
 
@@ -115,7 +117,8 @@ def api_calculate():
     if not retailer:
         return jsonify({"error": "Retailer not found"}), 404
 
-    exclude_pallet = bool(data.get("exclude_pallet_height", False))
+    exclude_pallet  = bool(data.get("exclude_pallet_height", False))
+    case_pack_qty   = max(1, int(data.get("case_pack_qty", 1)))
     result = calculate(
         carton_l=carton_l,
         carton_w=carton_w,
@@ -126,6 +129,13 @@ def api_calculate():
         pallet_h=0.0 if exclude_pallet else PALLET_H,
         double_stack=bool(data.get("double_stack", False)),
     )
+    stack_mult = 2 if retailer["double_stack_allowed"] else 1
+    result["truckload_qty"] = (
+        case_pack_qty * result["total"] * retailer["max_pallets_per_floor"] * stack_mult
+    )
+    result["case_pack_qty"]        = case_pack_qty
+    result["max_pallets_per_floor"] = retailer["max_pallets_per_floor"]
+    result["stack_multiplier"]      = stack_mult
     return jsonify(result)
 
 
@@ -144,6 +154,8 @@ def api_calculate_bulk():
 
     double_stack    = bool(data.get("double_stack", False))
     exclude_pallet  = bool(data.get("exclude_pallet_height", False))
+    stack_mult      = 2 if retailer["double_stack_allowed"] else 1
+    max_pallets     = retailer["max_pallets_per_floor"]
     results = []
     for carton in cartons:
         try:
@@ -155,6 +167,7 @@ def api_calculate_bulk():
         if l <= 0 or w <= 0 or h <= 0:
             continue
 
+        case_pack_qty = max(1, int(carton.get("case_pack_qty", data.get("case_pack_qty", 1))))
         r = calculate(
             carton_l=l, carton_w=w, carton_h=h,
             max_height=retailer["max_height"],
@@ -163,6 +176,10 @@ def api_calculate_bulk():
             pallet_h=0.0 if exclude_pallet else PALLET_H,
             double_stack=double_stack,
         )
+        r["truckload_qty"]        = case_pack_qty * r["total"] * max_pallets * stack_mult
+        r["case_pack_qty"]        = case_pack_qty
+        r["max_pallets_per_floor"] = max_pallets
+        r["stack_multiplier"]      = stack_mult
         results.append({
             "sku": str(carton.get("sku", "")),
             "length": l, "width": w, "height": h,

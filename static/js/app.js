@@ -88,9 +88,10 @@ function setupCalculator() {
     const rid = document.getElementById('retailer-select').value;
     if (!rid) return;
     const payload = {
-      name:                 document.getElementById('ie-name').value.trim(),
-      max_height:           parseFloat(document.getElementById('ie-maxh').value),
-      double_stack_allowed: document.getElementById('ie-ds').checked,
+      name:                  document.getElementById('ie-name').value.trim(),
+      max_height:            parseFloat(document.getElementById('ie-maxh').value),
+      max_pallets_per_floor: parseInt(document.getElementById('ie-pallets').value, 10),
+      double_stack_allowed:  document.getElementById('ie-ds').checked,
     };
     if (!payload.name || isNaN(payload.max_height)) return;
     try {
@@ -134,7 +135,8 @@ function updateInfoBar() {
     return;
   }
 
-  document.getElementById('info-maxh').textContent = `${r.max_height}"`;
+  document.getElementById('info-maxh').textContent    = `${r.max_height}"`;
+  document.getElementById('info-pallets').textContent = r.max_pallets_per_floor ?? '—';
   const dsEl = document.getElementById('info-ds');
   if (r.double_stack_allowed) {
     dsEl.textContent = 'Allowed'; dsEl.className = 'chip-val allowed';
@@ -144,9 +146,10 @@ function updateInfoBar() {
   }
 
   // Populate inline editor
-  document.getElementById('ie-name').value  = r.name;
-  document.getElementById('ie-maxh').value  = r.max_height;
-  document.getElementById('ie-ds').checked  = r.double_stack_allowed;
+  document.getElementById('ie-name').value    = r.name;
+  document.getElementById('ie-maxh').value    = r.max_height;
+  document.getElementById('ie-pallets').value = r.max_pallets_per_floor ?? 26;
+  document.getElementById('ie-ds').checked    = r.double_stack_allowed;
   editor.style.display = 'block';
   document.getElementById('ie-save-btn').classList.remove('saved');
   document.getElementById('ie-save-btn').textContent = 'SAVE';
@@ -156,6 +159,7 @@ async function doCalculate() {
   const l  = parseFloat(document.getElementById('c-l').value);
   const w  = parseFloat(document.getElementById('c-w').value);
   const h  = parseFloat(document.getElementById('c-h').value);
+  const cp  = Math.max(1, parseInt(document.getElementById('c-cp').value, 10) || 1);
   const rid = document.getElementById('retailer-select').value;
   const ds  = document.getElementById('double-stack').checked;
   const nop = document.getElementById('no-pallet').checked;
@@ -171,7 +175,8 @@ async function doCalculate() {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ length: l, width: w, height: h, retailer_id: rid,
-                             double_stack: ds, exclude_pallet_height: nop }),
+                             double_stack: ds, exclude_pallet_height: nop,
+                             case_pack_qty: cp }),
     });
     const data = await res.json();
     if (!res.ok) { flashBtn(data.error || 'ERROR'); setStatus(data.error || 'Error', true); return; }
@@ -190,9 +195,16 @@ function renderResults(d) {
   setMetric('val-hi',    d.hi,    'mc-hi');
   setMetric('val-total', d.total, 'mc-total');
 
+  // Truckload
+  setMetric('val-tl', d.truckload_qty.toLocaleString(), 'mc-tl');
+  const fmParts = [d.case_pack_qty, d.total, d.max_pallets_per_floor];
+  if (d.stack_multiplier > 1) fmParts.push(d.stack_multiplier);
+  document.getElementById('tl-formula').textContent =
+    fmParts.join(' × ') + ' = ' + d.truckload_qty.toLocaleString() + ' units';
+
   const r = retailerById(document.getElementById('retailer-select').value);
   document.getElementById('results-meta').textContent =
-    r ? `${r.pallet_length}" × ${r.pallet_width}" · ${r.name}` : '';
+    r ? `${r.max_pallets_per_floor} pallets · ${r.name}` : '';
 
   document.getElementById('detail-strip').style.display = 'flex';
   document.getElementById('d-pattern').textContent    = d.arrangement_desc || '—';
@@ -363,6 +375,7 @@ async function doBulkCalc() {
   const rid = document.getElementById('bulk-retailer').value;
   const ds  = document.getElementById('bulk-ds').checked;
   const nop = document.getElementById('bulk-no-pallet').checked;
+  const cp  = Math.max(1, parseInt(document.getElementById('bulk-cp').value, 10) || 1);
 
   if (!rid)              { setBulkStatus('Select a retailer.', true); return; }
   if (!bulkData.length)  { setBulkStatus('Upload a CSV first.', true); return; }
@@ -375,7 +388,7 @@ async function doBulkCalc() {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ cartons: bulkData, retailer_id: rid, double_stack: ds,
-                             exclude_pallet_height: nop }),
+                             exclude_pallet_height: nop, case_pack_qty: cp }),
     });
     bulkResults = await res.json();
     if (!res.ok) { setBulkStatus(bulkResults.error || 'Error', true); return; }
@@ -398,9 +411,11 @@ function renderBulkTable(rows) {
     return `<tr>
       <td>${esc(r.sku)}</td>
       <td>${r.length}" × ${r.width}" × ${r.height}"</td>
+      <td>${r.case_pack_qty}</td>
       <td class="td-ti">${r.ti}</td>
       <td class="td-hi">${r.hi}</td>
       <td class="td-total">${r.total}</td>
+      <td class="td-tl">${r.truckload_qty.toLocaleString()}</td>
       <td>${r.pod_length}" × ${r.pod_width}"</td>
       <td>${esc(r.arrangement_desc || '—')}</td>
       <td><span class="eff-badge ${cls}">${e}%</span></td>
@@ -410,9 +425,9 @@ function renderBulkTable(rows) {
 
 function exportResults() {
   if (!bulkResults.length) return;
-  const head = 'SKU,Length,Width,Height,Ti,Hi,Total,Pod Length,Pod Width,Pattern,Efficiency\n';
+  const head = 'SKU,Length,Width,Height,Case Pack,Ti,Hi,Total,Truckload,Pod Length,Pod Width,Pattern,Efficiency\n';
   const body = bulkResults.map(r =>
-    `${r.sku},${r.length},${r.width},${r.height},${r.ti},${r.hi},${r.total},${r.pod_length},${r.pod_width},"${(r.arrangement_desc || '').replace(/"/g, '""')}",${Math.round(r.efficiency * 100)}%`
+    `${r.sku},${r.length},${r.width},${r.height},${r.case_pack_qty},${r.ti},${r.hi},${r.total},${r.truckload_qty},${r.pod_length},${r.pod_width},"${(r.arrangement_desc || '').replace(/"/g, '""')}",${Math.round(r.efficiency * 100)}%`
   ).join('\n');
   dlString(head + body, 'pallet-results.csv', 'text/csv');
 }
@@ -440,9 +455,13 @@ function cardHTML(r, editing = false) {
         </div>
       </div>
       <div class="r-fields">
-        <div class="r-field r-field-full">
+        <div class="r-field">
           <span class="r-field-label">MAX HEIGHT (in)</span>
           <input class="r-input" type="number" id="e-mh-${r.id}" value="${r.max_height}" step="0.5">
+        </div>
+        <div class="r-field">
+          <span class="r-field-label">PALLETS / FLOOR</span>
+          <input class="r-input" type="number" id="e-pf-${r.id}" value="${r.max_pallets_per_floor ?? 26}" step="1" min="1">
         </div>
         <div class="r-field r-field-full" style="margin-top:4px">
           <label class="toggle-label">
@@ -472,6 +491,10 @@ function cardHTML(r, editing = false) {
         <span class="r-field-val">${r.max_height}"</span>
       </div>
       <div class="r-field">
+        <span class="r-field-label">PALLETS / FLOOR</span>
+        <span class="r-field-val">${r.max_pallets_per_floor ?? '—'}</span>
+      </div>
+      <div class="r-field">
         <span class="r-field-label">DOUBLE STACK</span>
         <span class="r-field-val ${dsCls}">${dsText}</span>
       </div>
@@ -490,9 +513,10 @@ function startEdit(id) {
 
 async function saveRetailer(id) {
   const payload = {
-    name:                 document.getElementById(`e-name-${id}`).value,
-    max_height:           parseFloat(document.getElementById(`e-mh-${id}`).value),
-    double_stack_allowed: document.getElementById(`e-ds-${id}`).checked,
+    name:                  document.getElementById(`e-name-${id}`).value,
+    max_height:            parseFloat(document.getElementById(`e-mh-${id}`).value),
+    max_pallets_per_floor: parseInt(document.getElementById(`e-pf-${id}`).value, 10),
+    double_stack_allowed:  document.getElementById(`e-ds-${id}`).checked,
   };
   try {
     const res = await fetch(API.retailer(id), {
