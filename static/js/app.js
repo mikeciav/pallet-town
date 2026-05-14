@@ -128,24 +128,10 @@ function updateInfoBar() {
   const editor = document.getElementById('inline-editor');
 
   if (!r) {
-    document.getElementById('info-maxh').textContent = '—';
-    document.getElementById('info-ds').textContent   = '—';
-    document.getElementById('info-ds').className     = 'chip-val';
     editor.style.display = 'none';
     return;
   }
 
-  document.getElementById('info-maxh').textContent    = `${r.max_height}"`;
-  document.getElementById('info-pallets').textContent = r.max_pallets_per_floor ?? '—';
-  const dsEl = document.getElementById('info-ds');
-  if (r.double_stack_allowed) {
-    dsEl.textContent = 'Allowed'; dsEl.className = 'chip-val allowed';
-    document.getElementById('double-stack').checked = true;
-  } else {
-    dsEl.textContent = 'No'; dsEl.className = 'chip-val denied';
-  }
-
-  // Populate inline editor
   document.getElementById('ie-name').value    = r.name;
   document.getElementById('ie-maxh').value    = r.max_height;
   document.getElementById('ie-pallets').value = r.max_pallets_per_floor ?? 26;
@@ -161,7 +147,6 @@ async function doCalculate() {
   const h  = parseFloat(document.getElementById('c-h').value);
   const cp  = Math.max(1, parseInt(document.getElementById('c-cp').value, 10) || 1);
   const rid = document.getElementById('retailer-select').value;
-  const ds  = document.getElementById('double-stack').checked;
   const nop = document.getElementById('no-pallet').checked;
 
   if (!rid)                        { flashBtn('SELECT RETAILER'); return; }
@@ -175,7 +160,7 @@ async function doCalculate() {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ length: l, width: w, height: h, retailer_id: rid,
-                             double_stack: ds, exclude_pallet_height: nop, case_pack_qty: cp }),
+                             exclude_pallet_height: nop, case_pack_qty: cp }),
     });
     const data = await res.json();
     if (!res.ok) { flashBtn(data.error || 'ERROR'); setStatus(data.error || 'Error', true); return; }
@@ -372,7 +357,6 @@ function parseCSV(text, filename) {
 
 async function doBulkCalc() {
   const rid = document.getElementById('bulk-retailer').value;
-  const ds  = document.getElementById('bulk-ds').checked;
   const nop = document.getElementById('bulk-no-pallet').checked;
   const cp  = Math.max(1, parseInt(document.getElementById('bulk-cp').value, 10) || 1);
 
@@ -387,7 +371,7 @@ async function doBulkCalc() {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ cartons: bulkData, retailer_id: rid,
-                             double_stack: ds, exclude_pallet_height: nop, case_pack_qty: cp }),
+                             exclude_pallet_height: nop, case_pack_qty: cp }),
     });
     bulkResults = await res.json();
     if (!res.ok) { setBulkStatus(bulkResults.error || 'Error', true); return; }
