@@ -118,6 +118,7 @@ def api_calculate():
         return jsonify({"error": "Retailer not found"}), 404
 
     exclude_pallet  = bool(data.get("exclude_pallet_height", False))
+    double_stack    = bool(data.get("double_stack", False))
     case_pack_qty   = max(1, int(data.get("case_pack_qty", 1)))
     result = calculate(
         carton_l=carton_l,
@@ -127,9 +128,8 @@ def api_calculate():
         pallet_l=PALLET_L,
         pallet_w=PALLET_W,
         pallet_h=0.0 if exclude_pallet else PALLET_H,
-        double_stack=bool(data.get("double_stack", False)),
     )
-    stack_mult = 2 if retailer["double_stack_allowed"] else 1
+    stack_mult = 2 if (retailer["double_stack_allowed"] or double_stack) else 1
     result["truckload_qty"] = (
         case_pack_qty * result["total"] * retailer["max_pallets_per_floor"] * stack_mult
     )
@@ -152,9 +152,9 @@ def api_calculate_bulk():
     if not cartons:
         return jsonify({"error": "No cartons provided"}), 400
 
-    double_stack    = bool(data.get("double_stack", False))
     exclude_pallet  = bool(data.get("exclude_pallet_height", False))
-    stack_mult      = 2 if retailer["double_stack_allowed"] else 1
+    double_stack    = bool(data.get("double_stack", False))
+    stack_mult      = 2 if (retailer["double_stack_allowed"] or double_stack) else 1
     max_pallets     = retailer["max_pallets_per_floor"]
     results = []
     for carton in cartons:
@@ -174,7 +174,6 @@ def api_calculate_bulk():
             pallet_l=PALLET_L,
             pallet_w=PALLET_W,
             pallet_h=0.0 if exclude_pallet else PALLET_H,
-            double_stack=double_stack,
         )
         r["truckload_qty"]        = case_pack_qty * r["total"] * max_pallets * stack_mult
         r["case_pack_qty"]        = case_pack_qty

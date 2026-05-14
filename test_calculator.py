@@ -88,13 +88,12 @@ class TestHi:
         r = calculate(12, 8, 10, 60, PL, PW, PH)
         assert r['hi'] == 5
 
-    def test_double_stack_doubles_available_height(self):
-        r_s = calculate(12, 8, 6, 60, PL, PW, PH, double_stack=False)
-        r_d = calculate(12, 8, 6, 60, PL, PW, PH, double_stack=True)
-        # single avail=54.5 → 9 layers; double avail=109 → 18 layers
-        assert r_s['hi'] == 9
-        assert r_d['hi'] == 18
-        assert r_d['available_height'] == pytest.approx(2 * r_s['available_height'])
+    def test_hi_never_affected_by_stacking(self):
+        # Hi is always single-pallet only; stacking is a truckload-level concern
+        r = calculate(12, 8, 6, 60, PL, PW, PH)
+        # avail = 60 - 5.5 = 54.5 → floor(54.5/6) = 9, always
+        assert r['hi'] == 9
+        assert r['available_height'] == pytest.approx(54.5)
 
     def test_no_pallet_excludes_pallet_height(self):
         # Passing pallet_h=0 simulates the "No Pallet (DI)" toggle

@@ -175,8 +175,7 @@ async function doCalculate() {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ length: l, width: w, height: h, retailer_id: rid,
-                             double_stack: ds, exclude_pallet_height: nop,
-                             case_pack_qty: cp }),
+                             double_stack: ds, exclude_pallet_height: nop, case_pack_qty: cp }),
     });
     const data = await res.json();
     if (!res.ok) { flashBtn(data.error || 'ERROR'); setStatus(data.error || 'Error', true); return; }
@@ -211,7 +210,7 @@ function renderResults(d) {
   document.getElementById('d-efficiency').textContent = pct(d.efficiency);
   const nop = document.getElementById('no-pallet').checked;
   document.getElementById('d-height').textContent =
-    `${d.stack_height}"${d.double_stack ? ' (×2 stacked)' : ''}${nop ? ' · no pallet' : ''}`;
+    `${d.stack_height}"${nop ? ' · no pallet' : ''}`;
   document.getElementById('d-pod-l').textContent = d.pod_length ? `${d.pod_length}"` : '—';
   document.getElementById('d-pod-w').textContent = d.pod_width  ? `${d.pod_width}"` : '—';
   document.getElementById('diagram-hint').textContent =
@@ -387,8 +386,8 @@ async function doBulkCalc() {
     const res  = await fetch(API.bulkCalc, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ cartons: bulkData, retailer_id: rid, double_stack: ds,
-                             exclude_pallet_height: nop, case_pack_qty: cp }),
+      body: JSON.stringify({ cartons: bulkData, retailer_id: rid,
+                             double_stack: ds, exclude_pallet_height: nop, case_pack_qty: cp }),
     });
     bulkResults = await res.json();
     if (!res.ok) { setBulkStatus(bulkResults.error || 'Error', true); return; }

@@ -173,21 +173,18 @@ def calculate(
     pallet_l: float,
     pallet_w: float,
     pallet_h: float,
-    double_stack: bool = False,
 ) -> dict:
     """
     Full pallet calculation.
 
-    double_stack=True means two identical pallets will be stacked in transit,
-    doubling the total available carton height (each pallet contributes
-    max_height - pallet_h of carton space).
+    max_height is the maximum height of a single loaded pallet including the
+    pallet board itself. Hi is always based on one pallet — stacking is a
+    truckload-level concern handled outside this function.
     """
     ti, config = find_optimal_arrangement(carton_l, carton_w, pallet_l, pallet_w)
 
     carton_h_safe = max(carton_h, 0.01)
     available_h = max_height - pallet_h
-    if double_stack:
-        available_h = 2 * (max_height - pallet_h)
 
     hi = max(0, int(available_h / carton_h_safe))
     total = ti * hi
@@ -213,6 +210,5 @@ def calculate(
         "pod_width": p_wid,
         "arrangement": positions,
         "arrangement_desc": desc,
-        "double_stack": double_stack,
         "available_height": round(available_h, 2),
     }
