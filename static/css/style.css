@@ -31,8 +31,8 @@
   --red:          #f05252;
 
   --text:         #e4eaf4;
-  --text-dim:     #7a8faa;
-  --text-muted:   #3d5068;
+  --text-dim:     #a0b4cc;   /* secondary text — nav, descriptions */
+  --text-muted:   #7a95b0;   /* labels, hints, sub-text */
 
   --font-display: 'Chakra Petch', sans-serif;
   --font-mono:    'JetBrains Mono', monospace;
@@ -116,11 +116,11 @@ body::before {
 
 .logo-text { display: flex; flex-direction: column; line-height: 1.1; }
 .logo-primary  { font-family: var(--font-display); font-weight: 700; font-size: 12px; letter-spacing: .1em; }
-.logo-secondary{ font-family: var(--font-display); font-weight: 400; font-size: 9px;  letter-spacing: .18em; color: var(--text-dim); }
+.logo-secondary{ font-family: var(--font-display); font-weight: 400; font-size: 10px; letter-spacing: .18em; color: var(--text-dim); }
 
 .version-tag {
   font-family: var(--font-mono);
-  font-size: 9px;
+  font-size: 10px;
   color: var(--text-muted);
   border: 1px solid var(--border);
   padding: 2px 5px;
@@ -134,7 +134,7 @@ body::before {
   width: 100%; padding: 8px 10px;
   background: none; border: 1px solid transparent; border-radius: var(--r);
   color: var(--text-dim);
-  font-family: var(--font-display); font-size: 11px; font-weight: 500; letter-spacing: .07em;
+  font-family: var(--font-display); font-size: 12px; font-weight: 500; letter-spacing: .07em;
   cursor: pointer; transition: all .14s; margin-bottom: 2px; text-align: left;
 }
 
@@ -155,7 +155,7 @@ body::before {
 }
 
 .std-pallet { display: flex; flex-direction: column; gap: 2px; }
-.std-label  { font-family: var(--font-mono); font-size: 8px; letter-spacing: .12em; color: var(--text-muted); }
+.std-label  { font-family: var(--font-mono); font-size: 10px; letter-spacing: .1em; color: var(--text-muted); }
 .std-value  { font-family: var(--font-mono); font-size: 13px; font-weight: 500; color: var(--cyan); }
 
 /* ── Topbar ────────────────────────────────────────────────── */
@@ -170,13 +170,13 @@ body::before {
 
 .topbar-title {
   font-family: var(--font-display);
-  font-size: 11px; font-weight: 600; letter-spacing: .14em;
+  font-size: 12px; font-weight: 600; letter-spacing: .12em;
   color: var(--text);
 }
 
 .status-pill {
   display: flex; align-items: center; gap: 6px;
-  font-family: var(--font-mono); font-size: 10px; color: var(--text-dim);
+  font-family: var(--font-mono); font-size: 11px; color: var(--text-dim);
 }
 
 .status-dot {
@@ -205,8 +205,8 @@ body::before {
   margin-bottom: 14px;
 }
 
-.panel-label { font-family: var(--font-display); font-size: 9px; font-weight: 600; letter-spacing: .16em; color: var(--text-dim); }
-.panel-hint  { font-family: var(--font-mono); font-size: 9px; color: var(--text-muted); }
+.panel-label { font-family: var(--font-display); font-size: 10px; font-weight: 600; letter-spacing: .14em; color: var(--text-dim); }
+.panel-hint  { font-family: var(--font-mono); font-size: 10px; color: var(--text-muted); }
 .panel-desc  { font-size: 13px; color: var(--text-dim); line-height: 1.65; }
 .panel-desc code { font-family: var(--font-mono); font-size: 11px; color: var(--cyan); }
 
@@ -230,7 +230,7 @@ body::before {
 
 .field-label {
   font-family: var(--font-display);
-  font-size: 8px; font-weight: 600; letter-spacing: .16em;
+  font-size: 10px; font-weight: 600; letter-spacing: .12em;
   color: var(--text-muted);
 }
 
@@ -257,7 +257,7 @@ body::before {
 
 .field-unit {
   position: absolute; right: 7px;
-  font-family: var(--font-mono); font-size: 8px; color: var(--text-muted);
+  font-family: var(--font-mono); font-size: 10px; color: var(--text-muted);
   pointer-events: none;
 }
 
@@ -294,7 +294,7 @@ body::before {
   display: flex; flex-direction: column; gap: 3px;
 }
 
-.chip-label { font-family: var(--font-mono); font-size: 7px; letter-spacing: .1em; color: var(--text-muted); }
+.chip-label { font-family: var(--font-mono); font-size: 9px; letter-spacing: .08em; color: var(--text-muted); }
 .chip-val   { font-family: var(--font-mono); font-size: 12px; font-weight: 500; color: var(--cyan); }
 .chip-val.allowed { color: var(--green); }
 .chip-val.denied  { color: var(--text-muted); }
@@ -332,7 +332,7 @@ body::before {
   background: var(--amber);
 }
 
-.toggle-text { font-family: var(--font-display); font-size: 11px; letter-spacing: .05em; color: var(--text-dim); }
+.toggle-text { font-family: var(--font-display); font-size: 12px; letter-spacing: .04em; color: var(--text-dim); }
 
 /* Button */
 .pt-btn {
@@ -341,7 +341,7 @@ body::before {
   background: var(--amber);
   border: none; border-radius: var(--r);
   color: #0d1119;
-  font-family: var(--font-display); font-size: 11px; font-weight: 700; letter-spacing: .15em;
+  font-family: var(--font-display); font-size: 12px; font-weight: 700; letter-spacing: .12em;
   padding: 12px 18px;
   cursor: pointer;
   transition: filter .14s, transform .1s;
@@ -359,7 +359,7 @@ body::before {
   overflow: hidden;
 }
 
-.results-meta { font-family: var(--font-mono); font-size: 9px; color: var(--text-muted); }
+.results-meta { font-family: var(--font-mono); font-size: 11px; color: var(--text-muted); }
 
 .metrics-grid {
   display: grid;
@@ -399,16 +399,16 @@ body::before {
   color: var(--green); line-height: 1; flex-shrink: 0;
 }
 .metric-card--tl.lit::after { background: var(--green); }
-.metric-card--tl .metric-sub { font-size: 7px; color: var(--text-muted); }
+.metric-card--tl .metric-sub { font-size: 9px; color: var(--text-muted); }
 .tl-formula {
-  font-family: var(--font-mono); font-size: 9px; color: var(--text-muted);
+  font-family: var(--font-mono); font-size: 11px; color: var(--text-muted);
   margin-left: auto; text-align: right; line-height: 1.6;
 }
 
-.metric-label { font-family: var(--font-display); font-size: 9px; font-weight: 600; letter-spacing: .1em; color: var(--text-muted); margin-bottom: 6px; }
+.metric-label { font-family: var(--font-display); font-size: 10px; font-weight: 600; letter-spacing: .08em; color: var(--text-muted); margin-bottom: 6px; }
 .metric-val    { font-family: var(--font-mono); font-size: 28px; font-weight: 700; color: var(--amber); line-height: 1; margin-bottom: 5px; }
 .metric-val--xl { font-size: 36px; color: var(--cyan); }
-.metric-sub    { font-family: var(--font-mono); font-size: 7px; letter-spacing: .08em; color: var(--text-muted); }
+.metric-sub    { font-family: var(--font-mono); font-size: 9px; letter-spacing: .06em; color: var(--text-muted); }
 
 @keyframes pop-in {
   from { transform: translateY(6px); opacity: 0; }
@@ -444,7 +444,7 @@ body::before {
   padding: 7px 10px;
   display: flex; flex-direction: column; gap: 3px;
 }
-.detail-label { font-family: var(--font-mono); font-size: 8px; letter-spacing: .1em; color: var(--text-muted); }
+.detail-label { font-family: var(--font-mono); font-size: 10px; letter-spacing: .06em; color: var(--text-muted); }
 .detail-val   { font-family: var(--font-mono); font-size: 12px; color: var(--text); }
 
 /* ── Bulk layout ───────────────────────────────────────────── */
@@ -479,7 +479,7 @@ body::before {
 .drop-icon svg { width: 100%; height: 100%; }
 
 .drop-text  { font-family: var(--font-display); font-size: 12px; letter-spacing: .04em; color: var(--text-dim); }
-.drop-hint  { font-family: var(--font-mono); font-size: 9px; color: var(--text-muted); }
+.drop-hint  { font-family: var(--font-mono); font-size: 11px; color: var(--text-muted); }
 .file-link  { color: var(--amber); cursor: pointer; text-decoration: underline; }
 
 .bulk-status {
@@ -506,7 +506,7 @@ body::before {
 
 .data-table { width: 100%; border-collapse: collapse; font-family: var(--font-mono); font-size: 12px; }
 .data-table th {
-  font-family: var(--font-display); font-size: 8px; font-weight: 600; letter-spacing: .14em;
+  font-family: var(--font-display); font-size: 10px; font-weight: 600; letter-spacing: .1em;
   color: var(--text-muted); padding: 7px 10px; text-align: left;
   border-bottom: 1px solid var(--border);
   position: sticky; top: 0; background: var(--bg-card);
@@ -530,7 +530,7 @@ body::before {
 .ghost-btn {
   background: none; border: 1px solid var(--border-hi); border-radius: var(--r);
   color: var(--text-dim);
-  font-family: var(--font-display); font-size: 9px; font-weight: 600; letter-spacing: .1em;
+  font-family: var(--font-display); font-size: 10px; font-weight: 600; letter-spacing: .08em;
   padding: 5px 11px; cursor: pointer; transition: all .14s;
 }
 .ghost-btn:hover { border-color: var(--amber-dark); color: var(--amber); background: var(--amber-glow); }
@@ -554,7 +554,7 @@ body::before {
 
 .ie-toggle {
   background: none; border: none;
-  color: var(--text-muted); font-size: 9px;
+  color: var(--text-muted); font-size: 11px;
   cursor: pointer; padding: 2px 4px;
   transition: color .14s;
   line-height: 1;
@@ -630,7 +630,7 @@ body::before {
 .r-btn {
   background: none; border: 1px solid var(--border); border-radius: var(--r);
   color: var(--text-muted);
-  font-family: var(--font-display); font-size: 8px; font-weight: 600; letter-spacing: .1em;
+  font-family: var(--font-display); font-size: 10px; font-weight: 600; letter-spacing: .08em;
   padding: 3px 8px; cursor: pointer; transition: all .14s;
 }
 .r-btn:hover { border-color: var(--amber-dark); color: var(--amber); }
@@ -645,7 +645,7 @@ body::before {
 .r-field { display: flex; flex-direction: column; gap: 3px; }
 .r-field-full { grid-column: 1 / -1; }
 
-.r-field-label { font-family: var(--font-mono); font-size: 7px; letter-spacing: .1em; color: var(--text-muted); }
+.r-field-label { font-family: var(--font-mono); font-size: 10px; letter-spacing: .06em; color: var(--text-muted); }
 .r-field-val   { font-family: var(--font-mono); font-size: 13px; font-weight: 500; color: var(--cyan); }
 .r-field-val.yes  { color: var(--green); }
 .r-field-val.no   { color: var(--text-muted); }
