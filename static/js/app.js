@@ -217,7 +217,6 @@ function renderResults(d) {
   document.getElementById('detail-strip').style.display = 'flex';
   document.getElementById('d-pattern').textContent    = d.arrangement_desc || '—';
   document.getElementById('d-efficiency').textContent = pct(d.efficiency);
-  const r = retailerById(document.getElementById('retailer-select').value);
   document.getElementById('d-height').textContent =
     `${d.stack_height}"${r?.no_pallet ? ' · no pallet' : ''}`;
   document.getElementById('d-pod-l').textContent = d.pod_length ? `${d.pod_length}"` : '—';
