@@ -200,6 +200,8 @@ function renderResults(d) {
   const nop = document.getElementById('no-pallet').checked;
   document.getElementById('d-height').textContent =
     `${d.stack_height}"${d.double_stack ? ' (×2 stacked)' : ''}${nop ? ' · no pallet' : ''}`;
+  document.getElementById('d-pod-l').textContent = d.pod_length ? `${d.pod_length}"` : '—';
+  document.getElementById('d-pod-w').textContent = d.pod_width  ? `${d.pod_width}"` : '—';
   document.getElementById('diagram-hint').textContent =
     `top-down · 1 layer · Ti=${d.ti}`;
 
@@ -399,6 +401,7 @@ function renderBulkTable(rows) {
       <td class="td-ti">${r.ti}</td>
       <td class="td-hi">${r.hi}</td>
       <td class="td-total">${r.total}</td>
+      <td>${r.pod_length}" × ${r.pod_width}"</td>
       <td>${esc(r.arrangement_desc || '—')}</td>
       <td><span class="eff-badge ${cls}">${e}%</span></td>
     </tr>`;
@@ -407,9 +410,9 @@ function renderBulkTable(rows) {
 
 function exportResults() {
   if (!bulkResults.length) return;
-  const head = 'SKU,Length,Width,Height,Ti,Hi,Total,Pattern,Efficiency\n';
+  const head = 'SKU,Length,Width,Height,Ti,Hi,Total,Pod Length,Pod Width,Pattern,Efficiency\n';
   const body = bulkResults.map(r =>
-    `${r.sku},${r.length},${r.width},${r.height},${r.ti},${r.hi},${r.total},"${(r.arrangement_desc || '').replace(/"/g, '""')}",${Math.round(r.efficiency * 100)}%`
+    `${r.sku},${r.length},${r.width},${r.height},${r.ti},${r.hi},${r.total},${r.pod_length},${r.pod_width},"${(r.arrangement_desc || '').replace(/"/g, '""')}",${Math.round(r.efficiency * 100)}%`
   ).join('\n');
   dlString(head + body, 'pallet-results.csv', 'text/csv');
 }
