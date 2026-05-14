@@ -13,6 +13,29 @@ let retailers = [];
 let bulkData   = [];
 let bulkResults = [];
 
+// ── Helpers (loaded early — used throughout) ─────────────────
+function debounce(fn, ms) {
+  let t;
+  return (...args) => { clearTimeout(t); t = setTimeout(() => fn(...args), ms); };
+}
+
+function showToast(msg = 'Config saved') {
+  // Reuse an existing toast if one is already showing
+  let el = document.querySelector('.toast');
+  if (!el) {
+    el = document.createElement('div');
+    el.className = 'toast';
+    document.body.appendChild(el);
+  }
+  el.textContent = msg;
+  el.classList.add('visible');
+  clearTimeout(el._hideTimer);
+  el._hideTimer = setTimeout(() => {
+    el.classList.remove('visible');
+    setTimeout(() => el.remove(), 200);
+  }, 1800);
+}
+
 // ── Bootstrap ────────────────────────────────────────────────
 document.addEventListener('DOMContentLoaded', async () => {
   setupNav();
@@ -83,62 +106,61 @@ function setupCalculator() {
     });
   });
 
-  // Inline editor: save
-  document.getElementById('ie-save-btn').addEventListener('click', async () => {
-    const rid = document.getElementById('retailer-select').value;
-    if (!rid) return;
-    const payload = {
-      name:                  document.getElementById('ie-name').value.trim(),
-      max_height:            parseFloat(document.getElementById('ie-maxh').value),
-      max_pallets_per_floor: parseInt(document.getElementById('ie-pallets').value, 10),
-      double_stack_allowed:  document.getElementById('ie-ds').checked,
-    };
-    if (!payload.name || isNaN(payload.max_height)) return;
-    try {
-      const res = await fetch(API.retailer(rid), {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload),
-      });
-      if (res.ok) {
-        await loadRetailers();
-        // Re-select the same retailer after reload
-        document.getElementById('retailer-select').value = rid;
-        updateInfoBar();
-        const btn = document.getElementById('ie-save-btn');
-        btn.textContent = 'SAVED';
-        btn.classList.add('saved');
-        setTimeout(() => { btn.textContent = 'SAVE'; btn.classList.remove('saved'); }, 2000);
-      }
-    } catch (e) { console.error(e); }
+  // Inline editor: auto-save
+  const debouncedIESave = debounce(saveInlineRetailer, 800);
+  ['ie-name', 'ie-maxh', 'ie-pallets'].forEach(id => {
+    document.getElementById(id).addEventListener('input', debouncedIESave);
+    document.getElementById(id).addEventListener('blur',  saveInlineRetailer);
   });
+  document.getElementById('ie-ds').addEventListener('change', saveInlineRetailer);
 
   // Inline editor: collapse toggle
   document.getElementById('ie-toggle').addEventListener('click', () => {
     const body   = document.getElementById('ie-body');
     const toggle = document.getElementById('ie-toggle');
     const collapsed = body.style.display === 'none';
-    body.style.display   = collapsed ? 'block' : 'none';
-    toggle.textContent   = collapsed ? '▲' : '▼';
+    body.style.display = collapsed ? 'block' : 'none';
+    toggle.textContent = collapsed ? '▲' : '▼';
   });
+}
+
+async function saveInlineRetailer() {
+  const rid = document.getElementById('retailer-select').value;
+  if (!rid) return;
+  const payload = {
+    name:                  document.getElementById('ie-name').value.trim(),
+    max_height:            parseFloat(document.getElementById('ie-maxh').value),
+    max_pallets_per_floor: parseInt(document.getElementById('ie-pallets').value, 10),
+    double_stack_allowed:  document.getElementById('ie-ds').checked,
+  };
+  if (!payload.name || isNaN(payload.max_height) || isNaN(payload.max_pallets_per_floor)) return;
+  try {
+    const res = await fetch(API.retailer(rid), {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+    if (res.ok) {
+      const r = retailerById(rid);
+      if (r) Object.assign(r, payload);
+      syncRetailerSelects();
+      document.getElementById('retailer-select').value = rid;
+      showToast();
+    }
+  } catch (e) { console.error(e); }
 }
 
 function updateInfoBar() {
   const r = retailerById(document.getElementById('retailer-select').value);
   const editor = document.getElementById('inline-editor');
 
-  if (!r) {
-    editor.style.display = 'none';
-    return;
-  }
+  if (!r) { editor.style.display = 'none'; return; }
 
   document.getElementById('ie-name').value    = r.name;
   document.getElementById('ie-maxh').value    = r.max_height;
   document.getElementById('ie-pallets').value = r.max_pallets_per_floor ?? 26;
   document.getElementById('ie-ds').checked    = r.double_stack_allowed;
   editor.style.display = 'block';
-  document.getElementById('ie-save-btn').classList.remove('saved');
-  document.getElementById('ie-save-btn').textContent = 'SAVE';
 }
 
 async function doCalculate() {
@@ -423,91 +445,69 @@ function setupRetailersTab() {
 function renderRetailersGrid() {
   const grid = document.getElementById('retailers-grid');
   grid.innerHTML = retailers.map(r => cardHTML(r)).join('');
-  grid.querySelectorAll('[data-action="edit"]').forEach(b   => b.addEventListener('click', () => startEdit(b.dataset.id)));
-  grid.querySelectorAll('[data-action="delete"]').forEach(b => b.addEventListener('click', () => deleteRetailer(b.dataset.id)));
+  retailers.forEach(r => bindCardAutoSave(r.id));
+  grid.querySelectorAll('[data-action="delete"]').forEach(b =>
+    b.addEventListener('click', () => deleteRetailer(b.dataset.id))
+  );
 }
 
-function cardHTML(r, editing = false) {
-  if (editing) {
-    return `<div class="r-card editing" id="rcard-${r.id}">
-      <div class="r-card-head">
-        <input class="r-name-input" id="e-name-${r.id}" value="${esc(r.name)}">
-        <div class="r-card-btns">
-          <button class="r-btn" data-action="save" data-id="${r.id}">SAVE</button>
-          <button class="r-btn" data-action="cancel" data-id="${r.id}">CANCEL</button>
-        </div>
-      </div>
-      <div class="r-fields">
-        <div class="r-field">
-          <span class="r-field-label">MAX HEIGHT (in)</span>
-          <input class="r-input" type="number" id="e-mh-${r.id}" value="${r.max_height}" step="0.5">
-        </div>
-        <div class="r-field">
-          <span class="r-field-label">PALLETS / FLOOR</span>
-          <input class="r-input" type="number" id="e-pf-${r.id}" value="${r.max_pallets_per_floor ?? 26}" step="1" min="1">
-        </div>
-        <div class="r-field r-field-full" style="margin-top:4px">
-          <label class="toggle-label">
-            <input type="checkbox" id="e-ds-${r.id}" class="toggle-input" ${r.double_stack_allowed ? 'checked' : ''}>
-            <span class="toggle-track"><span class="toggle-thumb"></span></span>
-            <span class="toggle-text">Double Stack Allowed</span>
-          </label>
-        </div>
-      </div>
-    </div>`;
-  }
-
-  const dsText = r.double_stack_allowed ? 'Allowed' : 'No';
-  const dsCls  = r.double_stack_allowed ? 'yes' : 'no';
-
+function cardHTML(r) {
   return `<div class="r-card" id="rcard-${r.id}">
     <div class="r-card-head">
-      <span class="r-card-name">${esc(r.name)}</span>
-      <div class="r-card-btns">
-        <button class="r-btn" data-action="edit" data-id="${r.id}">EDIT</button>
-        <button class="r-btn danger" data-action="delete" data-id="${r.id}">DEL</button>
-      </div>
+      <input class="r-name-input" id="r-name-${r.id}" value="${esc(r.name)}">
+      <button class="r-btn danger" data-action="delete" data-id="${r.id}">DEL</button>
     </div>
     <div class="r-fields">
       <div class="r-field">
-        <span class="r-field-label">MAX HEIGHT</span>
-        <span class="r-field-val">${r.max_height}"</span>
+        <span class="r-field-label">MAX HEIGHT (in)</span>
+        <input class="r-input" type="number" id="r-mh-${r.id}" value="${r.max_height}" step="0.5">
       </div>
       <div class="r-field">
         <span class="r-field-label">PALLETS / FLOOR</span>
-        <span class="r-field-val">${r.max_pallets_per_floor ?? '—'}</span>
+        <input class="r-input" type="number" id="r-pf-${r.id}" value="${r.max_pallets_per_floor ?? 26}" step="1" min="1">
       </div>
-      <div class="r-field">
-        <span class="r-field-label">DOUBLE STACK</span>
-        <span class="r-field-val ${dsCls}">${dsText}</span>
+      <div class="r-field r-field-full" style="margin-top:4px">
+        <label class="toggle-label">
+          <input type="checkbox" id="r-ds-${r.id}" class="toggle-input" ${r.double_stack_allowed ? 'checked' : ''}>
+          <span class="toggle-track"><span class="toggle-thumb"></span></span>
+          <span class="toggle-text">Double Stack Allowed</span>
+        </label>
       </div>
     </div>
   </div>`;
 }
 
-function startEdit(id) {
-  const r = retailerById(id);
-  if (!r) return;
-  const el = document.getElementById(`rcard-${id}`);
-  el.outerHTML = cardHTML(r, true);
-  document.querySelector(`[data-action="save"][data-id="${id}"]`).addEventListener('click',   () => saveRetailer(id));
-  document.querySelector(`[data-action="cancel"][data-id="${id}"]`).addEventListener('click', () => renderRetailersGrid());
+function bindCardAutoSave(id) {
+  const save = debounce(() => saveCardRetailer(id), 800);
+  document.getElementById(`r-name-${id}`).addEventListener('input', save);
+  document.getElementById(`r-name-${id}`).addEventListener('blur',  () => saveCardRetailer(id));
+  document.getElementById(`r-mh-${id}`).addEventListener('input',  save);
+  document.getElementById(`r-mh-${id}`).addEventListener('blur',   () => saveCardRetailer(id));
+  document.getElementById(`r-pf-${id}`).addEventListener('input',  save);
+  document.getElementById(`r-pf-${id}`).addEventListener('blur',   () => saveCardRetailer(id));
+  document.getElementById(`r-ds-${id}`).addEventListener('change', () => saveCardRetailer(id));
 }
 
-async function saveRetailer(id) {
+async function saveCardRetailer(id) {
   const payload = {
-    name:                  document.getElementById(`e-name-${id}`).value,
-    max_height:            parseFloat(document.getElementById(`e-mh-${id}`).value),
-    max_pallets_per_floor: parseInt(document.getElementById(`e-pf-${id}`).value, 10),
-    double_stack_allowed:  document.getElementById(`e-ds-${id}`).checked,
+    name:                  document.getElementById(`r-name-${id}`).value.trim(),
+    max_height:            parseFloat(document.getElementById(`r-mh-${id}`).value),
+    max_pallets_per_floor: parseInt(document.getElementById(`r-pf-${id}`).value, 10),
+    double_stack_allowed:  document.getElementById(`r-ds-${id}`).checked,
   };
+  if (!payload.name || isNaN(payload.max_height) || isNaN(payload.max_pallets_per_floor)) return;
   try {
     const res = await fetch(API.retailer(id), {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload),
     });
-    if (res.ok) await loadRetailers();
+    if (res.ok) {
+      const r = retailerById(id);
+      if (r) Object.assign(r, payload);
+      syncRetailerSelects();
+      showToast();
+    }
   } catch (e) { console.error(e); }
 }
 

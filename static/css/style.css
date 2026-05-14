@@ -578,19 +578,24 @@ body::before {
 }
 .ie-text-input:focus { outline: none; border-color: var(--amber-dark); }
 
-.ie-save-btn {
-  background: none;
-  border: 1px solid var(--amber-dark);
+/* ── Toast notification ────────────────────────────────────── */
+.toast {
+  position: fixed;
+  bottom: 24px; right: 24px;
+  background: var(--bg-card);
+  border: 1px solid var(--green);
+  color: var(--green);
+  font-family: var(--font-mono); font-size: 11px; letter-spacing: .08em;
+  padding: 8px 16px;
   border-radius: var(--r);
-  color: var(--amber);
-  font-family: var(--font-display); font-size: 9px; font-weight: 700; letter-spacing: .12em;
-  padding: 7px 14px;
-  cursor: pointer; white-space: nowrap;
-  transition: all .14s;
-  margin-left: auto;
+  box-shadow: 0 4px 16px rgba(0,0,0,.4);
+  transform: translateY(6px); opacity: 0;
+  transition: transform .18s ease-out, opacity .18s ease-out;
+  z-index: 200;
+  pointer-events: none;
+  white-space: nowrap;
 }
-.ie-save-btn:hover { background: var(--amber-glow); }
-.ie-save-btn.saved { border-color: var(--green); color: var(--green); }
+.toast.visible { transform: translateY(0); opacity: 1; }
 
 /* ── Retailers tab ─────────────────────────────────────────── */
 .retailers-layout { display: flex; flex-direction: column; gap: 14px; flex: 1; overflow-y: auto; }
