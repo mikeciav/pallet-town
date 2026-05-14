@@ -15,21 +15,21 @@ PALLET_W = 40.0
 PALLET_H = 5.5
 
 DEFAULT_RETAILERS = [
-    {"id": 1,  "name": "Walmart",        "max_height": 60, "double_stack_allowed": False, "max_pallets_per_floor": 26},
-    {"id": 2,  "name": "Target",         "max_height": 60, "double_stack_allowed": False, "max_pallets_per_floor": 26},
-    {"id": 3,  "name": "Costco",         "max_height": 58, "double_stack_allowed": True,  "max_pallets_per_floor": 26},
-    {"id": 4,  "name": "Amazon",         "max_height": 50, "double_stack_allowed": True,  "max_pallets_per_floor": 26},
-    {"id": 5,  "name": "Home Depot",     "max_height": 60, "double_stack_allowed": False, "max_pallets_per_floor": 26},
-    {"id": 6,  "name": "Lowe's",         "max_height": 60, "double_stack_allowed": False, "max_pallets_per_floor": 26},
-    {"id": 7,  "name": "Kroger",         "max_height": 60, "double_stack_allowed": False, "max_pallets_per_floor": 26},
-    {"id": 8,  "name": "Sam's Club",     "max_height": 60, "double_stack_allowed": True,  "max_pallets_per_floor": 26},
-    {"id": 9,  "name": "Dollar General", "max_height": 57, "double_stack_allowed": False, "max_pallets_per_floor": 26},
-    {"id": 10, "name": "Dollar Tree",    "max_height": 57, "double_stack_allowed": False, "max_pallets_per_floor": 26},
-    {"id": 11, "name": "Walgreens",      "max_height": 60, "double_stack_allowed": False, "max_pallets_per_floor": 26},
-    {"id": 12, "name": "CVS",            "max_height": 60, "double_stack_allowed": False, "max_pallets_per_floor": 26},
-    {"id": 13, "name": "Best Buy",       "max_height": 60, "double_stack_allowed": False, "max_pallets_per_floor": 26},
-    {"id": 14, "name": "Whole Foods",    "max_height": 60, "double_stack_allowed": False, "max_pallets_per_floor": 26},
-    {"id": 15, "name": "BJ's Wholesale", "max_height": 60, "double_stack_allowed": True,  "max_pallets_per_floor": 26},
+    {"id": 1,  "name": "Walmart",        "max_height": 60, "double_stack_allowed": False, "max_pallets_per_floor": 26, "no_pallet": False},
+    {"id": 2,  "name": "Target",         "max_height": 60, "double_stack_allowed": False, "max_pallets_per_floor": 26, "no_pallet": False},
+    {"id": 3,  "name": "Costco",         "max_height": 58, "double_stack_allowed": True,  "max_pallets_per_floor": 26, "no_pallet": False},
+    {"id": 4,  "name": "Amazon",         "max_height": 50, "double_stack_allowed": True,  "max_pallets_per_floor": 26, "no_pallet": False},
+    {"id": 5,  "name": "Home Depot",     "max_height": 60, "double_stack_allowed": False, "max_pallets_per_floor": 26, "no_pallet": False},
+    {"id": 6,  "name": "Lowe's",         "max_height": 60, "double_stack_allowed": False, "max_pallets_per_floor": 26, "no_pallet": False},
+    {"id": 7,  "name": "Kroger",         "max_height": 60, "double_stack_allowed": False, "max_pallets_per_floor": 26, "no_pallet": False},
+    {"id": 8,  "name": "Sam's Club",     "max_height": 60, "double_stack_allowed": True,  "max_pallets_per_floor": 26, "no_pallet": False},
+    {"id": 9,  "name": "Dollar General", "max_height": 57, "double_stack_allowed": False, "max_pallets_per_floor": 26, "no_pallet": False},
+    {"id": 10, "name": "Dollar Tree",    "max_height": 57, "double_stack_allowed": False, "max_pallets_per_floor": 26, "no_pallet": False},
+    {"id": 11, "name": "Walgreens",      "max_height": 60, "double_stack_allowed": False, "max_pallets_per_floor": 26, "no_pallet": False},
+    {"id": 12, "name": "CVS",            "max_height": 60, "double_stack_allowed": False, "max_pallets_per_floor": 26, "no_pallet": False},
+    {"id": 13, "name": "Best Buy",       "max_height": 60, "double_stack_allowed": False, "max_pallets_per_floor": 26, "no_pallet": False},
+    {"id": 14, "name": "Whole Foods",    "max_height": 60, "double_stack_allowed": False, "max_pallets_per_floor": 26, "no_pallet": False},
+    {"id": 15, "name": "BJ's Wholesale", "max_height": 60, "double_stack_allowed": True,  "max_pallets_per_floor": 26, "no_pallet": False},
 ]
 
 
@@ -54,6 +54,7 @@ def _parse_retailer_body(data: dict, base=None) -> dict:
                                                base.get("double_stack_allowed", False))),
         "max_pallets_per_floor": int(data.get("max_pallets_per_floor",
                                               base.get("max_pallets_per_floor", 26))),
+        "no_pallet":             bool(data.get("no_pallet", base.get("no_pallet", False))),
     }
 
 
@@ -117,8 +118,7 @@ def api_calculate():
     if not retailer:
         return jsonify({"error": "Retailer not found"}), 404
 
-    exclude_pallet  = bool(data.get("exclude_pallet_height", False))
-    case_pack_qty   = max(1, int(data.get("case_pack_qty", 1)))
+    case_pack_qty = max(1, int(data.get("case_pack_qty", 1)))
     result = calculate(
         carton_l=carton_l,
         carton_w=carton_w,
@@ -126,7 +126,7 @@ def api_calculate():
         max_height=retailer["max_height"],
         pallet_l=PALLET_L,
         pallet_w=PALLET_W,
-        pallet_h=0.0 if exclude_pallet else PALLET_H,
+        pallet_h=0.0 if retailer.get("no_pallet", False) else PALLET_H,
     )
     stack_mult = 2 if retailer["double_stack_allowed"] else 1
     result["truckload_qty"] = (
@@ -151,8 +151,7 @@ def api_calculate_bulk():
     if not cartons:
         return jsonify({"error": "No cartons provided"}), 400
 
-    exclude_pallet  = bool(data.get("exclude_pallet_height", False))
-    stack_mult      = 2 if retailer["double_stack_allowed"] else 1
+    stack_mult = 2 if retailer["double_stack_allowed"] else 1
     max_pallets     = retailer["max_pallets_per_floor"]
     results = []
     for carton in cartons:
@@ -171,7 +170,7 @@ def api_calculate_bulk():
             max_height=retailer["max_height"],
             pallet_l=PALLET_L,
             pallet_w=PALLET_W,
-            pallet_h=0.0 if exclude_pallet else PALLET_H,
+            pallet_h=0.0 if retailer.get("no_pallet", False) else PALLET_H,
         )
         r["truckload_qty"]        = case_pack_qty * r["total"] * max_pallets * stack_mult
         r["case_pack_qty"]        = case_pack_qty
