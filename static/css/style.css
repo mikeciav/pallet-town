@@ -521,6 +521,60 @@ body::before {
 .text-link { font-family: var(--font-mono); font-size: 10px; color: var(--amber); text-decoration: none; }
 .text-link:hover { text-decoration: underline; }
 
+/* ── Inline retailer editor ────────────────────────────────── */
+.inline-editor {
+  background: var(--bg-input);
+  border: 1px solid var(--border-hi);
+  border-radius: var(--r);
+  padding: 10px 12px;
+  margin-top: 10px;
+}
+
+.ie-header {
+  display: flex; align-items: center; justify-content: space-between;
+  margin-bottom: 10px;
+}
+
+.ie-toggle {
+  background: none; border: none;
+  color: var(--text-muted); font-size: 9px;
+  cursor: pointer; padding: 2px 4px;
+  transition: color .14s;
+  line-height: 1;
+}
+.ie-toggle:hover { color: var(--amber); }
+.ie-toggle.collapsed::before { content: '▼'; }
+.ie-toggle.collapsed { font-size: 0; }
+.ie-toggle.collapsed::before { font-size: 9px; }
+
+.ie-row { display: flex; align-items: flex-end; gap: 8px; }
+
+.ie-text-input {
+  width: 100%;
+  background: var(--bg-base);
+  border: 1px solid var(--border);
+  border-radius: var(--r);
+  color: var(--text);
+  font-family: var(--font-display); font-size: 12px; letter-spacing: .04em;
+  padding: 7px 9px;
+  transition: border-color .14s;
+}
+.ie-text-input:focus { outline: none; border-color: var(--amber-dark); }
+
+.ie-save-btn {
+  background: none;
+  border: 1px solid var(--amber-dark);
+  border-radius: var(--r);
+  color: var(--amber);
+  font-family: var(--font-display); font-size: 9px; font-weight: 700; letter-spacing: .12em;
+  padding: 7px 14px;
+  cursor: pointer; white-space: nowrap;
+  transition: all .14s;
+  margin-left: auto;
+}
+.ie-save-btn:hover { background: var(--amber-glow); }
+.ie-save-btn.saved { border-color: var(--green); color: var(--green); }
+
 /* ── Retailers tab ─────────────────────────────────────────── */
 .retailers-layout { display: flex; flex-direction: column; gap: 14px; flex: 1; overflow-y: auto; }
 .retailers-header { flex-shrink: 0; }

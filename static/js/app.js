@@ -82,28 +82,74 @@ function setupCalculator() {
       if (e.key === 'Enter') doCalculate();
     });
   });
+
+  // Inline editor: save
+  document.getElementById('ie-save-btn').addEventListener('click', async () => {
+    const rid = document.getElementById('retailer-select').value;
+    if (!rid) return;
+    const payload = {
+      name:                 document.getElementById('ie-name').value.trim(),
+      max_height:           parseFloat(document.getElementById('ie-maxh').value),
+      double_stack_allowed: document.getElementById('ie-ds').checked,
+    };
+    if (!payload.name || isNaN(payload.max_height)) return;
+    try {
+      const res = await fetch(API.retailer(rid), {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+      if (res.ok) {
+        await loadRetailers();
+        // Re-select the same retailer after reload
+        document.getElementById('retailer-select').value = rid;
+        updateInfoBar();
+        const btn = document.getElementById('ie-save-btn');
+        btn.textContent = 'SAVED';
+        btn.classList.add('saved');
+        setTimeout(() => { btn.textContent = 'SAVE'; btn.classList.remove('saved'); }, 2000);
+      }
+    } catch (e) { console.error(e); }
+  });
+
+  // Inline editor: collapse toggle
+  document.getElementById('ie-toggle').addEventListener('click', () => {
+    const body   = document.getElementById('ie-body');
+    const toggle = document.getElementById('ie-toggle');
+    const collapsed = body.style.display === 'none';
+    body.style.display   = collapsed ? 'block' : 'none';
+    toggle.textContent   = collapsed ? '▲' : '▼';
+  });
 }
 
 function updateInfoBar() {
   const r = retailerById(document.getElementById('retailer-select').value);
+  const editor = document.getElementById('inline-editor');
+
   if (!r) {
-    document.getElementById('info-maxh').textContent   = '—';
-    document.getElementById('info-pallet').textContent = '—';
-    document.getElementById('info-ds').textContent     = '—';
-    document.getElementById('info-ds').className       = 'chip-val';
+    document.getElementById('info-maxh').textContent = '—';
+    document.getElementById('info-ds').textContent   = '—';
+    document.getElementById('info-ds').className     = 'chip-val';
+    editor.style.display = 'none';
     return;
   }
-  document.getElementById('info-maxh').textContent   = `${r.max_height}"`;
-  document.getElementById('info-pallet').textContent = `${r.pallet_length}×${r.pallet_width}"`;
+
+  document.getElementById('info-maxh').textContent = `${r.max_height}"`;
   const dsEl = document.getElementById('info-ds');
   if (r.double_stack_allowed) {
-    dsEl.textContent  = 'Allowed';
-    dsEl.className    = 'chip-val allowed';
+    dsEl.textContent = 'Allowed'; dsEl.className = 'chip-val allowed';
     document.getElementById('double-stack').checked = true;
   } else {
-    dsEl.textContent  = 'No';
-    dsEl.className    = 'chip-val denied';
+    dsEl.textContent = 'No'; dsEl.className = 'chip-val denied';
   }
+
+  // Populate inline editor
+  document.getElementById('ie-name').value  = r.name;
+  document.getElementById('ie-maxh').value  = r.max_height;
+  document.getElementById('ie-ds').checked  = r.double_stack_allowed;
+  editor.style.display = 'block';
+  document.getElementById('ie-save-btn').classList.remove('saved');
+  document.getElementById('ie-save-btn').textContent = 'SAVE';
 }
 
 async function doCalculate() {
@@ -112,6 +158,7 @@ async function doCalculate() {
   const h  = parseFloat(document.getElementById('c-h').value);
   const rid = document.getElementById('retailer-select').value;
   const ds  = document.getElementById('double-stack').checked;
+  const nop = document.getElementById('no-pallet').checked;
 
   if (!rid)                        { flashBtn('SELECT RETAILER'); return; }
   if (!l || !w || !h || l<=0 || w<=0 || h<=0) { flashBtn('CHECK DIMENSIONS'); return; }
@@ -123,7 +170,8 @@ async function doCalculate() {
     const res  = await fetch(API.calculate, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ length: l, width: w, height: h, retailer_id: rid, double_stack: ds }),
+      body: JSON.stringify({ length: l, width: w, height: h, retailer_id: rid,
+                             double_stack: ds, exclude_pallet_height: nop }),
     });
     const data = await res.json();
     if (!res.ok) { flashBtn(data.error || 'ERROR'); setStatus(data.error || 'Error', true); return; }
@@ -149,8 +197,9 @@ function renderResults(d) {
   document.getElementById('detail-strip').style.display = 'flex';
   document.getElementById('d-pattern').textContent    = d.arrangement_desc || '—';
   document.getElementById('d-efficiency').textContent = pct(d.efficiency);
-  document.getElementById('d-height').textContent     =
-    `${d.stack_height}"${d.double_stack ? ' (×2 stacked)' : ''}`;
+  const nop = document.getElementById('no-pallet').checked;
+  document.getElementById('d-height').textContent =
+    `${d.stack_height}"${d.double_stack ? ' (×2 stacked)' : ''}${nop ? ' · no pallet' : ''}`;
   document.getElementById('diagram-hint').textContent =
     `top-down · 1 layer · Ti=${d.ti}`;
 
@@ -311,6 +360,7 @@ function parseCSV(text, filename) {
 async function doBulkCalc() {
   const rid = document.getElementById('bulk-retailer').value;
   const ds  = document.getElementById('bulk-ds').checked;
+  const nop = document.getElementById('bulk-no-pallet').checked;
 
   if (!rid)              { setBulkStatus('Select a retailer.', true); return; }
   if (!bulkData.length)  { setBulkStatus('Upload a CSV first.', true); return; }
@@ -322,7 +372,8 @@ async function doBulkCalc() {
     const res  = await fetch(API.bulkCalc, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ cartons: bulkData, retailer_id: rid, double_stack: ds }),
+      body: JSON.stringify({ cartons: bulkData, retailer_id: rid, double_stack: ds,
+                             exclude_pallet_height: nop }),
     });
     bulkResults = await res.json();
     if (!res.ok) { setBulkStatus(bulkResults.error || 'Error', true); return; }
@@ -386,21 +437,9 @@ function cardHTML(r, editing = false) {
         </div>
       </div>
       <div class="r-fields">
-        <div class="r-field">
+        <div class="r-field r-field-full">
           <span class="r-field-label">MAX HEIGHT (in)</span>
           <input class="r-input" type="number" id="e-mh-${r.id}" value="${r.max_height}" step="0.5">
-        </div>
-        <div class="r-field">
-          <span class="r-field-label">PALLET LENGTH (in)</span>
-          <input class="r-input" type="number" id="e-pl-${r.id}" value="${r.pallet_length}" step="0.5">
-        </div>
-        <div class="r-field">
-          <span class="r-field-label">PALLET WIDTH (in)</span>
-          <input class="r-input" type="number" id="e-pw-${r.id}" value="${r.pallet_width}" step="0.5">
-        </div>
-        <div class="r-field">
-          <span class="r-field-label">PALLET HEIGHT (in)</span>
-          <input class="r-input" type="number" id="e-ph-${r.id}" value="${r.pallet_height}" step="0.5">
         </div>
         <div class="r-field r-field-full" style="margin-top:4px">
           <label class="toggle-label">
@@ -430,14 +469,6 @@ function cardHTML(r, editing = false) {
         <span class="r-field-val">${r.max_height}"</span>
       </div>
       <div class="r-field">
-        <span class="r-field-label">PALLET L × W</span>
-        <span class="r-field-val">${r.pallet_length} × ${r.pallet_width}"</span>
-      </div>
-      <div class="r-field">
-        <span class="r-field-label">PALLET HEIGHT</span>
-        <span class="r-field-val">${r.pallet_height}"</span>
-      </div>
-      <div class="r-field">
         <span class="r-field-label">DOUBLE STACK</span>
         <span class="r-field-val ${dsCls}">${dsText}</span>
       </div>
@@ -458,9 +489,6 @@ async function saveRetailer(id) {
   const payload = {
     name:                 document.getElementById(`e-name-${id}`).value,
     max_height:           parseFloat(document.getElementById(`e-mh-${id}`).value),
-    pallet_length:        parseFloat(document.getElementById(`e-pl-${id}`).value),
-    pallet_width:         parseFloat(document.getElementById(`e-pw-${id}`).value),
-    pallet_height:        parseFloat(document.getElementById(`e-ph-${id}`).value),
     double_stack_allowed: document.getElementById(`e-ds-${id}`).checked,
   };
   try {
