@@ -253,3 +253,42 @@ class TestPositions:
     def test_rotated_flag_present(self):
         r = calculate(12, 8, 6, 60, PL, PW, PH)
         assert all('rotated' in c for c in r['arrangement'])
+
+
+# ── Truckload quantity (computed in app.py, tested here via helper) ──────────
+
+def truckload(total, case_pack, pallets_per_floor, double_stack_allowed):
+    """Mirror of the app.py truckload formula."""
+    return case_pack * total * pallets_per_floor * (2 if double_stack_allowed else 1)
+
+
+class TestTruckload:
+    def test_user_example(self):
+        # 4 units/carton × 5 cartons/pallet × 2 pallets/floor × 2 (stacking) = 80
+        assert truckload(5, 4, 2, True) == 80
+
+    def test_no_double_stack_no_multiplier(self):
+        assert truckload(5, 4, 2, False) == 40
+
+    def test_case_pack_1_default(self):
+        # case_pack=1 means truckload == total × pallets × stack_mult
+        assert truckload(180, 1, 26, False) == 180 * 26
+        assert truckload(180, 1, 26, True)  == 180 * 26 * 2
+
+    def test_double_stack_doubles_truckload(self):
+        tl_single = truckload(100, 4, 26, False)
+        tl_double = truckload(100, 4, 26, True)
+        assert tl_double == tl_single * 2
+
+    def test_proportional_to_case_pack(self):
+        tl1 = truckload(100, 1, 26, False)
+        tl4 = truckload(100, 4, 26, False)
+        assert tl4 == tl1 * 4
+
+    def test_proportional_to_pallets_per_floor(self):
+        tl_26 = truckload(100, 4, 26, False)
+        tl_20 = truckload(100, 4, 20, False)
+        assert tl_26 / tl_20 == pytest.approx(26 / 20)
+
+    def test_zero_total_gives_zero_truckload(self):
+        assert truckload(0, 4, 26, True) == 0

@@ -109,6 +109,13 @@
               </div>
             </div>
           </div>
+          <div class="field-group" style="margin-top:8px">
+            <label class="field-label">CASE PACK QTY</label>
+            <div class="field-wrap">
+              <input type="number" id="c-cp" class="dim-input" value="1" min="1" step="1">
+              <span class="field-unit">units</span>
+            </div>
+          </div>
 
           <div class="divider"></div>
 
@@ -122,6 +129,10 @@
             <div class="info-chip">
               <span class="chip-label">MAX HEIGHT</span>
               <span class="chip-val" id="info-maxh">—</span>
+            </div>
+            <div class="info-chip">
+              <span class="chip-label">PALLETS / FLOOR</span>
+              <span class="chip-val" id="info-pallets">—</span>
             </div>
             <div class="info-chip">
               <span class="chip-label">DBL STACK</span>
@@ -147,6 +158,10 @@
                     <input type="number" id="ie-maxh" class="dim-input" step="0.5">
                     <span class="field-unit">in</span>
                   </div>
+                </div>
+                <div class="field-group" style="flex:1">
+                  <label class="field-label">PALLETS / FLOOR</label>
+                  <input type="number" id="ie-pallets" class="dim-input" step="1" min="1">
                 </div>
               </div>
               <div class="ie-row" style="margin-top:8px">
@@ -209,6 +224,11 @@
               <div class="metric-sub">CARTONS / PALLET</div>
             </div>
           </div>
+          <div class="metric-card metric-card--tl" id="mc-tl" style="margin-top:8px">
+            <div class="metric-label">TL</div>
+            <div class="metric-val metric-val--tl" id="val-tl">—</div>
+            <div class="metric-sub" id="tl-formula">SELLABLE UNITS / TRUCKLOAD</div>
+          </div>
 
           <div class="divider"></div>
 
@@ -267,6 +287,13 @@
               <select id="bulk-retailer" class="pt-select"></select>
             </div>
           </div>
+          <div class="field-group" style="margin-top:8px;margin-bottom:8px">
+            <label class="field-label">DEFAULT CASE PACK QTY</label>
+            <div class="field-wrap">
+              <input type="number" id="bulk-cp" class="dim-input" value="1" min="1" step="1">
+              <span class="field-unit">units</span>
+            </div>
+          </div>
           <div class="opts-row">
             <label class="toggle-label">
               <input type="checkbox" id="bulk-ds" class="toggle-input">
@@ -286,9 +313,9 @@
             <span class="panel-label">CSV FORMAT</span>
           </div>
           <div class="code-block">
-            <code>sku,length,width,height
-ITEM-001,12,8,6
-ITEM-002,10,10,8</code>
+            <code>sku,length,width,height,case_pack_qty
+ITEM-001,12,8,6,4
+ITEM-002,10,10,8,1</code>
           </div>
           <a class="text-link" id="dl-template" href="#">Download template</a>
         </div>
@@ -329,9 +356,11 @@ ITEM-002,10,10,8</code>
                 <tr>
                   <th>SKU</th>
                   <th>L × W × H</th>
+                  <th>Case Pack</th>
                   <th>Ti</th>
                   <th>Hi</th>
                   <th>Total</th>
+                  <th>Truckload</th>
                   <th>Pod L × W</th>
                   <th>Pattern</th>
                   <th>Efficiency</th>
