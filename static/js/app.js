@@ -76,7 +76,7 @@ function setupSidebarToggle() {
 function setupNav() {
   const navItems = [...document.querySelectorAll('.nav-item')];
   const TITLES = {
-    calculator: 'SINGLE CASE CALCULATOR',
+    calculator: 'PALLET BUILDER',
     bulk:       'BULK IMPORT',
     retailers:  'RETAILER CONFIGURATIONS',
   };
@@ -441,8 +441,8 @@ function drawTiView(d, box) {
     const cy = oy + c.y * scale;
     const cw = c.w * scale;
     const ch = c.h * scale;
-    const fill   = c.rotated ? 'rgba(52,212,200,.13)' : 'rgba(245,166,35,.13)';
-    const stroke = c.rotated ? '#34d4c8' : '#f5a623';
+    const fill   = c.rotated ? 'rgba(210,236,164,.13)' : 'rgba(245,196,190,.13)';
+    const stroke = c.rotated ? '#d2eca4' : '#f5c4be';
 
     svg += `<rect x="${(cx+.8).toFixed(1)}" y="${(cy+.8).toFixed(1)}" `
          + `width="${Math.max(0,cw-1.6).toFixed(1)}" height="${Math.max(0,ch-1.6).toFixed(1)}" `
@@ -465,9 +465,9 @@ function drawTiView(d, box) {
        + `transform="rotate(-90,${(ox-9).toFixed(1)},${(oy+dH/2).toFixed(1)})">${PW}"</text>`;
 
   const ly = (oy + dH + 12).toFixed(1);
-  svg += `<rect x="${ox}" y="${ly}" width="8" height="8" fill="rgba(245,166,35,.13)" stroke="#f5a623" stroke-width="0.7"/>`;
+  svg += `<rect x="${ox}" y="${ly}" width="8" height="8" fill="rgba(245,196,190,.13)" stroke="#f5c4be" stroke-width="0.7"/>`;
   svg += `<text x="${(ox+12).toFixed(1)}" y="${(parseFloat(ly)+7).toFixed(1)}" ${af} font-size="8" fill="#7a8faa">Standard</text>`;
-  svg += `<rect x="${(ox+76).toFixed(1)}" y="${ly}" width="8" height="8" fill="rgba(52,212,200,.13)" stroke="#34d4c8" stroke-width="0.7"/>`;
+  svg += `<rect x="${(ox+76).toFixed(1)}" y="${ly}" width="8" height="8" fill="rgba(210,236,164,.13)" stroke="#d2eca4" stroke-width="0.7"/>`;
   svg += `<text x="${(ox+88).toFixed(1)}" y="${(parseFloat(ly)+7).toFixed(1)}" ${af} font-size="8" fill="#7a8faa">Rotated 90°</text>`;
 
   svg += '</svg>';
@@ -574,7 +574,7 @@ function drawStackedView(d, box) {
   // layer dividers → top cap. Near columns drawn later overwrite far ones.
   bfsOrder.forEach(c => {
     const { x: cx, y: cy, w: cw, h: cdp, rotated } = c;
-    const base = rotated ? [52, 212, 200] : [245, 166, 35];
+    const base = rotated ? [210, 236, 164] : [245, 196, 190];
 
     const topFill   = `rgb(${base.map(v => Math.round(v * 0.88)).join(',')})`;
     const rightFill = `rgb(${base.map(v => Math.round(v * 0.52)).join(',')})`;
@@ -622,9 +622,9 @@ function drawStackedView(d, box) {
   // Legend
   const af = 'font-family="JetBrains Mono,monospace"';
   const ly = (VH - LEGEND_H + 2).toFixed(1);
-  svg += `<rect x="10" y="${ly}" width="8" height="8" fill="rgba(245,166,35,0.3)" stroke="#f5a623" stroke-width="0.7"/>`;
+  svg += `<rect x="10" y="${ly}" width="8" height="8" fill="rgba(245,196,190,0.3)" stroke="#f5c4be" stroke-width="0.7"/>`;
   svg += `<text x="22" y="${(parseFloat(ly)+7).toFixed(1)}" ${af} font-size="8" fill="#7a8faa">Standard</text>`;
-  svg += `<rect x="82" y="${ly}" width="8" height="8" fill="rgba(52,212,200,0.3)" stroke="#34d4c8" stroke-width="0.7"/>`;
+  svg += `<rect x="82" y="${ly}" width="8" height="8" fill="rgba(210,236,164,0.3)" stroke="#d2eca4" stroke-width="0.7"/>`;
   svg += `<text x="94" y="${(parseFloat(ly)+7).toFixed(1)}" ${af} font-size="8" fill="#7a8faa">Rotated</text>`;
 
   svg += '</svg>';

@@ -25,8 +25,9 @@
   --cyan:         #34d4c8;
   --cyan-dark:    #1a9e96;
   --cyan-glow:    rgba(52,212,200,.12);
-  --blue:         #5b9cf6;
-  --blue-subtle:  rgba(91,156,246,.10);
+  --aqua:         #7ecfc3;
+  --blue:         #b197fc;
+  --blue-subtle:  rgba(177,151,252,.10);
 
   --green:        #36d98a;
   --yellow:       #f5c530;
@@ -111,7 +112,7 @@ body::before {
 
 .logo-mark {
   width: 30px; height: 30px;
-  background: var(--amber);
+  background: var(--aqua);
   color: #0d1119;
   font-family: var(--font-display);
   font-weight: 700;
@@ -149,9 +150,9 @@ body::before {
 .nav-item:hover { background: var(--bg-hover); color: var(--text); border-color: var(--border-hi); }
 
 .nav-item.active {
-  background: var(--amber-subtle);
-  color: var(--amber);
-  border-color: var(--amber-dark);
+  background: var(--blue-subtle);
+  color: var(--blue);
+  border-color: var(--blue);
 }
 
 .nav-icon { width: 15px; height: 15px; flex-shrink: 0; }
@@ -164,7 +165,7 @@ body::before {
 
 .std-pallet { display: flex; flex-direction: column; gap: 2px; }
 .std-label  { font-family: var(--font-mono); font-size: 10px; letter-spacing: .1em; color: var(--text-muted); }
-.std-value  { font-family: var(--font-mono); font-size: 13px; font-weight: 500; color: var(--cyan); }
+.std-value  { font-family: var(--font-mono); font-size: 13px; font-weight: 500; color: var(--blue); }
 
 /* ── Sidebar collapse toggle ───────────────────────────────── */
 .sidebar-collapse-btn {
@@ -240,7 +241,7 @@ body::before {
 .panel-label { font-family: var(--font-display); font-size: 10px; font-weight: 600; letter-spacing: .14em; color: var(--text-dim); }
 .panel-hint  { font-family: var(--font-mono); font-size: 10px; color: var(--text-muted); }
 .panel-desc  { font-size: 13px; color: var(--text-dim); line-height: 1.65; }
-.panel-desc code { font-family: var(--font-mono); font-size: 11px; color: var(--cyan); }
+.panel-desc code { font-family: var(--font-mono); font-size: 11px; color: var(--blue); }
 
 /* ── Calculator layout ─────────────────────────────────────── */
 .calc-layout {
@@ -378,7 +379,7 @@ body::before {
 }
 
 .chip-label { font-family: var(--font-mono); font-size: 9px; letter-spacing: .08em; color: var(--text-muted); }
-.chip-val   { font-family: var(--font-mono); font-size: 12px; font-weight: 500; color: var(--cyan); }
+.chip-val   { font-family: var(--font-mono); font-size: 12px; font-weight: 500; color: var(--blue); }
 .chip-val.allowed { color: var(--green); }
 .chip-val.denied  { color: var(--text-muted); }
 
@@ -421,7 +422,7 @@ body::before {
 .pt-btn {
   display: flex; align-items: center; justify-content: center; gap: 8px;
   width: 100%; margin-top: 14px;
-  background: var(--amber);
+  background: var(--blue);
   border: none; border-radius: var(--r);
   color: #0d1119;
   font-family: var(--font-display); font-size: 12px; font-weight: 700; letter-spacing: .12em;
@@ -466,7 +467,7 @@ body::before {
   content: '';
   position: absolute; top: 0; left: 0;
   width: 100%; height: 2px;
-  background: var(--amber);
+  background: var(--aqua);
   border-radius: var(--r) var(--r) 0 0;
 }
 
@@ -483,7 +484,7 @@ body::before {
 }
 
 .metric-label  { font-family: var(--font-display); font-size: 10px; font-weight: 600; letter-spacing: .08em; color: var(--text-muted); margin-bottom: 6px; }
-.metric-val    { font-family: var(--font-mono); font-size: 42px; font-weight: 700; color: var(--amber); line-height: 1; margin-bottom: 5px; }
+.metric-val    { font-family: var(--font-mono); font-size: 42px; font-weight: 700; color: var(--aqua); line-height: 1; margin-bottom: 5px; }
 .metric-val--sec { font-size: 34px; color: var(--blue); }
 .metric-card--tl .metric-val { color: var(--blue); }
 .metric-sub    { font-family: var(--font-mono); font-size: 10px; letter-spacing: .06em; color: var(--text-muted); }
@@ -565,7 +566,7 @@ body::before {
 
 .bulk-status {
   font-family: var(--font-mono); font-size: 11px;
-  color: var(--cyan); min-height: 16px; margin-bottom: 6px;
+  color: var(--blue); min-height: 16px; margin-bottom: 6px;
 }
 .bulk-status.err { color: var(--red); }
 
@@ -596,7 +597,7 @@ body::before {
 .data-table tr:hover td { background: var(--bg-hover); }
 
 .td-ti, .td-hi    { color: var(--amber); font-weight: 500; }
-.td-total         { color: var(--cyan);  font-weight: 700; }
+.td-total         { color: var(--blue);  font-weight: 700; }
 .td-tl            { color: var(--green); font-weight: 700; }
 
 .eff-badge {
@@ -608,8 +609,8 @@ body::before {
 .eff-badge.lo  { background: rgba(240,82,82,.15);   color: var(--red); }
 .view-btn {
   font-family: var(--font-display); font-size: 9px; font-weight: 600;
-  letter-spacing: .08em; color: var(--cyan);
-  background: none; border: 1px solid var(--cyan);
+  letter-spacing: .08em; color: var(--blue);
+  background: none; border: 1px solid var(--blue);
   border-radius: 2px; padding: 2px 7px; cursor: pointer;
   opacity: 0.7; transition: opacity .15s;
 }
@@ -735,7 +736,7 @@ body::before {
 .r-field-full { grid-column: 1 / -1; }
 
 .r-field-label { font-family: var(--font-mono); font-size: 10px; letter-spacing: .06em; color: var(--text-muted); }
-.r-field-val   { font-family: var(--font-mono); font-size: 13px; font-weight: 500; color: var(--cyan); }
+.r-field-val   { font-family: var(--font-mono); font-size: 13px; font-weight: 500; color: var(--blue); }
 .r-field-val.yes  { color: var(--green); }
 .r-field-val.no   { color: var(--text-muted); }
 
