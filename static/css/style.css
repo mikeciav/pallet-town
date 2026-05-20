@@ -34,8 +34,8 @@
   --red:          #f05252;
 
   --text:         #e4eaf4;
-  --text-dim:     #a0b4cc;   /* secondary text — nav, descriptions */
-  --text-muted:   #7a95b0;   /* labels, hints, sub-text */
+  --text-dim:     #a0b4cc;
+  --text-muted:   #7a95b0;
 
   --font-display: 'Chakra Petch', sans-serif;
   --font-mono:    'JetBrains Mono', monospace;
