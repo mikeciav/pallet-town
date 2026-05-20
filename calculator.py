@@ -17,8 +17,8 @@ from typing import Dict, List, Optional, Tuple
 
 
 def find_optimal_arrangement(
-    carton_l: float,
-    carton_w: float,
+    case_l: float,
+    case_w: float,
     pallet_l: float,
     pallet_w: float,
 ) -> Tuple[int, Optional[Dict]]:
@@ -28,16 +28,16 @@ def find_optimal_arrangement(
     Tries all stripe patterns over both pallet dimensions with both carton
     orientations: n stripes of A + remaining space filled with B stripes.
     """
-    if carton_l <= 0 or carton_w <= 0 or pallet_l <= 0 or pallet_w <= 0:
+    if case_l <= 0 or case_w <= 0 or pallet_l <= 0 or pallet_w <= 0:
         return 0, None
 
     best_ti = 0
     best_config: Optional[Dict] = None
 
-    # Natural orientation A = (carton_l × carton_w); B is 90° rotation.
+    # Natural orientation A = (case_l × case_w); B is 90° rotation.
     # We enumerate both choices of "primary" orientation so that all
     # combinations are covered without explicit A/B labelling confusion.
-    for a_l, a_w in [(carton_l, carton_w), (carton_w, carton_l)]:
+    for a_l, a_w in [(case_l, case_w), (case_w, case_l)]:
         b_l, b_w = a_w, a_l  # 90° rotation
 
         # --- Row stripes: split along pallet WIDTH ---
@@ -56,7 +56,7 @@ def find_optimal_arrangement(
                     "row", pallet_l, pallet_w,
                     n_a, per_a, a_l, a_w,
                     n_b, per_b, b_l, b_w,
-                    carton_l, carton_w,
+                    case_l, case_w,
                 )
 
         # --- Column stripes: split along pallet LENGTH ---
@@ -75,7 +75,7 @@ def find_optimal_arrangement(
                     "col", pallet_l, pallet_w,
                     n_a, per_a, a_l, a_w,
                     n_b, per_b, b_l, b_w,
-                    carton_l, carton_w,
+                    case_l, case_w,
                 )
 
     return best_ti, best_config
@@ -149,7 +149,7 @@ def pod_dimensions(positions: List[Dict]) -> tuple:
 
 def arrangement_description(config: Optional[Dict], ti: int) -> str:
     if not config:
-        return f"{ti} cartons"
+        return f"{ti} cases"
     a, b = config["a"], config["b"]
     has_a = a["count"] > 0 and a["per_stripe"] > 0
     has_b = b["count"] > 0 and b["per_stripe"] > 0
@@ -162,13 +162,13 @@ def arrangement_description(config: Optional[Dict], ti: int) -> str:
         return f"{'Rotated' if a['rotated'] else 'Uniform'}: {a['count']}×{a['per_stripe']}"
     if has_b:
         return f"{'Rotated' if b['rotated'] else 'Uniform'}: {b['count']}×{b['per_stripe']}"
-    return "0 cartons"
+    return "0 cases"
 
 
 def calculate(
-    carton_l: float,
-    carton_w: float,
-    carton_h: float,
+    case_l: float,
+    case_w: float,
+    case_h: float,
     max_height: float,
     pallet_l: float,
     pallet_w: float,
@@ -181,18 +181,18 @@ def calculate(
     pallet board itself. Hi is always based on one pallet — stacking is a
     truckload-level concern handled outside this function.
     """
-    ti, config = find_optimal_arrangement(carton_l, carton_w, pallet_l, pallet_w)
+    ti, config = find_optimal_arrangement(case_l, case_w, pallet_l, pallet_w)
 
-    carton_h_safe = max(carton_h, 0.01)
+    case_h_safe = max(case_h, 0.01)
     available_h = max_height - pallet_h
 
-    hi = max(0, int(available_h / carton_h_safe))
+    hi = max(0, int(available_h / case_h_safe))
     total = ti * hi
-    stack_height = hi * carton_h
+    pod_height = hi * case_h
 
     pallet_area = pallet_l * pallet_w
-    carton_footprint = carton_l * carton_w
-    efficiency = (ti * carton_footprint) / pallet_area if pallet_area > 0 else 0.0
+    case_footprint = case_l * case_w
+    efficiency = (ti * case_footprint) / pallet_area if pallet_area > 0 else 0.0
 
     positions = generate_positions(config) if config else []
     desc = arrangement_description(config, ti)
@@ -202,8 +202,8 @@ def calculate(
         "ti": ti,
         "hi": hi,
         "total": total,
-        "carton_h": round(carton_h, 2),
-        "stack_height": round(stack_height, 2),
+        "case_h": round(case_h, 2),
+        "pod_height": round(pod_height, 2),
         "efficiency": round(efficiency, 4),
         "pallet_length": pallet_l,
         "pallet_width": pallet_w,

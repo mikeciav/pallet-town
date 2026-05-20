@@ -21,7 +21,11 @@
           <span class="logo-secondary">TOWN</span>
         </div>
       </div>
-      <span class="version-tag">v1.0</span>
+      <button class="sidebar-collapse-btn" id="sidebar-toggle" title="Collapse sidebar">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+          <path d="M15 18l-6-6 6-6"/>
+        </svg>
+      </button>
     </div>
 
     <nav class="nav">
@@ -71,6 +75,20 @@
     </div>
   </aside>
 
+  <!-- ── Diagram modal (bulk) ─────────────────────────────────── -->
+  <div class="modal-overlay" id="bulk-diagram-modal" style="display:none">
+    <div class="modal modal--diagram">
+      <div class="modal-header-row">
+        <div>
+          <div class="modal-title" id="bulk-diagram-title">LAYOUT</div>
+          <div class="panel-hint" id="bulk-diagram-hint" style="margin-top:2px"></div>
+        </div>
+        <button class="ghost-btn" id="bulk-diagram-close">CLOSE</button>
+      </div>
+      <div id="bulk-diagram-box" class="diagram-modal-box"></div>
+    </div>
+  </div>
+
   <!-- ── Login modal ────────────────────────────────────────── -->
   <div class="modal-overlay" id="login-modal" style="display:none">
     <div class="modal">
@@ -93,7 +111,7 @@
   <main class="main">
 
     <header class="topbar">
-      <span class="topbar-title" id="page-title">SINGLE CARTON CALCULATOR</span>
+      <span class="topbar-title" id="page-title">SINGLE CASE CALCULATOR</span>
       <div class="status-pill">
         <span class="status-dot"></span>
         <span id="status-text">Ready</span>
@@ -107,7 +125,7 @@
         <!-- ── Col 1: Input panel ──────────────────────────── -->
         <div class="panel input-panel">
           <div class="panel-header">
-            <span class="panel-label">CARTON DIMENSIONS</span>
+            <span class="panel-label">CASE DIMENSIONS</span>
             <span class="panel-hint">inches</span>
           </div>
 
@@ -139,6 +157,13 @@
             <div class="field-wrap">
               <input type="number" id="c-cp" class="dim-input" value="4" min="1" step="1">
               <span class="field-unit">units</span>
+            </div>
+          </div>
+          <div class="field-group" style="margin-top:8px">
+            <label class="field-label">CASE WEIGHT</label>
+            <div class="field-wrap">
+              <input type="number" id="c-cw" class="dim-input" placeholder="0.0" min="0" step="0.1">
+              <span class="field-unit">lbs</span>
             </div>
           </div>
 
@@ -210,20 +235,25 @@
             <div class="metric-card" id="mc-ti">
               <div class="metric-label">Ti</div>
               <div class="metric-val" id="val-ti">—</div>
-              <div class="metric-sub">CARTONS / LAYER</div>
+              <div class="metric-sub">CASES / LAYER</div>
             </div>
             <div class="metric-card" id="mc-hi">
               <div class="metric-label">Hi</div>
               <div class="metric-val" id="val-hi">—</div>
               <div class="metric-sub">LAYERS HIGH</div>
             </div>
-            <div class="metric-card metric-card--accent" id="mc-total">
-              <div class="metric-label">Total</div>
-              <div class="metric-val metric-val--xl" id="val-total">—</div>
-              <div class="metric-sub">CARTONS / PALLET</div>
+            <div class="metric-card metric-card--sec" id="mc-total">
+              <div class="metric-label">Cases / Pallet</div>
+              <div class="metric-val metric-val--sec" id="val-total">—</div>
+              <div class="metric-sub">CASES / PALLET</div>
+            </div>
+            <div class="metric-card metric-card--sec" id="mc-upp">
+              <div class="metric-label">Units / Pallet</div>
+              <div class="metric-val metric-val--sec" id="val-upp">—</div>
+              <div class="metric-sub">SELLABLE UNITS</div>
             </div>
             <div class="metric-card metric-card--tl" id="mc-tl">
-              <div class="metric-label">TL</div>
+              <div class="metric-label">Truckload Units</div>
               <div class="metric-val metric-val--tl" id="val-tl">—</div>
               <div class="metric-sub" id="tl-formula">SELLABLE UNITS / TRUCKLOAD</div>
             </div>
@@ -255,15 +285,15 @@
           <!-- Detail strip: 5 fields in a compact row below the diagram -->
           <div class="detail-strip" id="detail-strip" style="display:none">
             <div class="detail-item">
-              <span class="detail-label">Pattern</span>
-              <span class="detail-val" id="d-pattern">—</span>
+              <span class="detail-label">Pallet Weight</span>
+              <span class="detail-val" id="d-pallet-wt">—</span>
             </div>
             <div class="detail-item">
               <span class="detail-label">Floor Efficiency</span>
               <span class="detail-val" id="d-efficiency">—</span>
             </div>
             <div class="detail-item">
-              <span class="detail-label">Stack Height</span>
+              <span class="detail-label">Pod Height</span>
               <span class="detail-val" id="d-height">—</span>
             </div>
             <div class="detail-item">
@@ -273,6 +303,10 @@
             <div class="detail-item">
               <span class="detail-label">Pod Width</span>
               <span class="detail-val" id="d-pod-w">—</span>
+            </div>
+            <div class="detail-item">
+              <span class="detail-label">Truckload Weight</span>
+              <span class="detail-val" id="d-tl-wt">—</span>
             </div>
           </div>
 
@@ -295,11 +329,18 @@
               <select id="bulk-retailer" class="pt-select"></select>
             </div>
           </div>
-          <div class="field-group" style="margin-top:8px;margin-bottom:8px">
+          <div class="field-group" style="margin-top:8px">
             <label class="field-label">DEFAULT CASE PACK QTY</label>
             <div class="field-wrap">
               <input type="number" id="bulk-cp" class="dim-input" value="1" min="1" step="1">
               <span class="field-unit">units</span>
+            </div>
+          </div>
+          <div class="field-group" style="margin-top:8px;margin-bottom:8px">
+            <label class="field-label">DEFAULT CASE WEIGHT</label>
+            <div class="field-wrap">
+              <input type="number" id="bulk-cw" class="dim-input" placeholder="0.0" min="0" step="0.1">
+              <span class="field-unit">lbs</span>
             </div>
           </div>
           <div class="divider"></div>
@@ -307,9 +348,9 @@
             <span class="panel-label">CSV FORMAT</span>
           </div>
           <div class="code-block">
-            <code>sku,length,width,height,case_pack_qty
-ITEM-001,12,8,6,4
-ITEM-002,10,10,8,1</code>
+            <code>sku,length,width,height,case_pack_qty,case_weight
+ITEM-001,12,8,6,4,18.5
+ITEM-002,10,10,8,1,12.0</code>
           </div>
           <a class="text-link" id="dl-template" href="#">Download template</a>
         </div>
@@ -327,7 +368,7 @@ ITEM-002,10,10,8,1</code>
               </svg>
             </div>
             <p class="drop-text">Drop CSV or <label for="file-input" class="file-link">browse</label></p>
-            <p class="drop-hint">sku · length · width · height</p>
+            <p class="drop-hint">sku · length · width · height · case_pack_qty · case_weight</p>
             <input type="file" id="file-input" accept=".csv" style="display:none">
           </div>
           <div class="bulk-status" id="bulk-status"></div>
@@ -353,11 +394,14 @@ ITEM-002,10,10,8,1</code>
                   <th>Case Pack</th>
                   <th>Ti</th>
                   <th>Hi</th>
-                  <th>Total</th>
-                  <th>Truckload</th>
-                  <th>Pod L × W</th>
-                  <th>Pattern</th>
+                  <th>Cases / Pallet</th>
+                  <th>Units / Pallet</th>
+                  <th>Pallet Wt</th>
+                  <th>Units / Truckload</th>
+                  <th>Truckload Weight</th>
+                  <th>Pod L × W × H</th>
                   <th>Efficiency</th>
+                  <th></th>
                 </tr>
               </thead>
               <tbody id="table-body"></tbody>

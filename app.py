@@ -149,13 +149,13 @@ def api_retailers_delete(rid: int):
 def api_calculate():
     data = request.get_json(force=True) or {}
     try:
-        carton_l = float(data["length"])
-        carton_w = float(data["width"])
-        carton_h = float(data["height"])
+        case_l = float(data["length"])
+        case_w = float(data["width"])
+        case_h = float(data["height"])
     except (KeyError, TypeError, ValueError):
         return jsonify({"error": "length, width, height are required numbers"}), 400
 
-    if carton_l <= 0 or carton_w <= 0 or carton_h <= 0:
+    if case_l <= 0 or case_w <= 0 or case_h <= 0:
         return jsonify({"error": "Dimensions must be positive"}), 400
 
     retailers = load_retailers()
@@ -165,9 +165,9 @@ def api_calculate():
 
     case_pack_qty = max(1, int(data.get("case_pack_qty", 1)))
     result = calculate(
-        carton_l=carton_l,
-        carton_w=carton_w,
-        carton_h=carton_h,
+        case_l=case_l,
+        case_w=case_w,
+        case_h=case_h,
         max_height=retailer["max_height"],
         pallet_l=PALLET_L,
         pallet_w=PALLET_W,
@@ -192,26 +192,26 @@ def api_calculate_bulk():
     if not retailer:
         return jsonify({"error": "Retailer not found"}), 404
 
-    cartons = data.get("cartons", [])
-    if not cartons:
-        return jsonify({"error": "No cartons provided"}), 400
+    cases = data.get("cases", [])
+    if not cases:
+        return jsonify({"error": "No cases provided"}), 400
 
     stack_mult = 2 if retailer["double_stack_allowed"] else 1
     max_pallets     = retailer["max_pallets_per_floor"]
     results = []
-    for carton in cartons:
+    for case in cases:
         try:
-            l = float(carton["length"])
-            w = float(carton["width"])
-            h = float(carton["height"])
+            l = float(case["length"])
+            w = float(case["width"])
+            h = float(case["height"])
         except (KeyError, TypeError, ValueError):
             continue
         if l <= 0 or w <= 0 or h <= 0:
             continue
 
-        case_pack_qty = max(1, int(carton.get("case_pack_qty", data.get("case_pack_qty", 1))))
+        case_pack_qty = max(1, int(case.get("case_pack_qty", data.get("case_pack_qty", 1))))
         r = calculate(
-            carton_l=l, carton_w=w, carton_h=h,
+            case_l=l, case_w=w, case_h=h,
             max_height=retailer["max_height"],
             pallet_l=PALLET_L,
             pallet_w=PALLET_W,
@@ -222,7 +222,7 @@ def api_calculate_bulk():
         r["max_pallets_per_floor"] = max_pallets
         r["stack_multiplier"]      = stack_mult
         results.append({
-            "sku": str(carton.get("sku", "")),
+            "sku": str(case.get("sku", "")),
             "length": l, "width": w, "height": h,
             **r,
         })

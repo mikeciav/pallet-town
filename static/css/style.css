@@ -25,6 +25,8 @@
   --cyan:         #34d4c8;
   --cyan-dark:    #1a9e96;
   --cyan-glow:    rgba(52,212,200,.12);
+  --blue:         #5b9cf6;
+  --blue-subtle:  rgba(91,156,246,.10);
 
   --green:        #36d98a;
   --yellow:       #f5c530;
@@ -38,7 +40,8 @@
   --font-mono:    'JetBrains Mono', monospace;
   --font-body:    'DM Sans', sans-serif;
 
-  --sidebar-w:    216px;
+  --sidebar-w:           216px;
+  --sidebar-collapsed-w: 52px;
   --topbar-h:     50px;
   --r:            4px;
   --r-lg:         8px;
@@ -79,7 +82,10 @@ body::before {
   display: flex;
   flex-direction: column;
   z-index: 20;
+  transition: width 0.2s ease;
+  overflow: hidden;
 }
+.sidebar--collapsed { width: var(--sidebar-collapsed-w); }
 
 .main {
   margin-left: var(--sidebar-w);
@@ -88,7 +94,9 @@ body::before {
   flex-direction: column;
   position: relative;
   z-index: 1;
+  transition: margin-left 0.2s ease;
 }
+.main--collapsed { margin-left: var(--sidebar-collapsed-w); }
 
 /* ── Sidebar ───────────────────────────────────────────────── */
 .sidebar-header {
@@ -157,6 +165,30 @@ body::before {
 .std-pallet { display: flex; flex-direction: column; gap: 2px; }
 .std-label  { font-family: var(--font-mono); font-size: 10px; letter-spacing: .1em; color: var(--text-muted); }
 .std-value  { font-family: var(--font-mono); font-size: 13px; font-weight: 500; color: var(--cyan); }
+
+/* ── Sidebar collapse toggle ───────────────────────────────── */
+.sidebar-collapse-btn {
+  padding: 4px 6px; flex-shrink: 0;
+  background: none; border: 1px solid var(--border); border-radius: var(--r);
+  color: var(--text-muted); cursor: pointer; transition: all .14s;
+  display: flex; align-items: center; justify-content: center;
+}
+.sidebar-collapse-btn:hover { border-color: var(--border-hi); color: var(--text); }
+.sidebar-collapse-btn svg { width: 14px; height: 14px; transition: transform 0.2s ease; }
+.sidebar--collapsed .sidebar-collapse-btn svg { transform: rotate(180deg); }
+
+/* Collapsed sidebar — hide text, center icons */
+.sidebar--collapsed .logo-text,
+.sidebar--collapsed .version-tag,
+.sidebar--collapsed .std-pallet,
+.sidebar--collapsed #auth-btn-text { display: none; }
+
+.sidebar--collapsed .sidebar-header { padding: 14px 8px; justify-content: center; }
+.sidebar--collapsed .logo-mark { display: none; }
+.sidebar--collapsed .nav-item { justify-content: center; padding: 8px 6px; }
+.sidebar--collapsed .nav-item > span:not(.nav-icon) { display: none; }
+.sidebar--collapsed .sidebar-footer { padding: 8px; }
+.sidebar--collapsed .auth-btn { justify-content: center; padding: 8px; }
 
 /* ── Topbar ────────────────────────────────────────────────── */
 .topbar {
@@ -230,7 +262,7 @@ body::before {
 /* Metric cards: Ti | Hi | Total | TL in one horizontal row */
 .metrics-row {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
+  grid-template-columns: 0.65fr 0.65fr 1fr 1fr 1.2fr;
   gap: 8px;
   flex-shrink: 0;
   margin-bottom: 10px;
@@ -438,21 +470,22 @@ body::before {
   border-radius: var(--r) var(--r) 0 0;
 }
 
-.metric-card--accent.lit::after { background: var(--cyan); }
+.metric-card--sec.lit::after  { background: var(--blue); }
+.metric-card--tl.lit::after   { background: var(--blue); }
 
-.metric-card--tl.lit::after { background: var(--green); }
 .metric-val--tl {
   font-family: var(--font-mono); font-size: 32px; font-weight: 700;
-  color: var(--green); line-height: 1; margin-bottom: 5px;
+  color: var(--blue); line-height: 1; margin-bottom: 5px;
 }
 .tl-formula {
   font-family: var(--font-mono); font-size: 9px; color: var(--text-muted);
   line-height: 1.5; word-break: break-all;
 }
 
-.metric-label { font-family: var(--font-display); font-size: 10px; font-weight: 600; letter-spacing: .08em; color: var(--text-muted); margin-bottom: 6px; }
-.metric-val    { font-family: var(--font-mono); font-size: 34px; font-weight: 700; color: var(--amber); line-height: 1; margin-bottom: 5px; }
-.metric-val--xl { font-size: 42px; color: var(--cyan); }
+.metric-label  { font-family: var(--font-display); font-size: 10px; font-weight: 600; letter-spacing: .08em; color: var(--text-muted); margin-bottom: 6px; }
+.metric-val    { font-family: var(--font-mono); font-size: 42px; font-weight: 700; color: var(--amber); line-height: 1; margin-bottom: 5px; }
+.metric-val--sec { font-size: 34px; color: var(--blue); }
+.metric-card--tl .metric-val { color: var(--blue); }
 .metric-sub    { font-family: var(--font-mono); font-size: 10px; letter-spacing: .06em; color: var(--text-muted); }
 
 @keyframes pop-in {
@@ -478,7 +511,7 @@ body::before {
 /* Detail strip: 5 fields in a single horizontal row below the diagram */
 .detail-strip {
   display: grid;
-  grid-template-columns: repeat(5, 1fr);
+  grid-template-columns: repeat(3, 1fr);
   gap: 6px;
   margin-top: 8px;
   flex-shrink: 0;
@@ -545,8 +578,8 @@ body::before {
   margin-bottom: 10px;
 }
 .code-block code {
-  font-family: var(--font-mono); font-size: 11px; color: var(--cyan);
-  white-space: pre; display: block;
+  font-family: var(--font-mono); font-size: 11px; color: var(--blue);
+  white-space: pre; display: block; overflow-x: auto;
 }
 
 /* ── Table ─────────────────────────────────────────────────── */
@@ -573,6 +606,14 @@ body::before {
 .eff-badge.hi  { background: rgba(54,217,138,.15); color: var(--green); }
 .eff-badge.mid { background: rgba(245,197,48,.15);  color: var(--yellow); }
 .eff-badge.lo  { background: rgba(240,82,82,.15);   color: var(--red); }
+.view-btn {
+  font-family: var(--font-display); font-size: 9px; font-weight: 600;
+  letter-spacing: .08em; color: var(--cyan);
+  background: none; border: 1px solid var(--cyan);
+  border-radius: 2px; padding: 2px 7px; cursor: pointer;
+  opacity: 0.7; transition: opacity .15s;
+}
+.view-btn:hover { opacity: 1; }
 
 /* ── Ghost button / text links ─────────────────────────────── */
 .ghost-btn {
@@ -753,6 +794,22 @@ body::before {
   font-family: var(--font-display); font-size: 12px; font-weight: 700;
   letter-spacing: .14em; color: var(--text);
   margin-bottom: 20px;
+}
+.modal--diagram {
+  width: min(640px, 92vw);
+  padding: 20px 20px 16px;
+}
+.modal-header-row {
+  display: flex; align-items: flex-start; justify-content: space-between;
+  margin-bottom: 14px;
+}
+.modal-header-row .modal-title { margin-bottom: 0; }
+.diagram-modal-box {
+  width: 100%; aspect-ratio: 580 / 480;
+  background: var(--bg-input);
+  border: 1px solid var(--border);
+  border-radius: var(--r);
+  overflow: hidden;
 }
 .login-error {
   font-family: var(--font-mono); font-size: 11px;

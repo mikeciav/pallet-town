@@ -41,6 +41,7 @@ function showToast(msg = 'Config saved') {
 
 // ── Bootstrap ────────────────────────────────────────────────
 document.addEventListener('DOMContentLoaded', async () => {
+  setupSidebarToggle();
   setupNav();
   setupAuth();
   await checkAuth();
@@ -50,11 +51,32 @@ document.addEventListener('DOMContentLoaded', async () => {
   setupRetailersTab();
 });
 
+// ── Sidebar collapse ─────────────────────────────────────────
+function setupSidebarToggle() {
+  const btn     = document.getElementById('sidebar-toggle');
+  const sidebar = document.querySelector('.sidebar');
+  const main    = document.querySelector('.main');
+
+  const apply = (collapsed) => {
+    sidebar.classList.toggle('sidebar--collapsed', collapsed);
+    main.classList.toggle('main--collapsed', collapsed);
+    btn.title = collapsed ? 'Expand sidebar' : 'Collapse sidebar';
+  };
+
+  apply(localStorage.getItem('sidebar-collapsed') === 'true');
+
+  btn.addEventListener('click', () => {
+    const collapsed = !sidebar.classList.contains('sidebar--collapsed');
+    apply(collapsed);
+    localStorage.setItem('sidebar-collapsed', collapsed);
+  });
+}
+
 // ── Navigation ───────────────────────────────────────────────
 function setupNav() {
   const navItems = [...document.querySelectorAll('.nav-item')];
   const TITLES = {
-    calculator: 'SINGLE CARTON CALCULATOR',
+    calculator: 'SINGLE CASE CALCULATOR',
     bulk:       'BULK IMPORT',
     retailers:  'RETAILER CONFIGURATIONS',
   };
@@ -326,6 +348,7 @@ function renderResults(d) {
   setMetric('val-ti',    d.ti,    'mc-ti');
   setMetric('val-hi',    d.hi,    'mc-hi');
   setMetric('val-total', d.total, 'mc-total');
+  setMetric('val-upp',   d.case_pack_qty * d.total, 'mc-upp');
 
   // Truckload
   setMetric('val-tl', d.truckload_qty.toLocaleString(), 'mc-tl');
@@ -338,13 +361,18 @@ function renderResults(d) {
   document.getElementById('results-meta').textContent =
     r ? `${r.max_pallets_per_floor} pallets · ${r.name}` : '';
 
+  const caseWeight = parseFloat(document.getElementById('c-cw').value) || 0;
+  const palletWeight    = caseWeight * d.total;
+  const truckloadWeight = caseWeight * d.total * d.max_pallets_per_floor * d.stack_multiplier;
+
   document.getElementById('detail-strip').style.display = 'grid';
-  document.getElementById('d-pattern').textContent    = d.arrangement_desc || '—';
-  document.getElementById('d-efficiency').textContent = pct(d.efficiency);
+  document.getElementById('d-pallet-wt').textContent   = formatWeight(palletWeight);
+  document.getElementById('d-efficiency').textContent  = pct(d.efficiency);
   document.getElementById('d-height').textContent =
-    `${d.stack_height}"${r?.no_pallet ? ' · no pallet' : ''}`;
-  document.getElementById('d-pod-l').textContent = d.pod_length ? `${d.pod_length}"` : '—';
-  document.getElementById('d-pod-w').textContent = d.pod_width  ? `${d.pod_width}"` : '—';
+    `${d.pod_height}"${r?.no_pallet ? ' · no pallet' : ''}`;
+  document.getElementById('d-pod-l').textContent  = d.pod_length ? `${d.pod_length}"` : '—';
+  document.getElementById('d-pod-w').textContent  = d.pod_width  ? `${d.pod_width}"` : '—';
+  document.getElementById('d-tl-wt').textContent  = formatWeight(truckloadWeight);
 
   drawDiagram(d);
 }
@@ -361,22 +389,21 @@ function setMetric(valId, value, cardId) {
 // ── SVG Diagram ──────────────────────────────────────────────
 function drawDiagram(d) {
   if (diagramView === 'hi') {
-    drawStackedView(d);
+    drawStackedView(d, document.getElementById('diagram-box'));
   } else {
-    drawTiView(d);
+    drawTiView(d, document.getElementById('diagram-box'));
   }
   // Update hint text
   const hint = document.getElementById('diagram-hint');
   if (!d) return;
   if (diagramView === 'hi') {
-    hint.textContent = `isometric · ${d.hi} layer${d.hi !== 1 ? 's' : ''} · ${d.stack_height}" total height`;
+    hint.textContent = `isometric · ${d.hi} layer${d.hi !== 1 ? 's' : ''} · ${d.pod_height}" pod height`;
   } else {
     hint.textContent = `top-down · 1 layer · Ti = ${d.ti}`;
   }
 }
 
-function drawTiView(d) {
-  const box = document.getElementById('diagram-box');
+function drawTiView(d, box) {
   const { pallet_length: PL, pallet_width: PW, arrangement } = d;
 
   if (!arrangement || !arrangement.length) {
@@ -447,12 +474,11 @@ function drawTiView(d) {
   box.innerHTML = svg;
 }
 
-function drawStackedView(d) {
-  const box = document.getElementById('diagram-box');
-  const { pallet_length: PL, pallet_width: PW, arrangement, hi, carton_h: CH } = d;
+function drawStackedView(d, box) {
+  const { pallet_length: PL, pallet_width: PW, arrangement, hi, case_h: CH } = d;
 
   if (!arrangement || !arrangement.length || !hi || !CH) {
-    const msg = hi === 0 ? 'Hi = 0 (carton too tall)' : 'no stacked data';
+    const msg = hi === 0 ? 'Hi = 0 (case too tall)' : 'no stacked data';
     box.innerHTML = `<div class="diagram-empty"><svg viewBox="0 0 200 300" fill="none"><text x="100" y="150" text-anchor="middle" font-family="JetBrains Mono,monospace" font-size="9" fill="#3d5068">${msg}</text></svg></div>`;
     return;
   }
@@ -517,8 +543,8 @@ function drawStackedView(d) {
 
   const zFull = hi * CH;
 
-  // BFS from the far-back corner carton outward toward the viewer.
-  // Two cartons are adjacent when their footprints share an edge (within EPS).
+  // BFS from the far-back corner case outward toward the viewer.
+  // Two cases are adjacent when their footprints share an edge (within EPS).
   const cDepth = c => c.x + c.w / 2 + c.y + c.h / 2;
   const EPS = 0.01;
   const adjoin = (a, b) => {
@@ -541,10 +567,10 @@ function drawStackedView(d) {
       if (!visited.has(k) && adjoin(curr, c)) { visited.add(k); queue.push(c); }
     }
   }
-  // Any cartons unreachable (disconnected edge case)
+  // Any cases unreachable (disconnected edge case)
   arrangement.forEach(c => { if (!visited.has(cKey(c))) bfsOrder.push(c); });
 
-  // For each carton column in BFS order: paint right wall → front wall →
+  // For each case column in BFS order: paint right wall → front wall →
   // layer dividers → top cap. Near columns drawn later overwrite far ones.
   bfsOrder.forEach(c => {
     const { x: cx, y: cy, w: cw, h: cdp, rotated } = c;
@@ -605,12 +631,31 @@ function drawStackedView(d) {
   box.innerHTML = svg;
 }
 
+// ── Bulk Diagram Modal ───────────────────────────────────────
+function openBulkDiagram(idx) {
+  const row = bulkResults[idx];
+  if (!row || !row.arrangement) return;
+  document.getElementById('bulk-diagram-title').textContent = row.sku || `ROW ${idx + 1}`;
+  document.getElementById('bulk-diagram-hint').textContent =
+    `top-down · 1 layer · Ti = ${row.ti} · ${row.arrangement_desc || ''}`;
+  const modal = document.getElementById('bulk-diagram-modal');
+  modal.style.display = 'flex';
+  drawTiView(row, document.getElementById('bulk-diagram-box'));
+}
+
+function closeBulkDiagram() {
+  document.getElementById('bulk-diagram-modal').style.display = 'none';
+}
+
 // ── Bulk Import ──────────────────────────────────────────────
 function setupBulk() {
   const drop  = document.getElementById('drop-zone');
   const input = document.getElementById('file-input');
 
-  drop.addEventListener('click',     () => input.click());
+  drop.addEventListener('click', e => {
+    if (e.target.closest('label') || e.target === input) return;
+    input.click();
+  });
   drop.addEventListener('dragover',  e  => { e.preventDefault(); drop.classList.add('over'); });
   drop.addEventListener('dragleave', ()  => drop.classList.remove('over'));
   drop.addEventListener('drop',      e  => {
@@ -622,9 +667,14 @@ function setupBulk() {
   document.getElementById('bulk-calc-btn').addEventListener('click', doBulkCalc);
   document.getElementById('export-btn').addEventListener('click', exportResults);
 
+  document.getElementById('bulk-diagram-close').addEventListener('click', closeBulkDiagram);
+  document.getElementById('bulk-diagram-modal').addEventListener('click', e => {
+    if (e.target === e.currentTarget) closeBulkDiagram();
+  });
+
   document.getElementById('dl-template').addEventListener('click', e => {
     e.preventDefault();
-    const csv = 'sku,length,width,height\nITEM-001,12,8,6\nITEM-002,10,10,8\nITEM-003,14,6,5\n';
+    const csv = 'sku,length,width,height,case_pack_qty,case_weight\nITEM-001,12,8,6,4,18.5\nITEM-002,10,10,8,1,12.0\nITEM-003,14,6,5,2,9.75\n';
     dlString(csv, 'pallet-town-template.csv', 'text/csv');
   });
 }
@@ -634,7 +684,7 @@ function handleFile(file) {
   reader.onload = e => {
     bulkData = parseCSV(e.target.result, file.name);
     if (bulkData.length) {
-      setBulkStatus(`${bulkData.length} carton${bulkData.length !== 1 ? 's' : ''} loaded from ${file.name}`);
+      setBulkStatus(`${bulkData.length} case${bulkData.length !== 1 ? 's' : ''} loaded from ${file.name}`);
       document.getElementById('bulk-calc-btn').disabled = false;
     }
   };
@@ -647,7 +697,7 @@ function parseCSV(text, filename) {
 
   const headers = lines[0].toLowerCase().split(',').map(s => s.trim());
   const idx = name => headers.findIndex(h => h.includes(name));
-  const si = idx('sku'), li = idx('len'), wi = idx('wid'), hi = idx('hei');
+  const si = idx('sku'), li = idx('len'), wi = idx('wid'), hi = idx('hei'), cpi = idx('case'), cwi = idx('weight');
 
   if (li === -1 || wi === -1 || hi === -1) {
     setBulkStatus('CSV needs length, width, height columns.', true);
@@ -658,10 +708,19 @@ function parseCSV(text, filename) {
     const cols = line.split(',').map(s => s.trim());
     const l = parseFloat(cols[li]), w = parseFloat(cols[wi]), h = parseFloat(cols[hi]);
     if (!l || !w || !h || l <= 0 || w <= 0 || h <= 0) return null;
-    return {
+    const row = {
       sku: si >= 0 ? cols[si] : `ROW-${i + 1}`,
       length: l, width: w, height: h,
     };
+    if (cpi >= 0 && cols[cpi]) {
+      const cp = parseInt(cols[cpi], 10);
+      if (cp >= 1) row.case_pack_qty = cp;
+    }
+    if (cwi >= 0 && cols[cwi]) {
+      const cw = parseFloat(cols[cwi]);
+      if (cw > 0) row.case_weight = cw;
+    }
+    return row;
   }).filter(Boolean);
 
   if (!rows.length) { setBulkStatus('No valid rows found.', true); return []; }
@@ -676,18 +735,24 @@ async function doBulkCalc() {
   if (!bulkData.length)  { setBulkStatus('Upload a CSV first.', true); return; }
 
   setBtnState('bulk-calc-btn', 'bulk-btn-text', 'CALCULATING…', true);
-  setBulkStatus(`Processing ${bulkData.length} cartons…`);
+  setBulkStatus(`Processing ${bulkData.length} cases…`);
 
   try {
     const res  = await fetch(API.bulkCalc, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ cartons: bulkData, retailer_id: rid, case_pack_qty: cp }),
+      body: JSON.stringify({ cases: bulkData, retailer_id: rid, case_pack_qty: cp }),
     });
     bulkResults = await res.json();
     if (!res.ok) { setBulkStatus(bulkResults.error || 'Error', true); return; }
+    const defaultCaseWeight = parseFloat(document.getElementById('bulk-cw').value) || 0;
+    bulkResults.forEach((r, i) => {
+      const cw = (bulkData[i] && bulkData[i].case_weight) || defaultCaseWeight;
+      r.pallet_weight    = cw * r.total;
+      r.truckload_weight = cw * r.total * r.max_pallets_per_floor * r.stack_multiplier;
+    });
     renderBulkTable(bulkResults);
-    setBulkStatus(`${bulkResults.length} cartons calculated.`);
+    setBulkStatus(`${bulkResults.length} cases calculated.`);
   } catch {
     setBulkStatus('Connection error.', true);
   } finally {
@@ -699,7 +764,8 @@ function renderBulkTable(rows) {
   const panel = document.getElementById('bulk-results');
   panel.style.display = 'flex';
 
-  document.getElementById('table-body').innerHTML = rows.map(r => {
+  const tbody = document.getElementById('table-body');
+  tbody.innerHTML = rows.map((r, i) => {
     const e = Math.round(r.efficiency * 100);
     const cls = e >= 80 ? 'hi' : e >= 60 ? 'mid' : 'lo';
     return `<tr>
@@ -709,19 +775,26 @@ function renderBulkTable(rows) {
       <td class="td-ti">${r.ti}</td>
       <td class="td-hi">${r.hi}</td>
       <td class="td-total">${r.total}</td>
+      <td>${r.case_pack_qty * r.total}</td>
+      <td>${formatWeight(r.pallet_weight)}</td>
       <td class="td-tl">${r.truckload_qty.toLocaleString()}</td>
-      <td>${r.pod_length}" × ${r.pod_width}"</td>
-      <td>${esc(r.arrangement_desc || '—')}</td>
+      <td>${formatWeight(r.truckload_weight)}</td>
+      <td>${r.pod_length}" × ${r.pod_width}" × ${r.pod_height}"</td>
       <td><span class="eff-badge ${cls}">${e}%</span></td>
+      <td><button class="view-btn" data-idx="${i}">VIEW</button></td>
     </tr>`;
   }).join('');
+
+  tbody.querySelectorAll('.view-btn').forEach(btn =>
+    btn.addEventListener('click', () => openBulkDiagram(parseInt(btn.dataset.idx, 10)))
+  );
 }
 
 function exportResults() {
   if (!bulkResults.length) return;
-  const head = 'SKU,Length,Width,Height,Case Pack,Ti,Hi,Total,Truckload,Pod Length,Pod Width,Pattern,Efficiency\n';
+  const head = 'SKU,Length,Width,Height,Case Pack,Ti,Hi,Cases Per Pallet,Units Per Pallet,Pallet Wt (lbs),Units Per Truckload,Truckload Weight (lbs),Pod Length,Pod Width,Pod Height,Efficiency\n';
   const body = bulkResults.map(r =>
-    `${r.sku},${r.length},${r.width},${r.height},${r.case_pack_qty},${r.ti},${r.hi},${r.total},${r.truckload_qty},${r.pod_length},${r.pod_width},"${(r.arrangement_desc || '').replace(/"/g, '""')}",${Math.round(r.efficiency * 100)}%`
+    `${r.sku},${r.length},${r.width},${r.height},${r.case_pack_qty},${r.ti},${r.hi},${r.total},${r.case_pack_qty * r.total},${r.pallet_weight || 0},${r.truckload_qty},${r.truckload_weight || 0},${r.pod_length},${r.pod_width},${r.pod_height},${Math.round(r.efficiency * 100)}%`
   ).join('\n');
   dlString(head + body, 'pallet-results.csv', 'text/csv');
 }
@@ -862,6 +935,11 @@ function flashBtn(msg) {
 
 function pct(fraction) {
   return `${Math.round(fraction * 100)}%`;
+}
+
+function formatWeight(lbs) {
+  if (!lbs) return '—';
+  return lbs.toLocaleString(undefined, { maximumFractionDigits: 0 }) + ' lbs';
 }
 
 function esc(s) {
