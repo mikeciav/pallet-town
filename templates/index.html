@@ -61,8 +61,33 @@
         <span class="std-label">GMA PALLET</span>
         <span class="std-value">40 × 48 × 5.5 in</span>
       </div>
+      <button class="auth-btn" id="auth-btn">
+        <svg class="auth-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+          <rect x="3" y="11" width="18" height="11" rx="2"/>
+          <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+        </svg>
+        <span id="auth-btn-text">Admin Login</span>
+      </button>
     </div>
   </aside>
+
+  <!-- ── Login modal ────────────────────────────────────────── -->
+  <div class="modal-overlay" id="login-modal" style="display:none">
+    <div class="modal">
+      <div class="modal-title">ADMIN LOGIN</div>
+      <div class="field-group">
+        <label class="field-label">PASSWORD</label>
+        <input type="password" id="login-pw" class="ie-text-input"
+               placeholder="enter password" autocomplete="current-password">
+      </div>
+      <div class="login-error" id="login-error"></div>
+      <button class="pt-btn" id="login-submit" style="margin-top:12px">
+        <span id="login-btn-text">AUTHENTICATE</span>
+      </button>
+      <button class="ghost-btn" id="login-cancel"
+              style="width:100%;margin-top:8px;padding:8px">CANCEL</button>
+    </div>
+  </div>
 
   <!-- ── Main ────────────────────────────────────────────────── -->
   <main class="main">
@@ -79,7 +104,7 @@
     <section class="tab-content active" id="tab-calculator">
       <div class="calc-layout">
 
-        <!-- Input panel -->
+        <!-- ── Col 1: Input panel ──────────────────────────── -->
         <div class="panel input-panel">
           <div class="panel-header">
             <span class="panel-label">CARTON DIMENSIONS</span>
@@ -90,21 +115,21 @@
             <div class="field-group">
               <label class="field-label">LENGTH</label>
               <div class="field-wrap">
-                <input type="number" id="c-l" class="dim-input" placeholder="0.0" min="0.1" step="0.1">
+                <input type="number" id="c-l" class="dim-input" placeholder="0.0" min="0.1" step="0.1" value="13.3">
                 <span class="field-unit">in</span>
               </div>
             </div>
             <div class="field-group">
               <label class="field-label">WIDTH</label>
               <div class="field-wrap">
-                <input type="number" id="c-w" class="dim-input" placeholder="0.0" min="0.1" step="0.1">
+                <input type="number" id="c-w" class="dim-input" placeholder="0.0" min="0.1" step="0.1" value="6.9">
                 <span class="field-unit">in</span>
               </div>
             </div>
             <div class="field-group">
               <label class="field-label">HEIGHT</label>
               <div class="field-wrap">
-                <input type="number" id="c-h" class="dim-input" placeholder="0.0" min="0.1" step="0.1">
+                <input type="number" id="c-h" class="dim-input" placeholder="0.0" min="0.1" step="0.1" value="14.2">
                 <span class="field-unit">in</span>
               </div>
             </div>
@@ -112,7 +137,7 @@
           <div class="field-group" style="margin-top:8px">
             <label class="field-label">CASE PACK QTY</label>
             <div class="field-wrap">
-              <input type="number" id="c-cp" class="dim-input" value="1" min="1" step="1">
+              <input type="number" id="c-cp" class="dim-input" value="4" min="1" step="1">
               <span class="field-unit">units</span>
             </div>
           </div>
@@ -177,14 +202,11 @@
           </button>
         </div>
 
-        <!-- Results panel -->
-        <div class="panel results-panel">
-          <div class="panel-header">
-            <span class="panel-label">RESULTS</span>
-            <span class="results-meta" id="results-meta"></span>
-          </div>
+        <!-- ── Col 2: Results + Diagram ─────────────────────── -->
+        <div class="panel results-combined">
 
-          <div class="metrics-grid">
+          <!-- Metrics row: Ti | Hi | Total | TL across the top -->
+          <div class="metrics-row">
             <div class="metric-card" id="mc-ti">
               <div class="metric-label">Ti</div>
               <div class="metric-val" id="val-ti">—</div>
@@ -200,20 +222,27 @@
               <div class="metric-val metric-val--xl" id="val-total">—</div>
               <div class="metric-sub">CARTONS / PALLET</div>
             </div>
-          </div>
-          <div class="metric-card metric-card--tl" id="mc-tl" style="margin-top:8px">
-            <div class="metric-label">TL</div>
-            <div class="metric-val metric-val--tl" id="val-tl">—</div>
-            <div class="metric-sub" id="tl-formula">SELLABLE UNITS / TRUCKLOAD</div>
+            <div class="metric-card metric-card--tl" id="mc-tl">
+              <div class="metric-label">TL</div>
+              <div class="metric-val metric-val--tl" id="val-tl">—</div>
+              <div class="metric-sub" id="tl-formula">SELLABLE UNITS / TRUCKLOAD</div>
+            </div>
           </div>
 
-          <div class="divider"></div>
-
-          <div class="panel-header">
+          <!-- Diagram sub-header -->
+          <div class="diagram-header">
             <span class="panel-label">LAYER DIAGRAM</span>
-            <span class="panel-hint" id="diagram-hint">top-down view · 1 layer</span>
+            <span class="panel-hint" id="diagram-hint"></span>
+            {% if show_hi_view %}
+            <div class="view-toggle" id="view-toggle" style="margin-left:auto">
+              <button class="vt-btn active" data-view="ti">TI</button>
+              <button class="vt-btn" data-view="hi">HI</button>
+            </div>
+            {% endif %}
+            <span class="results-meta" id="results-meta" style="margin-left:auto"></span>
           </div>
 
+          <!-- Diagram — fills all remaining vertical space -->
           <div class="diagram-box" id="diagram-box">
             <div class="diagram-empty">
               <svg viewBox="0 0 200 160" fill="none">
@@ -223,6 +252,7 @@
             </div>
           </div>
 
+          <!-- Detail strip: 5 fields in a compact row below the diagram -->
           <div class="detail-strip" id="detail-strip" style="display:none">
             <div class="detail-item">
               <span class="detail-label">Pattern</span>
@@ -245,6 +275,7 @@
               <span class="detail-val" id="d-pod-w">—</span>
             </div>
           </div>
+
         </div>
 
       </div>

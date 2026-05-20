@@ -2,17 +2,35 @@
 
 import json
 import os
-from flask import Flask, jsonify, render_template, request
+from functools import wraps
+from flask import Flask, jsonify, render_template, request, session
+from werkzeug.security import check_password_hash
 from calculator import calculate
 
 app = Flask(__name__)
+app.secret_key = os.environ.get("SECRET_KEY", "dev-only-change-in-production")
+ADMIN_HASH = os.environ.get("ADMIN_PASSWORD_HASH", "")
 
-RETAILERS_FILE = os.path.join(os.path.dirname(__file__), "retailers.json")
+
+def require_admin(f):
+    @wraps(f)
+    def decorated(*args, **kwargs):
+        if not session.get("is_admin"):
+            return jsonify({"error": "Unauthorized"}), 401
+        return f(*args, **kwargs)
+    return decorated
+
+_data_dir = os.environ.get("DATA_DIR", os.path.dirname(os.path.abspath(__file__)))
+RETAILERS_FILE = os.path.join(_data_dir, "retailers.json")
 
 # Fixed pallet dimensions — not configurable per retailer
 PALLET_L = 48.0
 PALLET_W = 40.0
 PALLET_H = 5.5
+
+# Feature flags
+SHOW_DIAGRAM = True   # diagram panel (Ti top-down view)
+SHOW_HI_VIEW = False  # Hi isometric toggle button inside the diagram panel
 
 DEFAULT_RETAILERS = [
     {"id": 1,  "name": "Walmart",        "max_height": 60, "double_stack_allowed": False, "max_pallets_per_floor": 26, "no_pallet": False},
@@ -62,7 +80,31 @@ def _parse_retailer_body(data: dict, base=None) -> dict:
 
 @app.route("/")
 def index():
-    return render_template("index.html")
+    return render_template("index.html", show_diagram=SHOW_DIAGRAM, show_hi_view=SHOW_HI_VIEW)
+
+
+# ── Auth ──────────────────────────────────────────────────────────────────────
+
+@app.route("/api/auth/status")
+def auth_status():
+    return jsonify({"is_admin": bool(session.get("is_admin"))})
+
+
+@app.route("/api/auth/login", methods=["POST"])
+def auth_login():
+    if not ADMIN_HASH:
+        return jsonify({"error": "Admin not configured on server"}), 500
+    pw = (request.get_json(force=True) or {}).get("password", "")
+    if check_password_hash(ADMIN_HASH, pw):
+        session["is_admin"] = True
+        return jsonify({"ok": True})
+    return jsonify({"error": "Incorrect password"}), 401
+
+
+@app.route("/api/auth/logout", methods=["POST"])
+def auth_logout():
+    session.clear()
+    return jsonify({"ok": True})
 
 
 @app.route("/api/retailers", methods=["GET"])
@@ -71,6 +113,7 @@ def api_retailers_list():
 
 
 @app.route("/api/retailers", methods=["POST"])
+@require_admin
 def api_retailers_create():
     data = request.get_json(force=True) or {}
     retailers = load_retailers()
@@ -82,6 +125,7 @@ def api_retailers_create():
 
 
 @app.route("/api/retailers/<int:rid>", methods=["PUT"])
+@require_admin
 def api_retailers_update(rid: int):
     data = request.get_json(force=True) or {}
     retailers = load_retailers()
@@ -94,6 +138,7 @@ def api_retailers_update(rid: int):
 
 
 @app.route("/api/retailers/<int:rid>", methods=["DELETE"])
+@require_admin
 def api_retailers_delete(rid: int):
     retailers = [r for r in load_retailers() if r["id"] != rid]
     save_retailers(retailers)

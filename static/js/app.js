@@ -9,9 +9,12 @@ const API = {
   bulkCalc:       '/api/calculate-bulk',
 };
 
-let retailers = [];
-let bulkData   = [];
+let retailers   = [];
+let bulkData    = [];
 let bulkResults = [];
+let lastResult  = null;
+let diagramView = 'ti';
+let isAdmin     = false;
 
 // ── Helpers (loaded early — used throughout) ─────────────────
 function debounce(fn, ms) {
@@ -39,6 +42,8 @@ function showToast(msg = 'Config saved') {
 // ── Bootstrap ────────────────────────────────────────────────
 document.addEventListener('DOMContentLoaded', async () => {
   setupNav();
+  setupAuth();
+  await checkAuth();
   await loadRetailers();
   setupCalculator();
   setupBulk();
@@ -65,6 +70,110 @@ function setupNav() {
   });
 }
 
+// ── Auth ─────────────────────────────────────────────────────
+function setupAuth() {
+  document.getElementById('auth-btn').addEventListener('click', () => {
+    if (isAdmin) {
+      doLogout();
+    } else {
+      openLoginModal();
+    }
+  });
+  document.getElementById('login-cancel').addEventListener('click', closeLoginModal);
+  document.getElementById('login-submit').addEventListener('click', doLogin);
+  document.getElementById('login-pw').addEventListener('keydown', e => {
+    if (e.key === 'Enter') doLogin();
+  });
+  document.getElementById('login-modal').addEventListener('click', e => {
+    if (e.target === e.currentTarget) closeLoginModal();
+  });
+}
+
+async function checkAuth() {
+  try {
+    const res = await fetch('/api/auth/status');
+    const data = await res.json();
+    isAdmin = data.is_admin;
+    updateAuthUI();
+  } catch { /* network error — stay locked */ }
+}
+
+function openLoginModal() {
+  document.getElementById('login-pw').value = '';
+  document.getElementById('login-error').textContent = '';
+  document.getElementById('login-modal').style.display = 'flex';
+  setTimeout(() => document.getElementById('login-pw').focus(), 50);
+}
+
+function closeLoginModal() {
+  document.getElementById('login-modal').style.display = 'none';
+}
+
+async function doLogin() {
+  const pw = document.getElementById('login-pw').value;
+  document.getElementById('login-btn-text').textContent = 'CHECKING…';
+  document.getElementById('login-submit').disabled = true;
+  try {
+    const res = await fetch('/api/auth/login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ password: pw }),
+    });
+    if (res.ok) {
+      isAdmin = true;
+      updateAuthUI();
+      closeLoginModal();
+    } else {
+      const d = await res.json();
+      document.getElementById('login-error').textContent = d.error || 'Incorrect password';
+    }
+  } catch {
+    document.getElementById('login-error').textContent = 'Connection error';
+  } finally {
+    document.getElementById('login-btn-text').textContent = 'AUTHENTICATE';
+    document.getElementById('login-submit').disabled = false;
+  }
+}
+
+async function doLogout() {
+  await fetch('/api/auth/logout', { method: 'POST' });
+  isAdmin = false;
+  updateAuthUI();
+}
+
+function updateAuthUI() {
+  const btn     = document.getElementById('auth-btn');
+  const btnText = document.getElementById('auth-btn-text');
+  const icon    = btn.querySelector('.auth-icon');
+
+  if (isAdmin) {
+    btnText.textContent = 'Admin';
+    btn.classList.add('auth-btn--active');
+    // swap lock → unlock icon
+    icon.innerHTML = '<rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 9.9-1"/>';
+  } else {
+    btnText.textContent = 'Admin Login';
+    btn.classList.remove('auth-btn--active');
+    icon.innerHTML = '<rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/>';
+  }
+
+  // Lock / unlock all retailer editing controls
+  const locked = !isAdmin;
+  document.querySelectorAll('.r-input, .r-name-input').forEach(el => el.disabled = locked);
+  document.querySelectorAll('#retailers-grid .toggle-input').forEach(el => el.disabled = locked);
+  document.querySelectorAll('[data-action="delete"]').forEach(el => {
+    el.style.visibility = locked ? 'hidden' : 'visible';
+  });
+  const addBtn = document.getElementById('add-retailer-btn');
+  if (addBtn) addBtn.style.visibility = locked ? 'hidden' : 'visible';
+
+  // Lock / unlock inline editor on calculator tab
+  ['ie-name', 'ie-maxh', 'ie-pallets', 'ie-ds', 'ie-nopallet'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.disabled = locked;
+  });
+}
+
 // ── Retailers API ────────────────────────────────────────────
 async function loadRetailers() {
   try {
@@ -72,6 +181,9 @@ async function loadRetailers() {
     retailers = await res.json();
     syncRetailerSelects();
     renderRetailersGrid();
+    // Temporary defaults: pre-select Walmart
+    const sel = document.getElementById('retailer-select');
+    if (!sel.value) { sel.value = '1'; updateInfoBar(); }
   } catch (e) {
     setStatus('Could not load retailers.', true);
   }
@@ -100,6 +212,15 @@ function retailerById(id) {
 function setupCalculator() {
   document.getElementById('retailer-select').addEventListener('change', updateInfoBar);
   document.getElementById('calc-btn').addEventListener('click', doCalculate);
+
+  document.querySelectorAll('.vt-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      diagramView = btn.dataset.view;
+      document.querySelectorAll('.vt-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      if (lastResult) drawDiagram(lastResult);
+    });
+  });
   ['c-l', 'c-w', 'c-h'].forEach(id => {
     document.getElementById(id).addEventListener('keydown', e => {
       if (e.key === 'Enter') doCalculate();
@@ -126,6 +247,7 @@ function setupCalculator() {
 }
 
 async function saveInlineRetailer() {
+  if (!isAdmin) return;
   const rid = document.getElementById('retailer-select').value;
   if (!rid) return;
   const payload = {
@@ -199,6 +321,8 @@ async function doCalculate() {
 }
 
 function renderResults(d) {
+  lastResult = d;
+
   setMetric('val-ti',    d.ti,    'mc-ti');
   setMetric('val-hi',    d.hi,    'mc-hi');
   setMetric('val-total', d.total, 'mc-total');
@@ -214,15 +338,13 @@ function renderResults(d) {
   document.getElementById('results-meta').textContent =
     r ? `${r.max_pallets_per_floor} pallets · ${r.name}` : '';
 
-  document.getElementById('detail-strip').style.display = 'flex';
+  document.getElementById('detail-strip').style.display = 'grid';
   document.getElementById('d-pattern').textContent    = d.arrangement_desc || '—';
   document.getElementById('d-efficiency').textContent = pct(d.efficiency);
   document.getElementById('d-height').textContent =
     `${d.stack_height}"${r?.no_pallet ? ' · no pallet' : ''}`;
   document.getElementById('d-pod-l').textContent = d.pod_length ? `${d.pod_length}"` : '—';
   document.getElementById('d-pod-w').textContent = d.pod_width  ? `${d.pod_width}"` : '—';
-  document.getElementById('diagram-hint').textContent =
-    `top-down · 1 layer · Ti=${d.ti}`;
 
   drawDiagram(d);
 }
@@ -238,24 +360,40 @@ function setMetric(valId, value, cardId) {
 
 // ── SVG Diagram ──────────────────────────────────────────────
 function drawDiagram(d) {
+  if (diagramView === 'hi') {
+    drawStackedView(d);
+  } else {
+    drawTiView(d);
+  }
+  // Update hint text
+  const hint = document.getElementById('diagram-hint');
+  if (!d) return;
+  if (diagramView === 'hi') {
+    hint.textContent = `isometric · ${d.hi} layer${d.hi !== 1 ? 's' : ''} · ${d.stack_height}" total height`;
+  } else {
+    hint.textContent = `top-down · 1 layer · Ti = ${d.ti}`;
+  }
+}
+
+function drawTiView(d) {
   const box = document.getElementById('diagram-box');
   const { pallet_length: PL, pallet_width: PW, arrangement } = d;
 
   if (!arrangement || !arrangement.length) {
-    box.innerHTML = '<div class="diagram-empty"><svg viewBox="0 0 200 160" fill="none"><text x="100" y="82" text-anchor="middle" font-family="JetBrains Mono,monospace" font-size="9" fill="#3d5068">no arrangement data</text></svg></div>';
+    box.innerHTML = '<div class="diagram-empty"><svg viewBox="0 0 200 300" fill="none"><text x="100" y="150" text-anchor="middle" font-family="JetBrains Mono,monospace" font-size="9" fill="#3d5068">no arrangement data</text></svg></div>';
     return;
   }
 
-  const VW = 440, VH = 350;
-  const PAD = 28;
+  const VW = 580, VH = 480;
+  const PAD = 32;
+  const LEGEND_H = 22;
 
-  const scale = Math.min((VW - PAD * 2) / PL, (VH - PAD * 2) / PW);
+  const scale = Math.min((VW - PAD * 2) / PL, (VH - PAD * 2 - LEGEND_H) / PW);
   const dW    = PL * scale;
   const dH    = PW * scale;
   const ox    = (VW - dW) / 2;
-  const oy    = (VH - dH) / 2;
+  const oy    = PAD + ((VH - PAD * 2 - LEGEND_H) - dH) / 2;
 
-  // grid pattern pitch — aim for ~20px squares in drawing space
   const gPitch = Math.max(4, Math.round(20 / scale)) * scale;
 
   let svg = `<svg viewBox="0 0 ${VW} ${VH}" xmlns="http://www.w3.org/2000/svg" style="width:100%;height:100%;display:block">
@@ -268,11 +406,9 @@ function drawDiagram(d) {
   </clipPath>
 </defs>`;
 
-  // Pallet floor
   svg += `<rect x="${ox}" y="${oy}" width="${dW}" height="${dH}" fill="#0d1119"/>`;
   svg += `<rect x="${ox}" y="${oy}" width="${dW}" height="${dH}" fill="url(#g)"/>`;
 
-  // Cartons
   arrangement.forEach(c => {
     const cx = ox + c.x * scale;
     const cy = oy + c.y * scale;
@@ -285,7 +421,6 @@ function drawDiagram(d) {
          + `width="${Math.max(0,cw-1.6).toFixed(1)}" height="${Math.max(0,ch-1.6).toFixed(1)}" `
          + `fill="${fill}" stroke="${stroke}" stroke-width="0.7" clip-path="url(#pal-clip)"/>`;
 
-    // Center tick if large enough
     if (cw > 14 && ch > 14) {
       const mx = (cx + cw / 2).toFixed(1);
       const my = (cy + ch / 2).toFixed(1);
@@ -294,22 +429,177 @@ function drawDiagram(d) {
     }
   });
 
-  // Pallet border overlay
   svg += `<rect x="${ox}" y="${oy}" width="${dW}" height="${dH}" fill="none" stroke="#334060" stroke-width="1.5"/>`;
 
-  // Dimension annotations
   const annotColor = '#3d5068';
   const af = 'font-family="JetBrains Mono,monospace"';
   svg += `<text x="${(ox+dW/2).toFixed(1)}" y="${(oy-7).toFixed(1)}" text-anchor="middle" ${af} font-size="9" fill="${annotColor}">${PL}"</text>`;
-  svg += `<text x="${(ox-8).toFixed(1)}" y="${(oy+dH/2).toFixed(1)}" text-anchor="middle" ${af} font-size="9" fill="${annotColor}" `
-       + `transform="rotate(-90,${(ox-8).toFixed(1)},${(oy+dH/2).toFixed(1)})">${PW}"</text>`;
+  svg += `<text x="${(ox-9).toFixed(1)}" y="${(oy+dH/2).toFixed(1)}" text-anchor="middle" ${af} font-size="9" fill="${annotColor}" `
+       + `transform="rotate(-90,${(ox-9).toFixed(1)},${(oy+dH/2).toFixed(1)})">${PW}"</text>`;
 
-  // Legend
   const ly = (oy + dH + 12).toFixed(1);
   svg += `<rect x="${ox}" y="${ly}" width="8" height="8" fill="rgba(245,166,35,.13)" stroke="#f5a623" stroke-width="0.7"/>`;
   svg += `<text x="${(ox+12).toFixed(1)}" y="${(parseFloat(ly)+7).toFixed(1)}" ${af} font-size="8" fill="#7a8faa">Standard</text>`;
   svg += `<rect x="${(ox+76).toFixed(1)}" y="${ly}" width="8" height="8" fill="rgba(52,212,200,.13)" stroke="#34d4c8" stroke-width="0.7"/>`;
   svg += `<text x="${(ox+88).toFixed(1)}" y="${(parseFloat(ly)+7).toFixed(1)}" ${af} font-size="8" fill="#7a8faa">Rotated 90°</text>`;
+
+  svg += '</svg>';
+  box.innerHTML = svg;
+}
+
+function drawStackedView(d) {
+  const box = document.getElementById('diagram-box');
+  const { pallet_length: PL, pallet_width: PW, arrangement, hi, carton_h: CH } = d;
+
+  if (!arrangement || !arrangement.length || !hi || !CH) {
+    const msg = hi === 0 ? 'Hi = 0 (carton too tall)' : 'no stacked data';
+    box.innerHTML = `<div class="diagram-empty"><svg viewBox="0 0 200 300" fill="none"><text x="100" y="150" text-anchor="middle" font-family="JetBrains Mono,monospace" font-size="9" fill="#3d5068">${msg}</text></svg></div>`;
+    return;
+  }
+
+  const VW = 290, VH = 460;
+  const PAD = 18;
+  const LEGEND_H = 18;
+  const EXTRA_TOP = 10;
+
+  const COS30 = Math.cos(Math.PI / 6);
+  const SIN30 = 0.5;
+
+  // Scale to fit diamond footprint horizontally
+  const hScale = (VW - 2 * PAD) / ((PL + PW) * COS30);
+
+  // Floor height in screen px
+  const floorH_screen = (PL + PW) * SIN30 * hScale;
+
+  // Scale height so stack fits vertically; cap to keep boxes looking natural
+  const stackWorldH = hi * CH;
+  const availForStack = VH - 2 * PAD - EXTRA_TOP - LEGEND_H - floorH_screen;
+  const rawVScale = availForStack > 0 ? availForStack / stackWorldH : hScale;
+  const vScale = Math.min(rawVScale, hScale * 3.5);
+
+  // Vertically center content when vScale is capped
+  const stackH_screen = stackWorldH * vScale;
+  const totalContentH = stackH_screen + floorH_screen;
+  const freeV = Math.max(0, (VH - 2 * PAD - EXTRA_TOP - LEGEND_H) - totalContentH);
+
+  // World (0,0,0) origin in SVG coords
+  const originX = PAD + PW * COS30 * hScale;
+  const originY = PAD + EXTRA_TOP + freeV / 2 + stackH_screen;
+
+  function iso(wx, wy, wz) {
+    return {
+      x: originX + (wx - wy) * COS30 * hScale,
+      y: originY + (wx + wy) * SIN30 * hScale - wz * vScale,
+    };
+  }
+
+  function poly(pts, fill, stroke, sw) {
+    const s = pts.map(p => `${p.x.toFixed(1)},${p.y.toFixed(1)}`).join(' ');
+    return `<polygon points="${s}" fill="${fill}" stroke="${stroke}" stroke-width="${sw}"/>`;
+  }
+
+  let svg = `<svg viewBox="0 0 ${VW} ${VH}" xmlns="http://www.w3.org/2000/svg" style="width:100%;height:100%;display:block">`;
+
+  // Pallet floor diamond
+  const f = [iso(0,0,0), iso(PL,0,0), iso(PL,PW,0), iso(0,PW,0)];
+  svg += poly(f, '#0b0f18', '#253047', 1);
+
+  // Grid lines on pallet floor (every ~12 world units)
+  const gridStep = PL >= 36 ? 12 : 6;
+  for (let gx = 0; gx <= PL; gx += gridStep) {
+    const a = iso(gx, 0, 0), b = iso(gx, PW, 0);
+    svg += `<line x1="${a.x.toFixed(1)}" y1="${a.y.toFixed(1)}" x2="${b.x.toFixed(1)}" y2="${b.y.toFixed(1)}" stroke="#1e2d40" stroke-width="0.5"/>`;
+  }
+  for (let gy = 0; gy <= PW; gy += gridStep) {
+    const a = iso(0, gy, 0), b = iso(PL, gy, 0);
+    svg += `<line x1="${a.x.toFixed(1)}" y1="${a.y.toFixed(1)}" x2="${b.x.toFixed(1)}" y2="${b.y.toFixed(1)}" stroke="#1e2d40" stroke-width="0.5"/>`;
+  }
+
+  const zFull = hi * CH;
+
+  // BFS from the far-back corner carton outward toward the viewer.
+  // Two cartons are adjacent when their footprints share an edge (within EPS).
+  const cDepth = c => c.x + c.w / 2 + c.y + c.h / 2;
+  const EPS = 0.01;
+  const adjoin = (a, b) => {
+    const xTch = Math.abs(a.x + a.w - b.x) < EPS || Math.abs(b.x + b.w - a.x) < EPS;
+    const yOvr = a.y < b.y + b.h - EPS && b.y < a.y + a.h - EPS;
+    const yTch = Math.abs(a.y + a.h - b.y) < EPS || Math.abs(b.y + b.h - a.y) < EPS;
+    const xOvr = a.x < b.x + b.w - EPS && b.x < a.x + a.w - EPS;
+    return (xTch && yOvr) || (yTch && xOvr);
+  };
+  const cKey  = c => `${c.x.toFixed(1)},${c.y.toFixed(1)}`;
+  const start = arrangement.reduce((best, c) => cDepth(c) < cDepth(best) ? c : best);
+  const visited = new Set([cKey(start)]);
+  const bfsOrder = [];
+  const queue = [start];
+  while (queue.length) {
+    const curr = queue.shift();
+    bfsOrder.push(curr);
+    for (const c of arrangement) {
+      const k = cKey(c);
+      if (!visited.has(k) && adjoin(curr, c)) { visited.add(k); queue.push(c); }
+    }
+  }
+  // Any cartons unreachable (disconnected edge case)
+  arrangement.forEach(c => { if (!visited.has(cKey(c))) bfsOrder.push(c); });
+
+  // For each carton column in BFS order: paint right wall → front wall →
+  // layer dividers → top cap. Near columns drawn later overwrite far ones.
+  bfsOrder.forEach(c => {
+    const { x: cx, y: cy, w: cw, h: cdp, rotated } = c;
+    const base = rotated ? [52, 212, 200] : [245, 166, 35];
+
+    const topFill   = `rgb(${base.map(v => Math.round(v * 0.88)).join(',')})`;
+    const rightFill = `rgb(${base.map(v => Math.round(v * 0.52)).join(',')})`;
+    const frontFill = `rgb(${base.map(v => Math.round(v * 0.38)).join(',')})`;
+    const edge      = 'rgba(0,0,0,0.55)';
+    const divider   = 'rgba(0,0,0,0.50)';
+
+    // 1. Full-height right face (+x wall)
+    svg += poly(
+      [iso(cx+cw,cy,zFull), iso(cx+cw,cy+cdp,zFull), iso(cx+cw,cy+cdp,0), iso(cx+cw,cy,0)],
+      rightFill, edge, 0.7
+    );
+
+    // 2. Full-height front face (near-y wall, closest to viewer)
+    svg += poly(
+      [iso(cx,cy,0), iso(cx+cw,cy,0), iso(cx+cw,cy,zFull), iso(cx,cy,zFull)],
+      frontFill, edge, 0.7
+    );
+
+    // 3. Horizontal layer divider lines drawn on top of the solid faces
+    for (let k = 1; k < hi; k++) {
+      const z = k * CH;
+      const ra = iso(cx+cw, cy, z),      rb = iso(cx+cw, cy+cdp, z);
+      const fa = iso(cx, cy, z),          fb = iso(cx+cw, cy, z);
+      svg += `<line x1="${ra.x.toFixed(1)}" y1="${ra.y.toFixed(1)}" x2="${rb.x.toFixed(1)}" y2="${rb.y.toFixed(1)}" stroke="${divider}" stroke-width="0.9"/>`;
+      svg += `<line x1="${fa.x.toFixed(1)}" y1="${fa.y.toFixed(1)}" x2="${fb.x.toFixed(1)}" y2="${fb.y.toFixed(1)}" stroke="${divider}" stroke-width="0.9"/>`;
+    }
+
+    // 4. Top face (drawn last = caps the prism and overwrites any side-face artifacts)
+    svg += poly(
+      [iso(cx,cy,zFull), iso(cx+cw,cy,zFull), iso(cx+cw,cy+cdp,zFull), iso(cx,cy+cdp,zFull)],
+      topFill, edge, 0.7
+    );
+  });
+
+  // Pallet border re-draw over everything
+  svg += poly(f, 'none', '#334060', 1.5);
+
+  // Layer count badge (top of stack, front-left corner)
+  if (hi > 0) {
+    const topPt = iso(0, 0, hi * CH);
+    svg += `<text x="${topPt.x.toFixed(1)}" y="${(topPt.y - 5).toFixed(1)}" font-family="JetBrains Mono,monospace" font-size="9" fill="#7a95b0" text-anchor="middle">Hi=${hi}</text>`;
+  }
+
+  // Legend
+  const af = 'font-family="JetBrains Mono,monospace"';
+  const ly = (VH - LEGEND_H + 2).toFixed(1);
+  svg += `<rect x="10" y="${ly}" width="8" height="8" fill="rgba(245,166,35,0.3)" stroke="#f5a623" stroke-width="0.7"/>`;
+  svg += `<text x="22" y="${(parseFloat(ly)+7).toFixed(1)}" ${af} font-size="8" fill="#7a8faa">Standard</text>`;
+  svg += `<rect x="82" y="${ly}" width="8" height="8" fill="rgba(52,212,200,0.3)" stroke="#34d4c8" stroke-width="0.7"/>`;
+  svg += `<text x="94" y="${(parseFloat(ly)+7).toFixed(1)}" ${af} font-size="8" fill="#7a8faa">Rotated</text>`;
 
   svg += '</svg>';
   box.innerHTML = svg;
@@ -448,6 +738,8 @@ function renderRetailersGrid() {
   grid.querySelectorAll('[data-action="delete"]').forEach(b =>
     b.addEventListener('click', () => deleteRetailer(b.dataset.id))
   );
+  // Re-apply lock state after DOM rebuild
+  updateAuthUI();
 }
 
 function cardHTML(r) {
@@ -496,6 +788,7 @@ function bindCardAutoSave(id) {
 }
 
 async function saveCardRetailer(id) {
+  if (!isAdmin) return;
   const payload = {
     name:                  document.getElementById(`r-name-${id}`).value.trim(),
     max_height:            parseFloat(document.getElementById(`r-mh-${id}`).value),

@@ -202,6 +202,7 @@ def calculate(
         "ti": ti,
         "hi": hi,
         "total": total,
+        "carton_h": round(carton_h, 2),
         "stack_height": round(stack_height, 2),
         "efficiency": round(efficiency, 4),
         "pallet_length": pallet_l,
