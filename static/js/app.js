@@ -234,6 +234,11 @@ function retailerById(id) {
 function setupCalculator() {
   document.getElementById('retailer-select').addEventListener('change', updateInfoBar);
   document.getElementById('calc-btn').addEventListener('click', doCalculate);
+  document.getElementById('clear-btn').addEventListener('click', () => {
+    ['c-l', 'c-w', 'c-h', 'c-cw', 'c-cp'].forEach(id => {
+      document.getElementById(id).value = '';
+    });
+  });
 
   document.querySelectorAll('.vt-btn').forEach(btn => {
     btn.addEventListener('click', () => {
@@ -674,7 +679,7 @@ function setupBulk() {
 
   document.getElementById('dl-template').addEventListener('click', e => {
     e.preventDefault();
-    const csv = 'sku,length,width,height,case_pack_qty,case_weight\nITEM-001,12,8,6,4,18.5\nITEM-002,10,10,8,1,12.0\nITEM-003,14,6,5,2,9.75\n';
+    const csv = 'sku,length,width,height,case_weight,case_pack_qty\nITEM-001,12,8,6,18.5,4\nITEM-002,10,10,8,12.0,1\nITEM-003,14,6,5,9.75,2\n';
     dlString(csv, 'pallet-town-template.csv', 'text/csv');
   });
 }
