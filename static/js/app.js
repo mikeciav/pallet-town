@@ -805,7 +805,7 @@ function parseCSV(text, filename) {
 
   const headers = lines[0].toLowerCase().split(',').map(s => s.trim());
   const idx = name => headers.findIndex(h => h.includes(name));
-  const si = idx('sku'), li = idx('len'), wi = idx('wid'), hi = idx('hei'), cpi = idx('case'), cwi = idx('weight');
+  const si = idx('sku'), li = idx('len'), wi = idx('wid'), hi = idx('hei'), cpi = idx('pack'), cwi = idx('weight');
 
   if (li === -1 || wi === -1 || hi === -1) {
     setBulkStatus('CSV needs length, width, height columns.', true);
@@ -858,6 +858,7 @@ async function doBulkCalc() {
     const defaultCaseWeight = parseFloat(document.getElementById('bulk-cw').value) || 0;
     bulkResults.forEach((r, i) => {
       const cw = (bulkData[i] && bulkData[i].case_weight) || defaultCaseWeight;
+      r.case_weight      = cw;
       r.pallet_weight    = cw * r.total;
       r.truckload_weight = cw * r.total * r.max_pallets_per_floor * r.stack_multiplier;
     });
@@ -881,6 +882,7 @@ function renderBulkTable(rows) {
     return `<tr>
       <td>${esc(r.sku)}</td>
       <td>${r.length}" × ${r.width}" × ${r.height}"</td>
+      <td>${formatWeight(r.case_weight)}</td>
       <td>${r.case_pack_qty}</td>
       <td class="td-ti">${r.ti}</td>
       <td class="td-hi">${r.hi}</td>
@@ -902,9 +904,9 @@ function renderBulkTable(rows) {
 
 function exportResults() {
   if (!bulkResults.length) return;
-  const head = 'SKU,Length,Width,Height,Case Pack,Ti,Hi,Cases Per Pallet,Units Per Pallet,Pallet Wt (lbs),Units Per Truckload,Truckload Weight (lbs),Pod Length,Pod Width,Pod Height,Efficiency\n';
+  const head = 'SKU,Length,Width,Height,Case Weight (lbs),Case Pack Qty,Ti,Hi,Cases Per Pallet,Units Per Pallet,Pallet Wt (lbs),Units Per Truckload,Truckload Weight (lbs),Pod Length,Pod Width,Pod Height,Efficiency\n';
   const body = bulkResults.map(r =>
-    `${r.sku},${r.length},${r.width},${r.height},${r.case_pack_qty},${r.ti},${r.hi},${r.total},${r.case_pack_qty * r.total},${r.pallet_weight || 0},${r.truckload_qty},${r.truckload_weight || 0},${r.pod_length},${r.pod_width},${r.pod_height},${Math.round(r.efficiency * 100)}%`
+    `${r.sku},${r.length},${r.width},${r.height},${r.case_weight || 0},${r.case_pack_qty},${r.ti},${r.hi},${r.total},${r.case_pack_qty * r.total},${r.pallet_weight || 0},${r.truckload_qty},${r.truckload_weight || 0},${r.pod_length},${r.pod_width},${r.pod_height},${Math.round(r.efficiency * 100)}%`
   ).join('\n');
   dlString(head + body, 'pallet-results.csv', 'text/csv');
 }
