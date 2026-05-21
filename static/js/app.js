@@ -15,6 +15,41 @@ let bulkResults = [];
 let lastResult  = null;
 let diagramView = 'ti';
 let isAdmin     = false;
+let customRetailer = { max_height: 60, double_stack_allowed: false, max_pallets_per_floor: 26, no_pallet: false };
+
+function loadCustomRetailer() {
+  try {
+    const saved = localStorage.getItem('custom-retailer');
+    if (saved) customRetailer = { ...customRetailer, ...JSON.parse(saved) };
+  } catch {}
+}
+
+function saveCustomRetailer() {
+  localStorage.setItem('custom-retailer', JSON.stringify(customRetailer));
+}
+
+function readCustomEditorValues(prefix) {
+  const maxh    = parseFloat(document.getElementById(`${prefix}-maxh`).value);
+  const pallets = parseInt(document.getElementById(`${prefix}-pallets`).value, 10);
+  if (!isNaN(maxh) && maxh > 0)       customRetailer.max_height            = maxh;
+  if (!isNaN(pallets) && pallets > 0) customRetailer.max_pallets_per_floor = pallets;
+  customRetailer.double_stack_allowed = document.getElementById(`${prefix}-ds`).checked;
+  customRetailer.no_pallet            = document.getElementById(`${prefix}-nopallet`).checked;
+  saveCustomRetailer();
+  syncCustomEditors();
+}
+
+function syncCustomEditors() {
+  [['ie-maxh', 'ie-pallets', 'ie-ds', 'ie-nopallet'],
+   ['bulk-ie-maxh', 'bulk-ie-pallets', 'bulk-ie-ds', 'bulk-ie-nopallet']].forEach(([mh, pl, ds, np]) => {
+    const mhEl = document.getElementById(mh);
+    if (!mhEl) return;
+    mhEl.value                                  = customRetailer.max_height;
+    document.getElementById(pl).value           = customRetailer.max_pallets_per_floor;
+    document.getElementById(ds).checked         = customRetailer.double_stack_allowed;
+    document.getElementById(np).checked         = customRetailer.no_pallet;
+  });
+}
 
 // ── Helpers (loaded early — used throughout) ─────────────────
 function debounce(fn, ms) {
@@ -41,6 +76,7 @@ function showToast(msg = 'Config saved') {
 
 // ── Bootstrap ────────────────────────────────────────────────
 document.addEventListener('DOMContentLoaded', async () => {
+  loadCustomRetailer();
   setupSidebarToggle();
   setupNav();
   setupAuth();
@@ -189,11 +225,6 @@ function updateAuthUI() {
   const addBtn = document.getElementById('add-retailer-btn');
   if (addBtn) addBtn.style.visibility = locked ? 'hidden' : 'visible';
 
-  // Lock / unlock inline editor on calculator tab
-  ['ie-name', 'ie-maxh', 'ie-pallets', 'ie-ds', 'ie-nopallet'].forEach(id => {
-    const el = document.getElementById(id);
-    if (el) el.disabled = locked;
-  });
 }
 
 // ── Retailers API ────────────────────────────────────────────
@@ -216,6 +247,10 @@ function syncRetailerSelects() {
     const sel = document.getElementById(id);
     const cur = sel.value;
     sel.innerHTML = '<option value="">— Select Retailer —</option>';
+    const customOpt = document.createElement('option');
+    customOpt.value = 'custom';
+    customOpt.textContent = 'Custom';
+    sel.appendChild(customOpt);
     retailers.forEach(r => {
       const o = document.createElement('option');
       o.value = r.id;
@@ -254,14 +289,14 @@ function setupCalculator() {
     });
   });
 
-  // Inline editor: auto-save
-  const debouncedIESave = debounce(saveInlineRetailer, 800);
-  ['ie-name', 'ie-maxh', 'ie-pallets'].forEach(id => {
+  // Custom retailer editor: update shared state on change
+  const debouncedIESave = debounce(() => readCustomEditorValues('ie'), 500);
+  ['ie-maxh', 'ie-pallets'].forEach(id => {
     document.getElementById(id).addEventListener('input', debouncedIESave);
-    document.getElementById(id).addEventListener('blur',  saveInlineRetailer);
+    document.getElementById(id).addEventListener('blur', () => readCustomEditorValues('ie'));
   });
-  document.getElementById('ie-ds').addEventListener('change', saveInlineRetailer);
-  document.getElementById('ie-nopallet').addEventListener('change', saveInlineRetailer);
+  document.getElementById('ie-ds').addEventListener('change', () => readCustomEditorValues('ie'));
+  document.getElementById('ie-nopallet').addEventListener('change', () => readCustomEditorValues('ie'));
 
   // Inline editor: collapse toggle
   document.getElementById('ie-toggle').addEventListener('click', () => {
@@ -273,45 +308,28 @@ function setupCalculator() {
   });
 }
 
-async function saveInlineRetailer() {
-  if (!isAdmin) return;
-  const rid = document.getElementById('retailer-select').value;
-  if (!rid) return;
-  const payload = {
-    name:                  document.getElementById('ie-name').value.trim(),
-    max_height:            parseFloat(document.getElementById('ie-maxh').value),
-    max_pallets_per_floor: parseInt(document.getElementById('ie-pallets').value, 10),
-    double_stack_allowed:  document.getElementById('ie-ds').checked,
-    no_pallet:             document.getElementById('ie-nopallet').checked,
-  };
-  if (!payload.name || isNaN(payload.max_height) || isNaN(payload.max_pallets_per_floor)) return;
-  try {
-    const res = await fetch(API.retailer(rid), {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload),
-    });
-    if (res.ok) {
-      const r = retailerById(rid);
-      if (r) Object.assign(r, payload);
-      syncRetailerSelects();
-      document.getElementById('retailer-select').value = rid;
-      showToast();
-    }
-  } catch (e) { console.error(e); }
-}
 
 function updateInfoBar() {
-  const r = retailerById(document.getElementById('retailer-select').value);
+  const rid    = document.getElementById('retailer-select').value;
   const editor = document.getElementById('inline-editor');
+  if (!rid) { editor.style.display = 'none'; return; }
 
-  if (!r) { editor.style.display = 'none'; return; }
+  const isCustom = rid === 'custom';
+  editor.querySelector('.panel-label').textContent = isCustom ? 'CUSTOM RETAILER' : 'RETAILER DETAILS';
+  ['ie-maxh', 'ie-pallets', 'ie-ds', 'ie-nopallet'].forEach(id => {
+    document.getElementById(id).disabled = !isCustom;
+  });
 
-  document.getElementById('ie-name').value       = r.name;
-  document.getElementById('ie-maxh').value       = r.max_height;
-  document.getElementById('ie-pallets').value    = r.max_pallets_per_floor ?? 26;
-  document.getElementById('ie-ds').checked       = r.double_stack_allowed;
-  document.getElementById('ie-nopallet').checked = r.no_pallet ?? false;
+  if (isCustom) {
+    syncCustomEditors();
+  } else {
+    const r = retailerById(rid);
+    if (!r) { editor.style.display = 'none'; return; }
+    document.getElementById('ie-maxh').value       = r.max_height;
+    document.getElementById('ie-pallets').value    = r.max_pallets_per_floor ?? 26;
+    document.getElementById('ie-ds').checked       = r.double_stack_allowed;
+    document.getElementById('ie-nopallet').checked = r.no_pallet ?? false;
+  }
   editor.style.display = 'block';
 }
 
@@ -329,11 +347,12 @@ async function doCalculate() {
   setStatus('Calculating…');
 
   try {
+    const body = { length: l, width: w, height: h, retailer_id: rid, case_pack_qty: cp };
+    if (rid === 'custom') Object.assign(body, customRetailer);
     const res  = await fetch(API.calculate, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ length: l, width: w, height: h, retailer_id: rid,
-                             case_pack_qty: cp }),
+      body: JSON.stringify(body),
     });
     const data = await res.json();
     if (!res.ok) { flashBtn(data.error || 'ERROR'); setStatus(data.error || 'Error', true); return; }
@@ -362,7 +381,8 @@ function renderResults(d) {
   document.getElementById('tl-formula').textContent =
     fmParts.join(' × ') + ' = ' + d.truckload_qty.toLocaleString() + ' units';
 
-  const r = retailerById(document.getElementById('retailer-select').value);
+  const _rid = document.getElementById('retailer-select').value;
+  const r = _rid === 'custom' ? { ...customRetailer, name: 'Custom' } : retailerById(_rid);
   document.getElementById('results-meta').textContent =
     r ? `${r.max_pallets_per_floor} pallets · ${r.name}` : '';
 
@@ -672,6 +692,38 @@ function setupBulk() {
   document.getElementById('bulk-calc-btn').addEventListener('click', doBulkCalc);
   document.getElementById('export-btn').addEventListener('click', exportResults);
 
+  document.getElementById('bulk-retailer').addEventListener('change', () => {
+    const rid      = document.getElementById('bulk-retailer').value;
+    const editor   = document.getElementById('bulk-custom-editor');
+    const isCustom = rid === 'custom';
+    if (!rid) { editor.style.display = 'none'; return; }
+
+    editor.querySelector('.panel-label').textContent = isCustom ? 'CUSTOM RETAILER' : 'RETAILER DETAILS';
+    ['bulk-ie-maxh', 'bulk-ie-pallets', 'bulk-ie-ds', 'bulk-ie-nopallet'].forEach(id => {
+      document.getElementById(id).disabled = !isCustom;
+    });
+
+    if (isCustom) {
+      syncCustomEditors();
+    } else {
+      const r = retailerById(rid);
+      if (!r) { editor.style.display = 'none'; return; }
+      document.getElementById('bulk-ie-maxh').value       = r.max_height;
+      document.getElementById('bulk-ie-pallets').value    = r.max_pallets_per_floor ?? 26;
+      document.getElementById('bulk-ie-ds').checked       = r.double_stack_allowed;
+      document.getElementById('bulk-ie-nopallet').checked = r.no_pallet ?? false;
+    }
+    editor.style.display = 'block';
+  });
+
+  const debouncedBulkIE = debounce(() => readCustomEditorValues('bulk-ie'), 500);
+  ['bulk-ie-maxh', 'bulk-ie-pallets'].forEach(id => {
+    document.getElementById(id).addEventListener('input', debouncedBulkIE);
+    document.getElementById(id).addEventListener('blur', () => readCustomEditorValues('bulk-ie'));
+  });
+  document.getElementById('bulk-ie-ds').addEventListener('change', () => readCustomEditorValues('bulk-ie'));
+  document.getElementById('bulk-ie-nopallet').addEventListener('change', () => readCustomEditorValues('bulk-ie'));
+
   document.getElementById('bulk-diagram-close').addEventListener('click', closeBulkDiagram);
   document.getElementById('bulk-diagram-modal').addEventListener('click', e => {
     if (e.target === e.currentTarget) closeBulkDiagram();
@@ -743,10 +795,12 @@ async function doBulkCalc() {
   setBulkStatus(`Processing ${bulkData.length} cases…`);
 
   try {
+    const body = { cases: bulkData, retailer_id: rid, case_pack_qty: cp };
+    if (rid === 'custom') Object.assign(body, customRetailer);
     const res  = await fetch(API.bulkCalc, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ cases: bulkData, retailer_id: rid, case_pack_qty: cp }),
+      body: JSON.stringify(body),
     });
     bulkResults = await res.json();
     if (!res.ok) { setBulkStatus(bulkResults.error || 'Error', true); return; }
