@@ -540,7 +540,7 @@ body::before {
   min-height: 0;
 }
 
-.bulk-config  { grid-column: 1; grid-row: 1 / 3; }
+.bulk-config  { grid-column: 1; grid-row: 1 / 3; overflow-y: auto; }
 .bulk-upload  { grid-column: 2; grid-row: 1; }
 .bulk-results { grid-column: 2; grid-row: 2; overflow: hidden; display: flex; flex-direction: column; }
 
@@ -689,57 +689,67 @@ body::before {
 .toast.visible { transform: translateY(0); opacity: 1; }
 
 /* ── Retailers tab ─────────────────────────────────────────── */
-.retailers-layout { display: flex; flex-direction: column; gap: 14px; flex: 1; overflow-y: auto; }
-.retailers-header { flex-shrink: 0; }
-
-.retailers-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(270px, 1fr));
-  gap: 10px;
+/* ── Retailers master-detail layout ────────────────────────── */
+.retailers-layout {
+  display: flex; flex-direction: row; gap: 14px;
+  flex: 1; overflow: hidden; min-height: 0;
 }
 
-.r-card {
-  background: var(--bg-card);
-  border: 1px solid var(--border);
-  border-radius: var(--r-lg);
-  padding: 14px;
-  transition: border-color .15s;
+.r-list-panel {
+  width: 210px; flex-shrink: 0;
+  display: flex; flex-direction: column; overflow: hidden;
 }
-.r-card:hover  { border-color: var(--border-hi); }
-.r-card.editing{ border-color: var(--amber-dark); }
 
-.r-card-head {
-  display: flex; align-items: center; justify-content: space-between;
-  margin-bottom: 10px;
+.r-list {
+  flex: 1; overflow-y: auto; margin-top: 10px;
 }
-.r-card-name {
-  font-family: var(--font-display); font-size: 13px; font-weight: 600;
-  letter-spacing: .04em; color: var(--text);
+
+.r-list-item {
+  padding: 7px 10px;
+  border-radius: var(--r);
+  cursor: pointer;
+  font-family: var(--font-display); font-size: 12px; font-weight: 500;
+  color: var(--text-dim);
+  border: 1px solid transparent;
+  margin-bottom: 2px;
+  transition: all .12s;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
-.r-card-btns { display: flex; gap: 5px; }
+.r-list-item:hover { background: var(--bg-hover); color: var(--text); }
+.r-list-item.active { background: var(--blue-subtle); color: var(--blue); border-color: var(--blue); }
+
+.r-detail-panel {
+  flex: 1; overflow-y: auto; min-width: 0;
+}
+
+.r-detail-empty {
+  display: flex; align-items: center; justify-content: center;
+  height: 100%;
+  color: var(--text-muted); font-family: var(--font-mono); font-size: 11px; letter-spacing: .06em;
+}
+
+.r-detail-header {
+  display: flex; align-items: center; gap: 12px;
+  margin-bottom: 18px;
+}
+
+.r-detail-fields {
+  display: grid; grid-template-columns: 1fr 1fr; gap: 10px;
+}
 
 .r-btn {
   background: none; border: 1px solid var(--border); border-radius: var(--r);
   color: var(--text-muted);
   font-family: var(--font-display); font-size: 10px; font-weight: 600; letter-spacing: .08em;
-  padding: 3px 8px; cursor: pointer; transition: all .14s;
+  padding: 3px 8px; cursor: pointer; transition: all .14s; flex-shrink: 0;
 }
 .r-btn:hover { border-color: var(--amber-dark); color: var(--amber); }
 .r-btn.danger:hover { border-color: var(--red); color: var(--red); }
 
-.r-fields {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 7px;
-}
-
-.r-field { display: flex; flex-direction: column; gap: 3px; }
+.r-field { display: flex; flex-direction: column; gap: 4px; }
 .r-field-full { grid-column: 1 / -1; }
 
 .r-field-label { font-family: var(--font-mono); font-size: 10px; letter-spacing: .06em; color: var(--text-muted); }
-.r-field-val   { font-family: var(--font-mono); font-size: 13px; font-weight: 500; color: var(--blue); }
-.r-field-val.yes  { color: var(--green); }
-.r-field-val.no   { color: var(--text-muted); }
 
 .r-input {
   background: var(--bg-input);
@@ -747,7 +757,7 @@ body::before {
   border-radius: var(--r);
   color: var(--text);
   font-family: var(--font-mono); font-size: 13px;
-  padding: 4px 7px; width: 100%;
+  padding: 5px 8px; width: 100%;
   -moz-appearance: textfield;
 }
 .r-input::-webkit-inner-spin-button { -webkit-appearance: none; }
@@ -758,10 +768,27 @@ body::before {
   border: 1px solid var(--border-hi);
   border-radius: var(--r);
   color: var(--text);
-  font-family: var(--font-display); font-size: 13px; font-weight: 600; letter-spacing: .04em;
-  padding: 4px 8px; width: 100%;
+  font-family: var(--font-display); font-size: 15px; font-weight: 600; letter-spacing: .04em;
+  padding: 5px 10px; flex: 1;
 }
 .r-name-input:focus { outline: none; border-color: var(--amber-dark); }
+
+/* ── Retailer notes textarea (used on all three tabs) ──────── */
+.retailer-notes {
+  width: 100%; resize: vertical;
+  background: var(--bg-input);
+  border: 1px solid var(--border-hi);
+  border-radius: var(--r);
+  color: var(--text);
+  font-family: var(--font-body); font-size: 12px; line-height: 1.5;
+  padding: 6px 8px;
+}
+.retailer-notes:focus { outline: none; border-color: var(--amber-dark); box-shadow: 0 0 0 2px var(--amber-glow); }
+.retailer-notes::placeholder { color: var(--text-muted); }
+/* Retailers tab detail panel gets a taller default */
+#rd-notes { min-height: 130px; font-size: 13px; line-height: 1.6; padding: 8px 10px; }
+/* Calc/bulk inline notes stay compact */
+#calc-retailer-notes, #bulk-retailer-notes { min-height: 70px; }
 
 /* ── Auth button (sidebar footer) ─────────────────────────── */
 .auth-btn {
@@ -822,6 +849,7 @@ body::before {
 .dim-input:disabled,
 .r-input:disabled,
 .r-name-input:disabled,
+.retailer-notes:disabled,
 .ie-text-input:disabled {
   opacity: 0.45; cursor: not-allowed;
 }
