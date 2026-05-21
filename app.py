@@ -34,21 +34,21 @@ SHOW_HI_VIEW = False  # Hi isometric toggle button inside the diagram panel
 SHOW_DEMO_DEFAULTS = os.environ.get("SHOW_DEMO_DEFAULTS", "true").lower() == "true"
 
 DEFAULT_RETAILERS = [
-    {"id": 1,  "name": "Walmart",        "max_height": 60, "double_stack_allowed": False, "max_pallets_per_floor": 26, "no_pallet": False, "notes": ""},
-    {"id": 2,  "name": "Target",         "max_height": 60, "double_stack_allowed": False, "max_pallets_per_floor": 26, "no_pallet": False, "notes": ""},
-    {"id": 3,  "name": "Costco",         "max_height": 58, "double_stack_allowed": True,  "max_pallets_per_floor": 26, "no_pallet": False, "notes": ""},
     {"id": 4,  "name": "Amazon",         "max_height": 50, "double_stack_allowed": True,  "max_pallets_per_floor": 26, "no_pallet": False, "notes": ""},
-    {"id": 5,  "name": "Home Depot",     "max_height": 60, "double_stack_allowed": False, "max_pallets_per_floor": 26, "no_pallet": False, "notes": ""},
-    {"id": 6,  "name": "Lowe's",         "max_height": 60, "double_stack_allowed": False, "max_pallets_per_floor": 26, "no_pallet": False, "notes": ""},
-    {"id": 7,  "name": "Kroger",         "max_height": 60, "double_stack_allowed": False, "max_pallets_per_floor": 26, "no_pallet": False, "notes": ""},
-    {"id": 8,  "name": "Sam's Club",     "max_height": 60, "double_stack_allowed": True,  "max_pallets_per_floor": 26, "no_pallet": False, "notes": ""},
+    {"id": 13, "name": "Best Buy",       "max_height": 60, "double_stack_allowed": False, "max_pallets_per_floor": 26, "no_pallet": False, "notes": ""},
+    {"id": 15, "name": "BJ's Wholesale", "max_height": 60, "double_stack_allowed": True,  "max_pallets_per_floor": 26, "no_pallet": False, "notes": ""},
+    {"id": 3,  "name": "Costco",         "max_height": 58, "double_stack_allowed": True,  "max_pallets_per_floor": 26, "no_pallet": False, "notes": ""},
+    {"id": 12, "name": "CVS",            "max_height": 60, "double_stack_allowed": False, "max_pallets_per_floor": 26, "no_pallet": False, "notes": ""},
     {"id": 9,  "name": "Dollar General", "max_height": 57, "double_stack_allowed": False, "max_pallets_per_floor": 26, "no_pallet": False, "notes": ""},
     {"id": 10, "name": "Dollar Tree",    "max_height": 57, "double_stack_allowed": False, "max_pallets_per_floor": 26, "no_pallet": False, "notes": ""},
+    {"id": 5,  "name": "Home Depot",     "max_height": 60, "double_stack_allowed": False, "max_pallets_per_floor": 26, "no_pallet": False, "notes": ""},
+    {"id": 7,  "name": "Kroger",         "max_height": 60, "double_stack_allowed": False, "max_pallets_per_floor": 26, "no_pallet": False, "notes": ""},
+    {"id": 6,  "name": "Lowe's",         "max_height": 60, "double_stack_allowed": False, "max_pallets_per_floor": 26, "no_pallet": False, "notes": ""},
+    {"id": 8,  "name": "Sam's Club",     "max_height": 60, "double_stack_allowed": True,  "max_pallets_per_floor": 26, "no_pallet": False, "notes": ""},
+    {"id": 2,  "name": "Target",         "max_height": 60, "double_stack_allowed": False, "max_pallets_per_floor": 26, "no_pallet": False, "notes": ""},
     {"id": 11, "name": "Walgreens",      "max_height": 60, "double_stack_allowed": False, "max_pallets_per_floor": 26, "no_pallet": False, "notes": ""},
-    {"id": 12, "name": "CVS",            "max_height": 60, "double_stack_allowed": False, "max_pallets_per_floor": 26, "no_pallet": False, "notes": ""},
-    {"id": 13, "name": "Best Buy",       "max_height": 60, "double_stack_allowed": False, "max_pallets_per_floor": 26, "no_pallet": False, "notes": ""},
+    {"id": 1,  "name": "Walmart",        "max_height": 60, "double_stack_allowed": False, "max_pallets_per_floor": 26, "no_pallet": False, "notes": ""},
     {"id": 14, "name": "Whole Foods",    "max_height": 60, "double_stack_allowed": False, "max_pallets_per_floor": 26, "no_pallet": False, "notes": ""},
-    {"id": 15, "name": "BJ's Wholesale", "max_height": 60, "double_stack_allowed": True,  "max_pallets_per_floor": 26, "no_pallet": False, "notes": ""},
 ]
 
 
@@ -59,8 +59,10 @@ def load_retailers():
         # Backfill any fields added after initial schema
         for r in data:
             r.setdefault("notes", "")
-        return data
-    return [dict(r) for r in DEFAULT_RETAILERS]
+    else:
+        data = [dict(r) for r in DEFAULT_RETAILERS]
+    data.sort(key=lambda r: r["name"].casefold())
+    return data
 
 
 def save_retailers(retailers) -> None:
