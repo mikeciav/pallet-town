@@ -176,18 +176,14 @@
             <select id="retailer-select" class="pt-select"></select>
           </div>
 
-          <!-- Inline retailer editor -->
+          <!-- Custom retailer editor (shown only when Custom is selected) -->
           <div class="inline-editor" id="inline-editor" style="display:none">
             <div class="ie-header">
-              <span class="panel-label">CONFIGURE RETAILER</span>
+              <span class="panel-label">CUSTOM RETAILER</span>
               <button class="ie-toggle" id="ie-toggle" title="collapse">▲</button>
             </div>
             <div class="ie-body" id="ie-body">
               <div class="ie-row">
-                <div class="field-group" style="flex:2">
-                  <label class="field-label">NAME</label>
-                  <input type="text" id="ie-name" class="ie-text-input">
-                </div>
                 <div class="field-group" style="flex:1">
                   <label class="field-label">MAX HEIGHT</label>
                   <div class="field-wrap">
@@ -327,6 +323,43 @@
             <label class="field-label">RETAILER</label>
             <div class="select-wrap">
               <select id="bulk-retailer" class="pt-select"></select>
+            </div>
+          </div>
+          <!-- Custom retailer editor for bulk (shown only when Custom is selected) -->
+          <div id="bulk-custom-editor" style="display:none;margin-bottom:8px">
+            <div class="inline-editor">
+              <div class="ie-header">
+                <span class="panel-label">CUSTOM RETAILER</span>
+              </div>
+              <div>
+                <div class="ie-row">
+                  <div class="field-group" style="flex:1">
+                    <label class="field-label">MAX HEIGHT</label>
+                    <div class="field-wrap">
+                      <input type="number" id="bulk-ie-maxh" class="dim-input" step="0.5">
+                      <span class="field-unit">in</span>
+                    </div>
+                  </div>
+                  <div class="field-group" style="flex:1">
+                    <label class="field-label">PALLETS / FLOOR</label>
+                    <input type="number" id="bulk-ie-pallets" class="dim-input" step="1" min="1">
+                  </div>
+                </div>
+                <div class="ie-row" style="margin-top:8px">
+                  <label class="toggle-label">
+                    <input type="checkbox" id="bulk-ie-ds" class="toggle-input">
+                    <span class="toggle-track"><span class="toggle-thumb"></span></span>
+                    <span class="toggle-text">Double Stack Allowed</span>
+                  </label>
+                </div>
+                <div class="ie-row" style="margin-top:8px">
+                  <label class="toggle-label">
+                    <input type="checkbox" id="bulk-ie-nopallet" class="toggle-input">
+                    <span class="toggle-track"><span class="toggle-thumb"></span></span>
+                    <span class="toggle-text">No Pallet (DI)</span>
+                  </label>
+                </div>
+              </div>
             </div>
           </div>
           <div class="field-group" style="margin-top:8px">
