@@ -12,4 +12,4 @@ jobs:
         with:
           python-version: "3.12"
       - run: pip install -r requirements.txt pytest
-      - run: pytest test_calculator.py -v
+      - run: pytest test_calculator.py test_app.py -v
