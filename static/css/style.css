@@ -486,7 +486,7 @@ body::before {
 
 .metric-label  { font-family: var(--font-display); font-size: 10px; font-weight: 600; letter-spacing: .08em; color: var(--text-muted); margin-bottom: 6px; }
 .metric-val    { font-family: var(--font-mono); font-size: 42px; font-weight: 700; color: var(--aqua); line-height: 1; margin-bottom: 5px; }
-.metric-val--sec { font-size: 34px; color: var(--gold); }
+.metric-val--sec { font-size: 42px; color: var(--gold); }
 .metric-card--tl .metric-val { color: var(--gold); }
 .metric-sub    { font-family: var(--font-mono); font-size: 10px; letter-spacing: .06em; color: var(--text-muted); }
 

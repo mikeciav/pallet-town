@@ -158,10 +158,21 @@ def api_calculate():
     if case_l <= 0 or case_w <= 0 or case_h <= 0:
         return jsonify({"error": "Dimensions must be positive"}), 400
 
-    retailers = load_retailers()
-    retailer = next((r for r in retailers if str(r["id"]) == str(data.get("retailer_id"))), None)
-    if not retailer:
-        return jsonify({"error": "Retailer not found"}), 404
+    retailer_id = str(data.get("retailer_id", ""))
+    if retailer_id == "custom":
+        try:
+            retailer = {
+                "max_height":            float(data.get("max_height", 60)),
+                "double_stack_allowed":  bool(data.get("double_stack_allowed", False)),
+                "max_pallets_per_floor": int(data.get("max_pallets_per_floor", 26)),
+                "no_pallet":             bool(data.get("no_pallet", False)),
+            }
+        except (TypeError, ValueError):
+            return jsonify({"error": "Invalid custom retailer params"}), 400
+    else:
+        retailer = next((r for r in load_retailers() if str(r["id"]) == retailer_id), None)
+        if not retailer:
+            return jsonify({"error": "Retailer not found"}), 404
 
     case_pack_qty = max(1, int(data.get("case_pack_qty", 1)))
     result = calculate(
@@ -187,10 +198,21 @@ def api_calculate():
 def api_calculate_bulk():
     data = request.get_json(force=True) or {}
 
-    retailers = load_retailers()
-    retailer = next((r for r in retailers if str(r["id"]) == str(data.get("retailer_id"))), None)
-    if not retailer:
-        return jsonify({"error": "Retailer not found"}), 404
+    retailer_id = str(data.get("retailer_id", ""))
+    if retailer_id == "custom":
+        try:
+            retailer = {
+                "max_height":            float(data.get("max_height", 60)),
+                "double_stack_allowed":  bool(data.get("double_stack_allowed", False)),
+                "max_pallets_per_floor": int(data.get("max_pallets_per_floor", 26)),
+                "no_pallet":             bool(data.get("no_pallet", False)),
+            }
+        except (TypeError, ValueError):
+            return jsonify({"error": "Invalid custom retailer params"}), 400
+    else:
+        retailer = next((r for r in load_retailers() if str(r["id"]) == retailer_id), None)
+        if not retailer:
+            return jsonify({"error": "Retailer not found"}), 404
 
     cases = data.get("cases", [])
     if not cases:
