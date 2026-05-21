@@ -31,7 +31,7 @@ PALLET_H = 5.5
 # Feature flags
 SHOW_DIAGRAM = True   # diagram panel (Ti top-down view)
 SHOW_HI_VIEW = False  # Hi isometric toggle button inside the diagram panel
-SHOW_DEMO_DEFAULTS = os.environ.get("SHOW_DEMO_DEFAULTS", "true").lower() == "true"
+SHOW_DEMO_DEFAULTS = os.environ.get("SHOW_DEMO_DEFAULTS", "false").lower() == "true"
 
 DEFAULT_RETAILERS = [
     {"id": 4,  "name": "Amazon",         "max_height": 50, "double_stack_allowed": True,  "max_pallets_per_floor": 26, "no_pallet": False, "notes": ""},
