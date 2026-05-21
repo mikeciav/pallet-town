@@ -133,37 +133,39 @@
             <div class="field-group">
               <label class="field-label">LENGTH</label>
               <div class="field-wrap">
-                <input type="number" id="c-l" class="dim-input" placeholder="0.0" min="0.1" step="0.1" value="13.3">
+                <input type="number" id="c-l" class="dim-input" placeholder="0.0" min="0.1" step="0.1" {% if show_demo_defaults %}value="13.3"{% endif %}>
                 <span class="field-unit">in</span>
               </div>
             </div>
             <div class="field-group">
               <label class="field-label">WIDTH</label>
               <div class="field-wrap">
-                <input type="number" id="c-w" class="dim-input" placeholder="0.0" min="0.1" step="0.1" value="6.9">
+                <input type="number" id="c-w" class="dim-input" placeholder="0.0" min="0.1" step="0.1" {% if show_demo_defaults %}value="6.9"{% endif %}>
                 <span class="field-unit">in</span>
               </div>
             </div>
             <div class="field-group">
               <label class="field-label">HEIGHT</label>
               <div class="field-wrap">
-                <input type="number" id="c-h" class="dim-input" placeholder="0.0" min="0.1" step="0.1" value="14.2">
+                <input type="number" id="c-h" class="dim-input" placeholder="0.0" min="0.1" step="0.1" {% if show_demo_defaults %}value="14.2"{% endif %}>
                 <span class="field-unit">in</span>
               </div>
             </div>
           </div>
-          <div class="field-group" style="margin-top:8px">
-            <label class="field-label">CASE WEIGHT</label>
-            <div class="field-wrap">
-              <input type="number" id="c-cw" class="dim-input" placeholder="0.0" min="0" step="0.1">
-              <span class="field-unit">lbs</span>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:8px">
+            <div class="field-group">
+              <label class="field-label">CASE WEIGHT</label>
+              <div class="field-wrap">
+                <input type="number" id="c-cw" class="dim-input" placeholder="0.0" min="0" step="0.1">
+                <span class="field-unit">lbs</span>
+              </div>
             </div>
-          </div>
-          <div class="field-group" style="margin-top:8px">
-            <label class="field-label">CASE PACK QTY</label>
-            <div class="field-wrap">
-              <input type="number" id="c-cp" class="dim-input" value="4" min="1" step="1">
-              <span class="field-unit">units</span>
+            <div class="field-group">
+              <label class="field-label">CASE PACK QTY</label>
+              <div class="field-wrap">
+                <input type="number" id="c-cp" class="dim-input" {% if show_demo_defaults %}value="4"{% endif %} min="1" step="1">
+                <span class="field-unit">units</span>
+              </div>
             </div>
           </div>
 
@@ -210,6 +212,13 @@
                   <span class="toggle-text">No Pallet (DI)</span>
                 </label>
               </div>
+            </div>
+          </div>
+
+          <div id="calc-notes-wrap" style="display:none;margin-top:8px">
+            <div class="field-group">
+              <label class="field-label">NOTES</label>
+              <textarea id="calc-retailer-notes" class="retailer-notes" placeholder="Notes about this retailer..."></textarea>
             </div>
           </div>
 
@@ -362,6 +371,12 @@
               </div>
             </div>
           </div>
+          <div id="bulk-notes-wrap" style="display:none;margin-bottom:8px">
+            <div class="field-group">
+              <label class="field-label">NOTES</label>
+              <textarea id="bulk-retailer-notes" class="retailer-notes" placeholder="Notes about this retailer..."></textarea>
+            </div>
+          </div>
           <div class="field-group" style="margin-top:8px">
             <label class="field-label">DEFAULT CASE WEIGHT</label>
             <div class="field-wrap">
@@ -448,17 +463,57 @@ ITEM-002,10,10,8,12.0,1</code>
     <!-- ── Tab: Retailers ───────────────────────────────────── -->
     <section class="tab-content" id="tab-retailers">
       <div class="retailers-layout">
-        <div class="panel retailers-header">
+
+        <!-- Left: retailer list -->
+        <div class="panel r-list-panel">
           <div class="panel-header">
-            <span class="panel-label">RETAILER CONFIGURATIONS</span>
-            <button class="ghost-btn" id="add-retailer-btn">+ ADD RETAILER</button>
+            <span class="panel-label">RETAILERS</span>
+            <button class="ghost-btn" id="add-retailer-btn" style="font-size:10px;padding:2px 8px">+ ADD</button>
           </div>
-          <p class="panel-desc">
-            Preset loading heights and pallet specs per retailer.
-            Changes persist to <code>retailers.json</code> and load on next start.
-          </p>
+          <div class="r-list" id="retailers-list"></div>
         </div>
-        <div class="retailers-grid" id="retailers-grid"></div>
+
+        <!-- Right: detail panel -->
+        <div class="panel r-detail-panel" id="r-detail-panel">
+          <div class="r-detail-empty" id="r-detail-empty">
+            <span>Select a retailer to view details</span>
+          </div>
+          <div id="r-detail-content" style="display:none">
+            <div class="r-detail-header">
+              <input class="r-name-input" id="rd-name" placeholder="Retailer name">
+              <button class="r-btn danger" id="rd-delete">DELETE</button>
+            </div>
+            <div class="r-detail-fields">
+              <div class="r-field">
+                <span class="r-field-label">MAX HEIGHT (in)</span>
+                <input class="r-input" type="number" id="rd-maxh" step="0.5">
+              </div>
+              <div class="r-field">
+                <span class="r-field-label">PALLETS / FLOOR</span>
+                <input class="r-input" type="number" id="rd-pallets" step="1" min="1">
+              </div>
+              <div class="r-field r-field-full">
+                <label class="toggle-label">
+                  <input type="checkbox" id="rd-ds" class="toggle-input">
+                  <span class="toggle-track"><span class="toggle-thumb"></span></span>
+                  <span class="toggle-text">Double Stack Allowed</span>
+                </label>
+              </div>
+              <div class="r-field r-field-full">
+                <label class="toggle-label">
+                  <input type="checkbox" id="rd-np" class="toggle-input">
+                  <span class="toggle-track"><span class="toggle-thumb"></span></span>
+                  <span class="toggle-text">No Pallet (DI)</span>
+                </label>
+              </div>
+            </div>
+            <div class="r-field" style="margin-top:16px">
+              <span class="r-field-label">NOTES</span>
+              <textarea class="r-notes" id="rd-notes" placeholder="Add notes about loading requirements, contacts, special instructions..."></textarea>
+            </div>
+          </div>
+        </div>
+
       </div>
     </section>
 
