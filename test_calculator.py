@@ -74,6 +74,11 @@ class TestTi:
         ti, _ = find_optimal_arrangement(24, 20, PL, PW)
         assert ti == 4
 
+    def test_zero_carton_dimension(self):
+        ti, config = find_optimal_arrangement(0, 8, PL, PW)
+        assert ti == 0
+        assert config is None
+
 
 # ── Hi (layers high) ─────────────────────────────────────────
 
@@ -224,6 +229,11 @@ class TestArrangementDesc:
         r = calculate(50, 45, 6, 60, PL, PW, PH)
         assert r['arrangement_desc'] is not None
 
+    def test_arrangement_description_zero_ti(self):
+        from calculator import arrangement_description
+        desc = arrangement_description(None, 0)
+        assert desc == "0 cases"
+
 
 # ── Position generation ───────────────────────────────────────
 
@@ -248,6 +258,10 @@ class TestPositions:
     def test_no_positions_when_ti_zero(self):
         r = calculate(50, 45, 6, 60, PL, PW, PH)
         assert r['arrangement'] == []
+
+    def test_generate_positions_no_config(self):
+        from calculator import generate_positions
+        assert generate_positions(None) == []
 
     def test_rotated_flag_present(self):
         r = calculate(12, 8, 6, 60, PL, PW, PH)
