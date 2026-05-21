@@ -128,6 +128,10 @@ function setupNav() {
       // Refresh retailer info on the newly visible tab so notes/config stay in sync
       if (btn.dataset.tab === 'calculator') updateInfoBar();
       if (btn.dataset.tab === 'bulk')       refreshBulkRetailerInfo();
+      if (btn.dataset.tab === 'retailers' && selectedRetailerId) {
+        const _r = retailerById(selectedRetailerId);
+        if (_r) renderRetailerDetail(_r);
+      }
     });
   });
 }

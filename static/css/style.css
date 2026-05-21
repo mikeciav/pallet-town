@@ -773,33 +773,22 @@ body::before {
 }
 .r-name-input:focus { outline: none; border-color: var(--amber-dark); }
 
-.r-notes {
-  background: var(--bg-input);
-  border: 1px solid var(--border-hi);
-  border-radius: var(--r);
-  color: var(--text);
-  font-family: var(--font-body); font-size: 13px; line-height: 1.6;
-  padding: 8px 10px; width: 100%; min-height: 130px; resize: vertical;
-}
-.r-notes:focus { outline: none; border-color: var(--amber-dark); }
-.r-notes::placeholder { color: var(--text-muted); }
-
-/* ── Retailer notes textarea ───────────────────────────────── */
+/* ── Retailer notes textarea (used on all three tabs) ──────── */
 .retailer-notes {
-  width: 100%;
-  min-height: 70px;
+  width: 100%; resize: vertical;
   background: var(--bg-input);
   border: 1px solid var(--border-hi);
   border-radius: var(--r);
   color: var(--text);
-  font-family: var(--font-body);
-  font-size: 12px;
-  line-height: 1.5;
+  font-family: var(--font-body); font-size: 12px; line-height: 1.5;
   padding: 6px 8px;
-  resize: vertical;
 }
 .retailer-notes:focus { outline: none; border-color: var(--amber-dark); box-shadow: 0 0 0 2px var(--amber-glow); }
 .retailer-notes::placeholder { color: var(--text-muted); }
+/* Retailers tab detail panel gets a taller default */
+#rd-notes { min-height: 130px; font-size: 13px; line-height: 1.6; padding: 8px 10px; }
+/* Calc/bulk inline notes stay compact */
+#calc-retailer-notes, #bulk-retailer-notes { min-height: 70px; }
 
 /* ── Auth button (sidebar footer) ─────────────────────────── */
 .auth-btn {
@@ -860,7 +849,7 @@ body::before {
 .dim-input:disabled,
 .r-input:disabled,
 .r-name-input:disabled,
-.r-notes:disabled,
+.retailer-notes:disabled,
 .ie-text-input:disabled {
   opacity: 0.45; cursor: not-allowed;
 }
