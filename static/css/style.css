@@ -540,7 +540,7 @@ body::before {
   min-height: 0;
 }
 
-.bulk-config  { grid-column: 1; grid-row: 1 / 3; }
+.bulk-config  { grid-column: 1; grid-row: 1 / 3; overflow-y: auto; }
 .bulk-upload  { grid-column: 2; grid-row: 1; }
 .bulk-results { grid-column: 2; grid-row: 2; overflow: hidden; display: flex; flex-direction: column; }
 
