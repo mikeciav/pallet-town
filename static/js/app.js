@@ -125,6 +125,9 @@ function setupNav() {
       btn.classList.add('active');
       document.getElementById(`tab-${btn.dataset.tab}`).classList.add('active');
       document.getElementById('page-title').textContent = TITLES[btn.dataset.tab] || '';
+      // Refresh retailer info on the newly visible tab so notes/config stay in sync
+      if (btn.dataset.tab === 'calculator') updateInfoBar();
+      if (btn.dataset.tab === 'bulk')       refreshBulkRetailerInfo();
     });
   });
 }
@@ -339,6 +342,34 @@ function updateInfoBar() {
     document.getElementById('ie-ds').checked       = r.double_stack_allowed;
     document.getElementById('ie-nopallet').checked = r.no_pallet ?? false;
     document.getElementById('calc-retailer-notes').value = r.notes ?? '';
+  }
+  editor.style.display = 'block';
+  notesWrap.style.display = 'block';
+}
+
+function refreshBulkRetailerInfo() {
+  const rid       = document.getElementById('bulk-retailer').value;
+  const editor    = document.getElementById('bulk-custom-editor');
+  const notesWrap = document.getElementById('bulk-notes-wrap');
+  const isCustom  = rid === 'custom';
+  if (!rid) { editor.style.display = 'none'; notesWrap.style.display = 'none'; return; }
+
+  editor.querySelector('.panel-label').textContent = isCustom ? 'CUSTOM RETAILER' : 'RETAILER DETAILS';
+  ['bulk-ie-maxh', 'bulk-ie-pallets', 'bulk-ie-ds', 'bulk-ie-nopallet'].forEach(id => {
+    document.getElementById(id).disabled = !isCustom;
+  });
+
+  if (isCustom) {
+    syncCustomEditors();
+    document.getElementById('bulk-retailer-notes').value = customRetailer.notes ?? '';
+  } else {
+    const r = retailerById(rid);
+    if (!r) { editor.style.display = 'none'; notesWrap.style.display = 'none'; return; }
+    document.getElementById('bulk-ie-maxh').value        = r.max_height;
+    document.getElementById('bulk-ie-pallets').value     = r.max_pallets_per_floor ?? 26;
+    document.getElementById('bulk-ie-ds').checked        = r.double_stack_allowed;
+    document.getElementById('bulk-ie-nopallet').checked  = r.no_pallet ?? false;
+    document.getElementById('bulk-retailer-notes').value = r.notes ?? '';
   }
   editor.style.display = 'block';
   notesWrap.style.display = 'block';
@@ -726,33 +757,7 @@ function setupBulk() {
   document.getElementById('bulk-calc-btn').addEventListener('click', doBulkCalc);
   document.getElementById('export-btn').addEventListener('click', exportResults);
 
-  document.getElementById('bulk-retailer').addEventListener('change', () => {
-    const rid       = document.getElementById('bulk-retailer').value;
-    const editor    = document.getElementById('bulk-custom-editor');
-    const notesWrap = document.getElementById('bulk-notes-wrap');
-    const isCustom  = rid === 'custom';
-    if (!rid) { editor.style.display = 'none'; notesWrap.style.display = 'none'; return; }
-
-    editor.querySelector('.panel-label').textContent = isCustom ? 'CUSTOM RETAILER' : 'RETAILER DETAILS';
-    ['bulk-ie-maxh', 'bulk-ie-pallets', 'bulk-ie-ds', 'bulk-ie-nopallet'].forEach(id => {
-      document.getElementById(id).disabled = !isCustom;
-    });
-
-    if (isCustom) {
-      syncCustomEditors();
-      document.getElementById('bulk-retailer-notes').value = customRetailer.notes ?? '';
-    } else {
-      const r = retailerById(rid);
-      if (!r) { editor.style.display = 'none'; notesWrap.style.display = 'none'; return; }
-      document.getElementById('bulk-ie-maxh').value       = r.max_height;
-      document.getElementById('bulk-ie-pallets').value    = r.max_pallets_per_floor ?? 26;
-      document.getElementById('bulk-ie-ds').checked       = r.double_stack_allowed;
-      document.getElementById('bulk-ie-nopallet').checked = r.no_pallet ?? false;
-      document.getElementById('bulk-retailer-notes').value = r.notes ?? '';
-    }
-    editor.style.display = 'block';
-    notesWrap.style.display = 'block';
-  });
+  document.getElementById('bulk-retailer').addEventListener('change', refreshBulkRetailerInfo);
 
   const debouncedBulkNotes = debounce(() => saveRetailerNotes('bulk-retailer-notes', 'bulk-retailer'), 800);
   document.getElementById('bulk-retailer-notes').addEventListener('input', debouncedBulkNotes);
