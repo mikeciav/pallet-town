@@ -5,6 +5,7 @@
 const API = {
   retailers:      '/api/retailers',
   retailer:  (id) => `/api/retailers/${id}`,
+  retailerNotes: (id) => `/api/retailers/${id}/notes`,
   calculate:      '/api/calculate',
   bulkCalc:       '/api/calculate-bulk',
 };
@@ -215,13 +216,14 @@ function updateAuthUI() {
     icon.innerHTML = '<rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/>';
   }
 
-  // Lock / unlock all retailer editing controls
+  // Lock / unlock retailer detail panel
   const locked = !isAdmin;
-  document.querySelectorAll('.r-input, .r-name-input').forEach(el => el.disabled = locked);
-  document.querySelectorAll('#retailers-grid .toggle-input').forEach(el => el.disabled = locked);
-  document.querySelectorAll('[data-action="delete"]').forEach(el => {
-    el.style.visibility = locked ? 'hidden' : 'visible';
+  ['rd-name', 'rd-maxh', 'rd-pallets', 'rd-ds', 'rd-np', 'rd-notes'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.disabled = locked;
   });
+  const rdDel = document.getElementById('rd-delete');
+  if (rdDel) rdDel.style.visibility = locked ? 'hidden' : 'visible';
   const addBtn = document.getElementById('add-retailer-btn');
   if (addBtn) addBtn.style.visibility = locked ? 'hidden' : 'visible';
 
@@ -289,6 +291,11 @@ function setupCalculator() {
     });
   });
 
+  // Retailer notes (editable for all users, all retailers)
+  const debouncedCalcNotes = debounce(() => saveRetailerNotes('calc-retailer-notes', 'retailer-select'), 800);
+  document.getElementById('calc-retailer-notes').addEventListener('input', debouncedCalcNotes);
+  document.getElementById('calc-retailer-notes').addEventListener('blur', () => saveRetailerNotes('calc-retailer-notes', 'retailer-select'));
+
   // Custom retailer editor: update shared state on change
   const debouncedIESave = debounce(() => readCustomEditorValues('ie'), 500);
   ['ie-maxh', 'ie-pallets'].forEach(id => {
@@ -310,9 +317,10 @@ function setupCalculator() {
 
 
 function updateInfoBar() {
-  const rid    = document.getElementById('retailer-select').value;
-  const editor = document.getElementById('inline-editor');
-  if (!rid) { editor.style.display = 'none'; return; }
+  const rid      = document.getElementById('retailer-select').value;
+  const editor   = document.getElementById('inline-editor');
+  const notesWrap = document.getElementById('calc-notes-wrap');
+  if (!rid) { editor.style.display = 'none'; notesWrap.style.display = 'none'; return; }
 
   const isCustom = rid === 'custom';
   editor.querySelector('.panel-label').textContent = isCustom ? 'CUSTOM RETAILER' : 'RETAILER DETAILS';
@@ -322,15 +330,41 @@ function updateInfoBar() {
 
   if (isCustom) {
     syncCustomEditors();
+    document.getElementById('calc-retailer-notes').value = customRetailer.notes ?? '';
   } else {
     const r = retailerById(rid);
-    if (!r) { editor.style.display = 'none'; return; }
+    if (!r) { editor.style.display = 'none'; notesWrap.style.display = 'none'; return; }
     document.getElementById('ie-maxh').value       = r.max_height;
     document.getElementById('ie-pallets').value    = r.max_pallets_per_floor ?? 26;
     document.getElementById('ie-ds').checked       = r.double_stack_allowed;
     document.getElementById('ie-nopallet').checked = r.no_pallet ?? false;
+    document.getElementById('calc-retailer-notes').value = r.notes ?? '';
   }
   editor.style.display = 'block';
+  notesWrap.style.display = 'block';
+}
+
+async function saveRetailerNotes(fieldId, selectId) {
+  const rid   = document.getElementById(selectId).value;
+  const notes = document.getElementById(fieldId).value;
+  if (!rid) return;
+  if (rid === 'custom') {
+    customRetailer.notes = notes;
+    saveCustomRetailer();
+    return;
+  }
+  try {
+    const res = await fetch(API.retailerNotes(rid), {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ notes }),
+    });
+    if (res.ok) {
+      const r = retailerById(rid);
+      if (r) r.notes = notes;
+      showToast('Notes saved');
+    }
+  } catch (e) { console.error(e); }
 }
 
 async function doCalculate() {
@@ -693,10 +727,11 @@ function setupBulk() {
   document.getElementById('export-btn').addEventListener('click', exportResults);
 
   document.getElementById('bulk-retailer').addEventListener('change', () => {
-    const rid      = document.getElementById('bulk-retailer').value;
-    const editor   = document.getElementById('bulk-custom-editor');
-    const isCustom = rid === 'custom';
-    if (!rid) { editor.style.display = 'none'; return; }
+    const rid       = document.getElementById('bulk-retailer').value;
+    const editor    = document.getElementById('bulk-custom-editor');
+    const notesWrap = document.getElementById('bulk-notes-wrap');
+    const isCustom  = rid === 'custom';
+    if (!rid) { editor.style.display = 'none'; notesWrap.style.display = 'none'; return; }
 
     editor.querySelector('.panel-label').textContent = isCustom ? 'CUSTOM RETAILER' : 'RETAILER DETAILS';
     ['bulk-ie-maxh', 'bulk-ie-pallets', 'bulk-ie-ds', 'bulk-ie-nopallet'].forEach(id => {
@@ -705,16 +740,23 @@ function setupBulk() {
 
     if (isCustom) {
       syncCustomEditors();
+      document.getElementById('bulk-retailer-notes').value = customRetailer.notes ?? '';
     } else {
       const r = retailerById(rid);
-      if (!r) { editor.style.display = 'none'; return; }
+      if (!r) { editor.style.display = 'none'; notesWrap.style.display = 'none'; return; }
       document.getElementById('bulk-ie-maxh').value       = r.max_height;
       document.getElementById('bulk-ie-pallets').value    = r.max_pallets_per_floor ?? 26;
       document.getElementById('bulk-ie-ds').checked       = r.double_stack_allowed;
       document.getElementById('bulk-ie-nopallet').checked = r.no_pallet ?? false;
+      document.getElementById('bulk-retailer-notes').value = r.notes ?? '';
     }
     editor.style.display = 'block';
+    notesWrap.style.display = 'block';
   });
+
+  const debouncedBulkNotes = debounce(() => saveRetailerNotes('bulk-retailer-notes', 'bulk-retailer'), 800);
+  document.getElementById('bulk-retailer-notes').addEventListener('input', debouncedBulkNotes);
+  document.getElementById('bulk-retailer-notes').addEventListener('blur', () => saveRetailerNotes('bulk-retailer-notes', 'bulk-retailer'));
 
   const debouncedBulkIE = debounce(() => readCustomEditorValues('bulk-ie'), 500);
   ['bulk-ie-maxh', 'bulk-ie-pallets'].forEach(id => {
@@ -859,85 +901,89 @@ function exportResults() {
 }
 
 // ── Retailers tab ────────────────────────────────────────────
+let selectedRetailerId = null;
+
 function setupRetailersTab() {
   document.getElementById('add-retailer-btn').addEventListener('click', addRetailer);
+  document.getElementById('rd-delete').addEventListener('click', () => {
+    if (selectedRetailerId) deleteRetailer(selectedRetailerId);
+  });
+
+  const save = () => { if (selectedRetailerId) saveDetailRetailer(); };
+  const debouncedSave = debounce(save, 800);
+  ['rd-name', 'rd-maxh', 'rd-pallets', 'rd-notes'].forEach(id => {
+    document.getElementById(id).addEventListener('input', debouncedSave);
+    document.getElementById(id).addEventListener('blur', save);
+  });
+  ['rd-ds', 'rd-np'].forEach(id => {
+    document.getElementById(id).addEventListener('change', save);
+  });
 }
 
 function renderRetailersGrid() {
-  const grid = document.getElementById('retailers-grid');
-  grid.innerHTML = retailers.map(r => cardHTML(r)).join('');
-  retailers.forEach(r => bindCardAutoSave(r.id));
-  grid.querySelectorAll('[data-action="delete"]').forEach(b =>
-    b.addEventListener('click', () => deleteRetailer(b.dataset.id))
+  const list = document.getElementById('retailers-list');
+  list.innerHTML = retailers.map(r =>
+    `<div class="r-list-item${String(r.id) === String(selectedRetailerId) ? ' active' : ''}"
+          data-id="${r.id}">${esc(r.name)}</div>`
+  ).join('');
+  list.querySelectorAll('.r-list-item').forEach(item =>
+    item.addEventListener('click', () => selectRetailer(item.dataset.id))
   );
-  // Re-apply lock state after DOM rebuild
+  updateAuthUI();
+  if (selectedRetailerId) {
+    const r = retailerById(selectedRetailerId);
+    r ? renderRetailerDetail(r) : showDetailEmpty();
+  }
+}
+
+function selectRetailer(id) {
+  selectedRetailerId = String(id);
+  document.querySelectorAll('.r-list-item').forEach(item =>
+    item.classList.toggle('active', String(item.dataset.id) === String(id))
+  );
+  const r = retailerById(id);
+  if (r) renderRetailerDetail(r);
+}
+
+function renderRetailerDetail(r) {
+  document.getElementById('r-detail-empty').style.display   = 'none';
+  document.getElementById('r-detail-content').style.display = 'block';
+  document.getElementById('rd-name').value    = r.name;
+  document.getElementById('rd-maxh').value    = r.max_height;
+  document.getElementById('rd-pallets').value = r.max_pallets_per_floor ?? 26;
+  document.getElementById('rd-ds').checked    = r.double_stack_allowed;
+  document.getElementById('rd-np').checked    = r.no_pallet ?? false;
+  document.getElementById('rd-notes').value   = r.notes ?? '';
   updateAuthUI();
 }
 
-function cardHTML(r) {
-  return `<div class="r-card" id="rcard-${r.id}">
-    <div class="r-card-head">
-      <input class="r-name-input" id="r-name-${r.id}" value="${esc(r.name)}">
-      <button class="r-btn danger" data-action="delete" data-id="${r.id}">DEL</button>
-    </div>
-    <div class="r-fields">
-      <div class="r-field">
-        <span class="r-field-label">MAX HEIGHT (in)</span>
-        <input class="r-input" type="number" id="r-mh-${r.id}" value="${r.max_height}" step="0.5">
-      </div>
-      <div class="r-field">
-        <span class="r-field-label">PALLETS / FLOOR</span>
-        <input class="r-input" type="number" id="r-pf-${r.id}" value="${r.max_pallets_per_floor ?? 26}" step="1" min="1">
-      </div>
-      <div class="r-field r-field-full" style="margin-top:4px">
-        <label class="toggle-label">
-          <input type="checkbox" id="r-ds-${r.id}" class="toggle-input" ${r.double_stack_allowed ? 'checked' : ''}>
-          <span class="toggle-track"><span class="toggle-thumb"></span></span>
-          <span class="toggle-text">Double Stack Allowed</span>
-        </label>
-      </div>
-      <div class="r-field r-field-full" style="margin-top:4px">
-        <label class="toggle-label">
-          <input type="checkbox" id="r-np-${r.id}" class="toggle-input" ${r.no_pallet ? 'checked' : ''}>
-          <span class="toggle-track"><span class="toggle-thumb"></span></span>
-          <span class="toggle-text">No Pallet (DI)</span>
-        </label>
-      </div>
-    </div>
-  </div>`;
+function showDetailEmpty() {
+  document.getElementById('r-detail-empty').style.display   = 'flex';
+  document.getElementById('r-detail-content').style.display = 'none';
 }
 
-function bindCardAutoSave(id) {
-  const save = debounce(() => saveCardRetailer(id), 800);
-  document.getElementById(`r-name-${id}`).addEventListener('input', save);
-  document.getElementById(`r-name-${id}`).addEventListener('blur',  () => saveCardRetailer(id));
-  document.getElementById(`r-mh-${id}`).addEventListener('input',  save);
-  document.getElementById(`r-mh-${id}`).addEventListener('blur',   () => saveCardRetailer(id));
-  document.getElementById(`r-pf-${id}`).addEventListener('input',  save);
-  document.getElementById(`r-pf-${id}`).addEventListener('blur',   () => saveCardRetailer(id));
-  document.getElementById(`r-ds-${id}`).addEventListener('change', () => saveCardRetailer(id));
-  document.getElementById(`r-np-${id}`).addEventListener('change', () => saveCardRetailer(id));
-}
-
-async function saveCardRetailer(id) {
-  if (!isAdmin) return;
+async function saveDetailRetailer() {
+  if (!isAdmin || !selectedRetailerId) return;
   const payload = {
-    name:                  document.getElementById(`r-name-${id}`).value.trim(),
-    max_height:            parseFloat(document.getElementById(`r-mh-${id}`).value),
-    max_pallets_per_floor: parseInt(document.getElementById(`r-pf-${id}`).value, 10),
-    double_stack_allowed:  document.getElementById(`r-ds-${id}`).checked,
-    no_pallet:             document.getElementById(`r-np-${id}`).checked,
+    name:                  document.getElementById('rd-name').value.trim(),
+    max_height:            parseFloat(document.getElementById('rd-maxh').value),
+    max_pallets_per_floor: parseInt(document.getElementById('rd-pallets').value, 10),
+    double_stack_allowed:  document.getElementById('rd-ds').checked,
+    no_pallet:             document.getElementById('rd-np').checked,
+    notes:                 document.getElementById('rd-notes').value,
   };
   if (!payload.name || isNaN(payload.max_height) || isNaN(payload.max_pallets_per_floor)) return;
   try {
-    const res = await fetch(API.retailer(id), {
+    const res = await fetch(API.retailer(selectedRetailerId), {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload),
     });
     if (res.ok) {
-      const r = retailerById(id);
+      const r = retailerById(selectedRetailerId);
       if (r) Object.assign(r, payload);
+      const item = document.querySelector(`.r-list-item[data-id="${selectedRetailerId}"]`);
+      if (item) item.textContent = payload.name;
       syncRetailerSelects();
       showToast();
     }
@@ -948,6 +994,8 @@ async function deleteRetailer(id) {
   if (!confirm('Delete this retailer?')) return;
   try {
     await fetch(API.retailer(id), { method: 'DELETE' });
+    selectedRetailerId = null;
+    showDetailEmpty();
     await loadRetailers();
   } catch (e) { console.error(e); }
 }
@@ -959,9 +1007,13 @@ async function addRetailer() {
     const res = await fetch(API.retailers, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ name: name.trim(), max_height: 60, pallet_length: 48, pallet_width: 40, pallet_height: 6.5, double_stack_allowed: false }),
+      body: JSON.stringify({ name: name.trim(), max_height: 60, double_stack_allowed: false }),
     });
-    if (res.ok) await loadRetailers();
+    if (res.ok) {
+      const r = await res.json();
+      await loadRetailers();
+      selectRetailer(r.id);
+    }
   } catch (e) { console.error(e); }
 }
 
