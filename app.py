@@ -60,7 +60,7 @@ def load_retailers():
         for r in data:
             r.setdefault("notes", "")
         return data
-    return DEFAULT_RETAILERS.copy()
+    return [dict(r) for r in DEFAULT_RETAILERS]
 
 
 def save_retailers(retailers) -> None:
