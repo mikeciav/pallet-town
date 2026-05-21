@@ -31,30 +31,35 @@ PALLET_H = 5.5
 # Feature flags
 SHOW_DIAGRAM = True   # diagram panel (Ti top-down view)
 SHOW_HI_VIEW = False  # Hi isometric toggle button inside the diagram panel
+SHOW_DEMO_DEFAULTS = os.environ.get("SHOW_DEMO_DEFAULTS", "true").lower() == "true"
 
 DEFAULT_RETAILERS = [
-    {"id": 1,  "name": "Walmart",        "max_height": 60, "double_stack_allowed": False, "max_pallets_per_floor": 26, "no_pallet": False},
-    {"id": 2,  "name": "Target",         "max_height": 60, "double_stack_allowed": False, "max_pallets_per_floor": 26, "no_pallet": False},
-    {"id": 3,  "name": "Costco",         "max_height": 58, "double_stack_allowed": True,  "max_pallets_per_floor": 26, "no_pallet": False},
-    {"id": 4,  "name": "Amazon",         "max_height": 50, "double_stack_allowed": True,  "max_pallets_per_floor": 26, "no_pallet": False},
-    {"id": 5,  "name": "Home Depot",     "max_height": 60, "double_stack_allowed": False, "max_pallets_per_floor": 26, "no_pallet": False},
-    {"id": 6,  "name": "Lowe's",         "max_height": 60, "double_stack_allowed": False, "max_pallets_per_floor": 26, "no_pallet": False},
-    {"id": 7,  "name": "Kroger",         "max_height": 60, "double_stack_allowed": False, "max_pallets_per_floor": 26, "no_pallet": False},
-    {"id": 8,  "name": "Sam's Club",     "max_height": 60, "double_stack_allowed": True,  "max_pallets_per_floor": 26, "no_pallet": False},
-    {"id": 9,  "name": "Dollar General", "max_height": 57, "double_stack_allowed": False, "max_pallets_per_floor": 26, "no_pallet": False},
-    {"id": 10, "name": "Dollar Tree",    "max_height": 57, "double_stack_allowed": False, "max_pallets_per_floor": 26, "no_pallet": False},
-    {"id": 11, "name": "Walgreens",      "max_height": 60, "double_stack_allowed": False, "max_pallets_per_floor": 26, "no_pallet": False},
-    {"id": 12, "name": "CVS",            "max_height": 60, "double_stack_allowed": False, "max_pallets_per_floor": 26, "no_pallet": False},
-    {"id": 13, "name": "Best Buy",       "max_height": 60, "double_stack_allowed": False, "max_pallets_per_floor": 26, "no_pallet": False},
-    {"id": 14, "name": "Whole Foods",    "max_height": 60, "double_stack_allowed": False, "max_pallets_per_floor": 26, "no_pallet": False},
-    {"id": 15, "name": "BJ's Wholesale", "max_height": 60, "double_stack_allowed": True,  "max_pallets_per_floor": 26, "no_pallet": False},
+    {"id": 1,  "name": "Walmart",        "max_height": 60, "double_stack_allowed": False, "max_pallets_per_floor": 26, "no_pallet": False, "notes": ""},
+    {"id": 2,  "name": "Target",         "max_height": 60, "double_stack_allowed": False, "max_pallets_per_floor": 26, "no_pallet": False, "notes": ""},
+    {"id": 3,  "name": "Costco",         "max_height": 58, "double_stack_allowed": True,  "max_pallets_per_floor": 26, "no_pallet": False, "notes": ""},
+    {"id": 4,  "name": "Amazon",         "max_height": 50, "double_stack_allowed": True,  "max_pallets_per_floor": 26, "no_pallet": False, "notes": ""},
+    {"id": 5,  "name": "Home Depot",     "max_height": 60, "double_stack_allowed": False, "max_pallets_per_floor": 26, "no_pallet": False, "notes": ""},
+    {"id": 6,  "name": "Lowe's",         "max_height": 60, "double_stack_allowed": False, "max_pallets_per_floor": 26, "no_pallet": False, "notes": ""},
+    {"id": 7,  "name": "Kroger",         "max_height": 60, "double_stack_allowed": False, "max_pallets_per_floor": 26, "no_pallet": False, "notes": ""},
+    {"id": 8,  "name": "Sam's Club",     "max_height": 60, "double_stack_allowed": True,  "max_pallets_per_floor": 26, "no_pallet": False, "notes": ""},
+    {"id": 9,  "name": "Dollar General", "max_height": 57, "double_stack_allowed": False, "max_pallets_per_floor": 26, "no_pallet": False, "notes": ""},
+    {"id": 10, "name": "Dollar Tree",    "max_height": 57, "double_stack_allowed": False, "max_pallets_per_floor": 26, "no_pallet": False, "notes": ""},
+    {"id": 11, "name": "Walgreens",      "max_height": 60, "double_stack_allowed": False, "max_pallets_per_floor": 26, "no_pallet": False, "notes": ""},
+    {"id": 12, "name": "CVS",            "max_height": 60, "double_stack_allowed": False, "max_pallets_per_floor": 26, "no_pallet": False, "notes": ""},
+    {"id": 13, "name": "Best Buy",       "max_height": 60, "double_stack_allowed": False, "max_pallets_per_floor": 26, "no_pallet": False, "notes": ""},
+    {"id": 14, "name": "Whole Foods",    "max_height": 60, "double_stack_allowed": False, "max_pallets_per_floor": 26, "no_pallet": False, "notes": ""},
+    {"id": 15, "name": "BJ's Wholesale", "max_height": 60, "double_stack_allowed": True,  "max_pallets_per_floor": 26, "no_pallet": False, "notes": ""},
 ]
 
 
 def load_retailers():
     if os.path.exists(RETAILERS_FILE):
         with open(RETAILERS_FILE) as f:
-            return json.load(f)
+            data = json.load(f)
+        # Backfill any fields added after initial schema
+        for r in data:
+            r.setdefault("notes", "")
+        return data
     return DEFAULT_RETAILERS.copy()
 
 
@@ -73,6 +78,7 @@ def _parse_retailer_body(data: dict, base=None) -> dict:
         "max_pallets_per_floor": int(data.get("max_pallets_per_floor",
                                               base.get("max_pallets_per_floor", 26))),
         "no_pallet":             bool(data.get("no_pallet", base.get("no_pallet", False))),
+        "notes":                 str(data.get("notes", base.get("notes", ""))),
     }
 
 
@@ -80,7 +86,8 @@ def _parse_retailer_body(data: dict, base=None) -> dict:
 
 @app.route("/")
 def index():
-    return render_template("index.html", show_diagram=SHOW_DIAGRAM, show_hi_view=SHOW_HI_VIEW)
+    return render_template("index.html", show_diagram=SHOW_DIAGRAM, show_hi_view=SHOW_HI_VIEW,
+                           show_demo_defaults=SHOW_DEMO_DEFAULTS)
 
 
 # ── Auth ──────────────────────────────────────────────────────────────────────
@@ -132,6 +139,18 @@ def api_retailers_update(rid: int):
     for r in retailers:
         if r["id"] == rid:
             r.update(_parse_retailer_body(data, r))
+            save_retailers(retailers)
+            return jsonify(r)
+    return jsonify({"error": "Not found"}), 404
+
+
+@app.route("/api/retailers/<int:rid>/notes", methods=["PATCH"])
+def api_retailer_notes(rid: int):
+    data = request.get_json(force=True) or {}
+    retailers = load_retailers()
+    for r in retailers:
+        if r["id"] == rid:
+            r["notes"] = str(data.get("notes", ""))
             save_retailers(retailers)
             return jsonify(r)
     return jsonify({"error": "Not found"}), 404
