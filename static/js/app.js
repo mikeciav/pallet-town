@@ -855,10 +855,19 @@ async function doBulkCalc() {
     bulkResults = await res.json();
     if (!res.ok) { setBulkStatus(bulkResults.error || 'Error', true); return; }
     bulkResults.forEach((r, i) => {
-      const cw = (bulkData[i] && bulkData[i].case_weight) || 0;
-      r.case_weight      = cw;
-      r.pallet_weight    = cw * r.total;
-      r.truckload_weight = cw * r.total * r.max_pallets_per_floor * r.stack_multiplier;
+      const row   = bulkData[i];
+      const hasCW = row && row.case_weight  != null;
+      const hasCP = row && row.case_pack_qty != null;
+
+      if (hasCW) {
+        r.case_weight      = row.case_weight;
+        r.pallet_weight    = row.case_weight * r.total;
+        r.truckload_weight = row.case_weight * r.total * r.max_pallets_per_floor * r.stack_multiplier;
+      } else {
+        r.case_weight = r.pallet_weight = r.truckload_weight = null;
+      }
+
+      if (!hasCP) r.case_pack_qty = r.truckload_qty = null;
     });
     renderBulkTable(bulkResults);
     setBulkStatus(`${bulkResults.length} cases calculated.`);
@@ -881,13 +890,13 @@ function renderBulkTable(rows) {
       <td>${esc(r.sku)}</td>
       <td>${r.length}" × ${r.width}" × ${r.height}"</td>
       <td>${formatWeight(r.case_weight)}</td>
-      <td>${r.case_pack_qty}</td>
+      <td>${r.case_pack_qty ?? '—'}</td>
       <td class="td-ti">${r.ti}</td>
       <td class="td-hi">${r.hi}</td>
       <td class="td-total">${r.total}</td>
-      <td>${r.case_pack_qty * r.total}</td>
+      <td>${r.case_pack_qty != null ? r.case_pack_qty * r.total : '—'}</td>
       <td>${formatWeight(r.pallet_weight)}</td>
-      <td class="td-tl">${r.truckload_qty.toLocaleString()}</td>
+      <td class="td-tl">${r.truckload_qty != null ? r.truckload_qty.toLocaleString() : '—'}</td>
       <td>${formatWeight(r.truckload_weight)}</td>
       <td>${r.pod_length}" × ${r.pod_width}" × ${r.pod_height}"</td>
       <td><span class="eff-badge ${cls}">${e}%</span></td>
@@ -904,7 +913,7 @@ function exportResults() {
   if (!bulkResults.length) return;
   const head = 'SKU,Length,Width,Height,Case Weight (lbs),Case Pack Qty,Ti,Hi,Cases Per Pallet,Units Per Pallet,Pallet Wt (lbs),Units Per Truckload,Truckload Weight (lbs),Pod Length,Pod Width,Pod Height,Efficiency\n';
   const body = bulkResults.map(r =>
-    `${r.sku},${r.length},${r.width},${r.height},${r.case_weight || 0},${r.case_pack_qty},${r.ti},${r.hi},${r.total},${r.case_pack_qty * r.total},${r.pallet_weight || 0},${r.truckload_qty},${r.truckload_weight || 0},${r.pod_length},${r.pod_width},${r.pod_height},${Math.round(r.efficiency * 100)}%`
+    `${r.sku},${r.length},${r.width},${r.height},${r.case_weight ?? ''},${r.case_pack_qty ?? ''},${r.ti},${r.hi},${r.total},${r.case_pack_qty != null ? r.case_pack_qty * r.total : ''},${r.pallet_weight ?? ''},${r.truckload_qty ?? ''},${r.truckload_weight ?? ''},${r.pod_length},${r.pod_width},${r.pod_height},${Math.round(r.efficiency * 100)}%`
   ).join('\n');
   dlString(head + body, 'pallet-results.csv', 'text/csv');
 }
