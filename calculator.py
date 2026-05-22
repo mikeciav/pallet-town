@@ -10,6 +10,26 @@ Research note: general 2D bin packing is NP-hard, but for UNIFORM boxes the
 optimal solution can almost always be found by trying all two-stripe patterns
 (n rows of orientation A + remaining rows of orientation B). This covers block,
 uniform, and most mixed patterns used in practice.
+
+Shoppable-sides constraint
+--------------------------
+The carton's WIDTH dimension is its "front" face. shoppable_sides controls how
+many pallet edges must have that face pointing outward:
+
+  0 (no preference) — unconstrained; existing stripe algorithm.
+  2                 — uniform orientation only; fronts face exactly one pair of
+                      opposite edges.  No row/column mixing allowed.
+  3                 — "L-frame": A-rows on two opposite edges + B-col on one
+                      adjacent edge (or B-cols on two edges + A-row on one).
+                      Interior is optimised freely.
+  4                 — full frame: A-rows at front/back + B-cols at left/right
+                      (both orderings tried, best Ti returned).
+
+Orientation conventions (pallet x-axis = length, y-axis = width):
+  A  →  footprint CL × CW (CL in x, CW in y) → CW face points ±y
+         → front edge (y=0) and back edge (y=PW) are shoppable
+  B  →  footprint CW × CL (CW in x, CL in y) → CW face points ±x
+         → left edge (x=0) and right edge (x=PL) are shoppable
 """
 
 from __future__ import annotations
@@ -21,34 +41,44 @@ def find_optimal_arrangement(
     case_w: float,
     pallet_l: float,
     pallet_w: float,
+    shoppable_sides: int = 0,
 ) -> Tuple[int, Optional[Dict]]:
     """
     Find maximum Ti and the arrangement config that achieves it.
 
-    Tries all stripe patterns over both pallet dimensions with both carton
-    orientations: n stripes of A + remaining space filled with B stripes.
+    shoppable_sides — 0 (none), 2, 3, or 4.
     """
     if case_l <= 0 or case_w <= 0 or pallet_l <= 0 or pallet_w <= 0:
         return 0, None
 
+    if shoppable_sides == 2:
+        return _find_2sided(case_l, case_w, pallet_l, pallet_w)
+    if shoppable_sides in (3, 4):
+        return _find_bordered(case_l, case_w, pallet_l, pallet_w, shoppable_sides)
+    return _find_unconstrained(case_l, case_w, pallet_l, pallet_w)
+
+
+# ── Unconstrained stripe algorithm (original) ────────────────────────────────
+
+def _find_unconstrained(
+    case_l: float,
+    case_w: float,
+    pallet_l: float,
+    pallet_w: float,
+) -> Tuple[int, Optional[Dict]]:
     best_ti = 0
     best_config: Optional[Dict] = None
 
-    # Natural orientation A = (case_l × case_w); B is 90° rotation.
-    # We enumerate both choices of "primary" orientation so that all
-    # combinations are covered without explicit A/B labelling confusion.
     for a_l, a_w in [(case_l, case_w), (case_w, case_l)]:
-        b_l, b_w = a_w, a_l  # 90° rotation
+        b_l, b_w = a_w, a_l
 
-        # --- Row stripes: split along pallet WIDTH ---
+        # Row stripes: split along pallet WIDTH
         max_a = int(pallet_w / a_w)
         for n_a in range(max_a + 1):
             remaining = pallet_w - n_a * a_w
             n_b = int(remaining / b_w) if b_w > 0 else 0
-
             per_a = int(pallet_l / a_l) if a_l > 0 else 0
             per_b = int(pallet_l / b_l) if b_l > 0 else 0
-
             ti = n_a * per_a + n_b * per_b
             if ti > best_ti:
                 best_ti = ti
@@ -59,15 +89,13 @@ def find_optimal_arrangement(
                     case_l, case_w,
                 )
 
-        # --- Column stripes: split along pallet LENGTH ---
+        # Column stripes: split along pallet LENGTH
         max_a = int(pallet_l / a_l)
         for n_a in range(max_a + 1):
             remaining = pallet_l - n_a * a_l
             n_b = int(remaining / b_l) if b_l > 0 else 0
-
             per_a = int(pallet_w / a_w) if a_w > 0 else 0
             per_b = int(pallet_w / b_w) if b_w > 0 else 0
-
             ti = n_a * per_a + n_b * per_b
             if ti > best_ti:
                 best_ti = ti
@@ -81,6 +109,158 @@ def find_optimal_arrangement(
     return best_ti, best_config
 
 
+# ── 2-sided: uniform orientation only ────────────────────────────────────────
+
+def _find_2sided(
+    cl: float, cw: float, PL: float, PW: float,
+) -> Tuple[int, Optional[Dict]]:
+    # Orientation A: cl along PL, cw along PW → front/back shoppable
+    n_rows_a  = int(PW / cw)
+    per_row_a = int(PL / cl)
+    ti_a = n_rows_a * per_row_a
+
+    # Orientation B: cw along PL, cl along PW → left/right shoppable
+    n_rows_b  = int(PW / cl)
+    per_row_b = int(PL / cw)
+    ti_b = n_rows_b * per_row_b
+
+    if ti_a >= ti_b:
+        config = _make_config("row", PL, PW,
+                              n_rows_a, per_row_a, cl, cw,
+                              0, 0, cw, cl, cl, cw)
+        return ti_a, config
+    else:
+        config = _make_config("row", PL, PW,
+                              0, 0, cl, cw,
+                              n_rows_b, per_row_b, cw, cl, cl, cw)
+        return ti_b, config
+
+
+# ── 3/4-sided: border frame ───────────────────────────────────────────────────
+
+def _pack_strip(
+    x0: float, y0: float, w: float, h: float,
+    carton_x: float, carton_y: float, rotated: bool,
+) -> List[Dict]:
+    """Fill a rectangular zone with cartons of footprint carton_x × carton_y."""
+    nx = int(w / carton_x)
+    ny = int(h / carton_y)
+    return [
+        {"x": x0 + col * carton_x, "y": y0 + row * carton_y,
+         "w": carton_x, "h": carton_y, "rotated": rotated}
+        for row in range(ny)
+        for col in range(nx)
+    ]
+
+
+def _interior_positions(
+    x0: float, y0: float, w: float, h: float, cl: float, cw: float,
+) -> Tuple[List[Dict], int]:
+    """Fill interior zone using the unconstrained algorithm with x/y offsets."""
+    if w <= 0 or h <= 0:
+        return [], 0
+    ti, config = _find_unconstrained(cl, cw, w, h)
+    positions = generate_positions(config)
+    for p in positions:
+        p["x"] += x0
+        p["y"] += y0
+    return positions, ti
+
+
+def _find_bordered(
+    cl: float, cw: float, PL: float, PW: float, sides: int,
+) -> Tuple[int, Optional[Dict]]:
+    """
+    Build frame arrangements and return the one with the highest Ti.
+
+    3-sided candidates:
+      3a — A-rows at front (y=0) + back (y=PW), B-col on left or right
+      3b — B-cols at left (x=0) + right (x=PL), A-row on front or back
+
+    4-sided candidates:
+      4a — A-rows at front+back span full PL; B-cols fill interior band left/right
+      4b — B-cols at left+right span full PW; A-rows fill interior band front/back
+    """
+    best_ti = 0
+    best_positions: List[Dict] = []
+    best_label = ""
+
+    def try_config(label: str, positions: List[Dict]) -> None:
+        nonlocal best_ti, best_positions, best_label
+        ti = len(positions)
+        if ti > best_ti:
+            best_ti = ti
+            best_positions = positions
+            best_label = label
+
+    if sides == 3:
+        # 3a: A-rows span full PL at front+back; B-col on one x-side
+        if PW > 2 * cw:
+            ih = PW - 2 * cw  # interior band height
+            for left in (True, False):
+                x_col = 0.0 if left else PL - cw
+                ix    = cw  if left else 0.0
+                iw    = PL - cw
+                front    = _pack_strip(0, 0,        PL, cw, cl, cw, rotated=False)
+                back     = _pack_strip(0, PW - cw,  PL, cw, cl, cw, rotated=False)
+                side_col = _pack_strip(x_col, cw,   cw, ih, cw, cl, rotated=True)
+                interior, _ = _interior_positions(ix, cw, iw, ih, cl, cw)
+                side_name = "left" if left else "right"
+                try_config(f"3-sided (front+back+{side_name})",
+                           front + back + side_col + interior)
+
+        # 3b: B-cols span full PW at left+right; A-row on one y-side
+        if PL > 2 * cw:
+            iw = PL - 2 * cw
+            for front_side in (True, False):
+                y_row = 0.0       if front_side else PW - cw
+                iy    = cw        if front_side else 0.0
+                ih    = PW - cw
+                left_col  = _pack_strip(0,        0, cw, PW, cw, cl, rotated=True)
+                right_col = _pack_strip(PL - cw,  0, cw, PW, cw, cl, rotated=True)
+                edge_row  = _pack_strip(cw, y_row, iw, cw, cl, cw, rotated=False)
+                interior, _ = _interior_positions(cw, iy, iw, ih, cl, cw)
+                side_name = "front" if front_side else "back"
+                try_config(f"3-sided (left+right+{side_name})",
+                           left_col + right_col + edge_row + interior)
+
+    else:  # sides == 4
+        interior_w = PL - 2 * cw
+        interior_h = PW - 2 * cw
+
+        if interior_w > 0 and interior_h > 0:
+            # 4a: A-rows span full PL at front+back; B-cols in interior band
+            front = _pack_strip(0, 0,       PL, cw, cl, cw, rotated=False)
+            back  = _pack_strip(0, PW - cw, PL, cw, cl, cw, rotated=False)
+            lc_4a = _pack_strip(0,        cw, cw, interior_h, cw, cl, rotated=True)
+            rc_4a = _pack_strip(PL - cw,  cw, cw, interior_h, cw, cl, rotated=True)
+            interior_4a, _ = _interior_positions(cw, cw, interior_w, interior_h, cl, cw)
+            try_config("4-sided", front + back + lc_4a + rc_4a + interior_4a)
+
+            # 4b: B-cols span full PW at left+right; A-rows in interior band
+            lc_4b = _pack_strip(0,       0, cw, PW, cw, cl, rotated=True)
+            rc_4b = _pack_strip(PL - cw, 0, cw, PW, cw, cl, rotated=True)
+            fr_4b = _pack_strip(cw, 0,        interior_w, cw, cl, cw, rotated=False)
+            bk_4b = _pack_strip(cw, PW - cw,  interior_w, cw, cl, cw, rotated=False)
+            interior_4b, _ = _interior_positions(cw, cw, interior_w, interior_h, cl, cw)
+            try_config("4-sided", lc_4b + rc_4b + fr_4b + bk_4b + interior_4b)
+
+    if best_ti == 0:
+        return 0, None
+
+    config: Dict = {
+        "type": "zones",
+        "pallet_l": PL,
+        "pallet_w": PW,
+        "positions": best_positions,
+        "desc_hint": f"{sides}-sided",
+        "desc_full": best_label,
+    }
+    return best_ti, config
+
+
+# ── Config helpers ────────────────────────────────────────────────────────────
+
 def _make_config(
     split: str,
     pallet_l: float, pallet_w: float,
@@ -88,7 +268,6 @@ def _make_config(
     n_b: int, per_b: int, b_l: float, b_w: float,
     orig_l: float, orig_w: float,
 ) -> dict:
-    # rotated=True when the carton footprint is swapped from its original dims
     rot_a = not (a_l == orig_l and a_w == orig_w)
     rot_b = not rot_a
     return {
@@ -100,11 +279,18 @@ def _make_config(
     }
 
 
-def generate_positions(config: Dict) -> List[Dict]:
+# ── Position generation ───────────────────────────────────────────────────────
+
+def generate_positions(config: Optional[Dict]) -> List[Dict]:
     """Return carton footprint positions for top-down SVG visualization."""
     if not config:
         return []
 
+    # Zone-based config (3/4-sided): positions are pre-computed
+    if config.get("type") == "zones":
+        return list(config["positions"])
+
+    # Stripe config
     positions: List[Dict] = []
     a = config["a"]
     b = config["b"]
@@ -150,12 +336,12 @@ def pod_dimensions(positions: List[Dict]) -> tuple:
 def arrangement_description(config: Optional[Dict], ti: int) -> str:
     if not config:
         return f"{ti} cases"
+    if config.get("type") == "zones":
+        return config.get("desc_full", config.get("desc_hint", "Shoppable"))
     a, b = config["a"], config["b"]
     has_a = a["count"] > 0 and a["per_stripe"] > 0
     has_b = b["count"] > 0 and b["per_stripe"] > 0
     if has_a and has_b:
-        dir_a = "cols" if not a["rotated"] else "cols (rot.)"
-        dir_b = "cols (rot.)" if not b["rotated"] else "cols"
         return (f"Mixed: {a['count']}×{a['per_stripe']} + "
                 f"{b['count']}×{b['per_stripe']}")
     if has_a:
@@ -165,6 +351,8 @@ def arrangement_description(config: Optional[Dict], ti: int) -> str:
     return "0 cases"
 
 
+# ── Full pallet calculation ───────────────────────────────────────────────────
+
 def calculate(
     case_l: float,
     case_w: float,
@@ -173,6 +361,7 @@ def calculate(
     pallet_l: float,
     pallet_w: float,
     pallet_h: float,
+    shoppable_sides: int = 0,
 ) -> dict:
     """
     Full pallet calculation.
@@ -181,7 +370,8 @@ def calculate(
     pallet board itself. Hi is always based on one pallet — stacking is a
     truckload-level concern handled outside this function.
     """
-    ti, config = find_optimal_arrangement(case_l, case_w, pallet_l, pallet_w)
+    ti, config = find_optimal_arrangement(case_l, case_w, pallet_l, pallet_w,
+                                          shoppable_sides)
 
     case_h_safe = max(case_h, 0.01)
     available_h = max_height - pallet_h

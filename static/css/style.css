@@ -438,6 +438,31 @@ body::before {
 
 .btn-arrow { width: 15px; height: 15px; }
 
+/* Segmented button group (shoppable sides selector) */
+.seg-group {
+  display: flex;
+  border: 1px solid var(--border);
+  border-radius: var(--r);
+  overflow: hidden;
+}
+.seg-btn {
+  flex: 1;
+  background: transparent;
+  border: none;
+  border-right: 1px solid var(--border);
+  color: var(--text-muted);
+  font-family: var(--font-display);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: .08em;
+  padding: 7px 4px;
+  cursor: pointer;
+  transition: background .12s, color .12s;
+}
+.seg-btn:last-child { border-right: none; }
+.seg-btn:hover      { background: var(--bg-hover); color: var(--text); }
+.seg-btn.active     { background: var(--blue); color: #0d1119; }
+
 /* ── Results panel (legacy, kept for compatibility) ──────────── */
 .results-panel {
   display: flex; flex-direction: column;

@@ -58,6 +58,20 @@ function debounce(fn, ms) {
   return (...args) => { clearTimeout(t); t = setTimeout(() => fn(...args), ms); };
 }
 
+function getSegValue(groupId) {
+  const active = document.querySelector(`#${groupId} .seg-btn.active`);
+  return active ? parseInt(active.dataset.val, 10) : 0;
+}
+
+function setupSegGroup(groupId) {
+  document.querySelectorAll(`#${groupId} .seg-btn`).forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll(`#${groupId} .seg-btn`).forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+    });
+  });
+}
+
 function showToast(msg = 'Config saved') {
   // Reuse an existing toast if one is already showing
   let el = document.querySelector('.toast');
@@ -86,6 +100,8 @@ document.addEventListener('DOMContentLoaded', async () => {
   setupCalculator();
   setupBulk();
   setupRetailersTab();
+  setupSegGroup('shoppable-seg');
+  setupSegGroup('bulk-shoppable-seg');
 });
 
 // ── Sidebar collapse ─────────────────────────────────────────
@@ -416,7 +432,9 @@ async function doCalculate() {
   setStatus('Calculating…');
 
   try {
-    const body = { length: l, width: w, height: h, retailer_id: rid, case_pack_qty: cp };
+    const shoppable = getSegValue('shoppable-seg');
+    const body = { length: l, width: w, height: h, retailer_id: rid, case_pack_qty: cp,
+                   shoppable_sides: shoppable };
     if (rid === 'custom') Object.assign(body, customRetailer);
     const res  = await fetch(API.calculate, {
       method: 'POST',
@@ -846,7 +864,9 @@ async function doBulkCalc() {
   setBulkStatus(`Processing ${bulkData.length} cases…`);
 
   try {
-    const body = { cases: bulkData, retailer_id: rid, case_pack_qty: cp };
+    const shoppable = getSegValue('bulk-shoppable-seg');
+    const body = { cases: bulkData, retailer_id: rid, case_pack_qty: cp,
+                   shoppable_sides: shoppable };
     if (rid === 'custom') Object.assign(body, customRetailer);
     const res  = await fetch(API.bulkCalc, {
       method: 'POST',

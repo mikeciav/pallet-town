@@ -198,7 +198,8 @@ def api_calculate():
         if not retailer:
             return jsonify({"error": "Retailer not found"}), 404
 
-    case_pack_qty = max(1, int(data.get("case_pack_qty", 1)))
+    case_pack_qty   = max(1, int(data.get("case_pack_qty", 1)))
+    shoppable_sides = int(data.get("shoppable_sides", 0))
     result = calculate(
         case_l=case_l,
         case_w=case_w,
@@ -207,6 +208,7 @@ def api_calculate():
         pallet_l=PALLET_L,
         pallet_w=PALLET_W,
         pallet_h=0.0 if retailer.get("no_pallet", False) else PALLET_H,
+        shoppable_sides=shoppable_sides,
     )
     stack_mult = 2 if retailer["double_stack_allowed"] else 1
     result["truckload_qty"] = (
@@ -215,6 +217,7 @@ def api_calculate():
     result["case_pack_qty"]        = case_pack_qty
     result["max_pallets_per_floor"] = retailer["max_pallets_per_floor"]
     result["stack_multiplier"]      = stack_mult
+    result["shoppable_sides"]       = shoppable_sides
     return jsonify(result)
 
 
@@ -242,8 +245,9 @@ def api_calculate_bulk():
     if not cases:
         return jsonify({"error": "No cases provided"}), 400
 
-    stack_mult = 2 if retailer["double_stack_allowed"] else 1
-    max_pallets     = retailer["max_pallets_per_floor"]
+    shoppable_sides = int(data.get("shoppable_sides", 0))
+    stack_mult  = 2 if retailer["double_stack_allowed"] else 1
+    max_pallets = retailer["max_pallets_per_floor"]
     results = []
     for case in cases:
         try:
@@ -262,11 +266,13 @@ def api_calculate_bulk():
             pallet_l=PALLET_L,
             pallet_w=PALLET_W,
             pallet_h=0.0 if retailer.get("no_pallet", False) else PALLET_H,
+            shoppable_sides=shoppable_sides,
         )
         r["truckload_qty"]        = case_pack_qty * r["total"] * max_pallets * stack_mult
         r["case_pack_qty"]        = case_pack_qty
         r["max_pallets_per_floor"] = max_pallets
         r["stack_multiplier"]      = stack_mult
+        r["shoppable_sides"]       = shoppable_sides
         results.append({
             "sku": str(case.get("sku", "")),
             "length": l, "width": w, "height": h,
