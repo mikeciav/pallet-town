@@ -837,7 +837,6 @@ function parseCSV(text, filename) {
 
 async function doBulkCalc() {
   const rid = document.getElementById('bulk-retailer').value;
-  const cp  = Math.max(1, parseInt(document.getElementById('bulk-cp').value, 10) || 1);
 
   if (!rid)              { setBulkStatus('Select a retailer.', true); return; }
   if (!bulkData.length)  { setBulkStatus('Upload a CSV first.', true); return; }
@@ -846,7 +845,7 @@ async function doBulkCalc() {
   setBulkStatus(`Processing ${bulkData.length} cases…`);
 
   try {
-    const body = { cases: bulkData, retailer_id: rid, case_pack_qty: cp };
+    const body = { cases: bulkData, retailer_id: rid };
     if (rid === 'custom') Object.assign(body, customRetailer);
     const res  = await fetch(API.bulkCalc, {
       method: 'POST',
@@ -855,9 +854,8 @@ async function doBulkCalc() {
     });
     bulkResults = await res.json();
     if (!res.ok) { setBulkStatus(bulkResults.error || 'Error', true); return; }
-    const defaultCaseWeight = parseFloat(document.getElementById('bulk-cw').value) || 0;
     bulkResults.forEach((r, i) => {
-      const cw = (bulkData[i] && bulkData[i].case_weight) || defaultCaseWeight;
+      const cw = (bulkData[i] && bulkData[i].case_weight) || 0;
       r.case_weight      = cw;
       r.pallet_weight    = cw * r.total;
       r.truckload_weight = cw * r.total * r.max_pallets_per_floor * r.stack_multiplier;
