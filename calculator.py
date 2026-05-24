@@ -156,6 +156,143 @@ def place_ring(
     }
 
 
+def _place_partial_ring(
+    case_l: float,
+    case_w: float,
+    rect_l: float,
+    rect_w: float,
+    sides: List[str],
+    rounding_gaps: bool,
+) -> int:
+    """
+    Place cases on whichever selected sides fit ≥1 case independently.
+    Used when force_fill_on_failure=False and a full ring is no longer possible.
+    Returns total cases placed across all feasible sides.
+    """
+    sides_set = set(sides)
+    total = 0
+
+    left_right_span = rect_w
+    if "front" in sides_set:
+        left_right_span -= case_l
+    if "back" in sides_set:
+        left_right_span -= case_l
+
+    for side in ("front", "back"):
+        if side not in sides_set:
+            continue
+        if rect_w < case_l - 1e-9:
+            continue
+        n = int(rect_l / case_w)
+        if n > 0 and (rounding_gaps or rect_l % case_w < 1e-9):
+            total += n
+
+    if left_right_span >= case_w - 1e-9:
+        for side in ("left", "right"):
+            if side not in sides_set:
+                continue
+            n = int(left_right_span / case_w)
+            if n > 0 and (rounding_gaps or left_right_span % case_w < 1e-9):
+                total += n
+
+    return total
+
+
+def find_shoppable_arrangement(
+    case_l: float,
+    case_w: float,
+    pallet_l: float,
+    pallet_w: float,
+    sides: List[str],
+    max_empty_pct: float = 0.15,
+    rounding_gaps: bool = True,
+    min_footprint: Tuple[float, float] = (37.0, 45.0),
+    force_fill_on_failure: bool = True,
+) -> Dict:
+    """
+    Place concentric rings then fill or leave chimney per configuration.
+
+    Returns:
+        ti           — total cases placed (rings + optional fill)
+        mode         — 'pure_facing' | 'filled' | 'partial' | 'error'
+        void_pct     — fraction of pallet area not covered by cases
+        ring_count   — number of complete rings placed
+        error        — human-readable message when mode == 'error', else None
+    """
+    pallet_area = pallet_l * pallet_w
+    case_area = case_l * case_w
+    rect_l, rect_w = pallet_l, pallet_w
+    ring_ti = 0
+    ring_count = 0
+
+    while True:
+        ring = place_ring(case_l, case_w, rect_l, rect_w, sides, rounding_gaps)
+        if ring is None:
+            break
+        ring_ti += ring["total"]
+        ring_count += 1
+        rect_l = ring["inner_l"]
+        rect_w = ring["inner_w"]
+
+    if not force_fill_on_failure:
+        partial_ti = _place_partial_ring(case_l, case_w, rect_l, rect_w, sides, rounding_gaps)
+        total_ti = ring_ti + partial_ti
+        void_pct = max(0.0, (pallet_area - total_ti * case_area) / pallet_area)
+        return {
+            "ti": total_ti,
+            "mode": "partial",
+            "void_pct": round(void_pct, 4),
+            "ring_count": ring_count,
+            "error": None,
+        }
+
+    if ring_count == 0:
+        return {
+            "ti": 0,
+            "mode": "error",
+            "void_pct": 1.0,
+            "ring_count": 0,
+            "error": "Case dimensions cannot form a shoppable ring on the selected sides.",
+        }
+
+    void_after_rings = max(0.0, (pallet_area - ring_ti * case_area) / pallet_area)
+
+    if void_after_rings <= max_empty_pct:
+        return {
+            "ti": ring_ti,
+            "mode": "pure_facing",
+            "void_pct": round(void_after_rings, 4),
+            "ring_count": ring_count,
+            "error": None,
+        }
+
+    # Force-fill the interior
+    fill_ti = 0
+    if rect_l >= case_w - 1e-9 and rect_w >= case_w - 1e-9:
+        fill_ti, _ = find_optimal_arrangement(case_l, case_w, rect_l, rect_w)
+
+    total_ti = ring_ti + fill_ti
+    void_pct = max(0.0, (pallet_area - total_ti * case_area) / pallet_area)
+
+    if void_pct <= max_empty_pct:
+        mode = "filled"
+        error_msg = None
+    else:
+        mode = "error"
+        error_msg = (
+            f"Void ({void_pct:.0%}) exceeds maximum allowed ({max_empty_pct:.0%}) "
+            "even after filling the interior."
+        )
+
+    return {
+        "ti": total_ti,
+        "mode": mode,
+        "void_pct": round(void_pct, 4),
+        "ring_count": ring_count,
+        "error": error_msg,
+    }
+
+
 def generate_positions(config: Dict) -> List[Dict]:
     """Return carton footprint positions for top-down SVG visualization."""
     if not config:
