@@ -6,6 +6,7 @@ Run with:  python3 -m pytest test_calculator.py -v
 
 import pytest
 from calculator import calculate, find_optimal_arrangement, pod_dimensions, generate_positions
+from calculator import place_ring
 
 # Standard pallet constants used in app.py
 PL, PW, PH = 48.0, 40.0, 5.5
@@ -305,3 +306,72 @@ class TestTruckload:
 
     def test_zero_total_gives_zero_truckload(self):
         assert truckload(0, 4, 26, True) == 0
+
+
+class TestPlaceRing:
+    ALL4 = ['front', 'back', 'left', 'right']
+
+    def test_4sided_basic_counts(self):
+        # pallet 48×40, case 10L×8W
+        # front/back: floor(48/8)=6; left/right span=40-10-10=20, floor(20/8)=2
+        ring = place_ring(10, 8, 48, 40, self.ALL4, rounding_gaps=True)
+        assert ring is not None
+        assert ring['counts']['front'] == 6
+        assert ring['counts']['back']  == 6
+        assert ring['counts']['left']  == 2
+        assert ring['counts']['right'] == 2
+        assert ring['total'] == 16
+
+    def test_4sided_inner_rect(self):
+        ring = place_ring(10, 8, 48, 40, self.ALL4, rounding_gaps=True)
+        assert ring['inner_l'] == pytest.approx(28.0)
+        assert ring['inner_w'] == pytest.approx(20.0)
+
+    def test_ring2_fails_when_left_right_have_zero_cases(self):
+        # inner rect 28×20: left/right span=20-20=0 → 0 cases → None
+        ring = place_ring(10, 8, 28, 20, self.ALL4, rounding_gaps=True)
+        assert ring is None
+
+    def test_rounding_gaps_false_rejects_gap(self):
+        # left/right span=20, 20%8=4 → gap → None when rounding_gaps=False
+        ring = place_ring(10, 8, 48, 40, self.ALL4, rounding_gaps=False)
+        assert ring is None
+
+    def test_rounding_gaps_false_accepts_clean_division(self):
+        # case 8×8: front/back 48%8=0 ✓; left/right span=40-16=24, 24%8=0 ✓
+        ring = place_ring(8, 8, 48, 40, self.ALL4, rounding_gaps=False)
+        assert ring is not None
+        assert ring['counts']['front'] == 6
+        assert ring['counts']['left']  == 3
+
+    def test_3sided_front_left_right(self):
+        # front: floor(48/8)=6; left/right span=40-10=30, floor(30/8)=3
+        ring = place_ring(10, 8, 48, 40, ['front', 'left', 'right'], rounding_gaps=True)
+        assert ring is not None
+        assert ring['counts']['front'] == 6
+        assert ring['counts']['left']  == 3
+        assert ring['counts']['right'] == 3
+        assert 'back' not in ring['counts']
+        assert ring['inner_l'] == pytest.approx(38.0)  # 48-10
+        assert ring['inner_w'] == pytest.approx(20.0)  # 40-10-10
+
+    def test_2sided_front_back_only(self):
+        # front/back: floor(48/8)=6; no left/right
+        ring = place_ring(10, 8, 48, 40, ['front', 'back'], rounding_gaps=True)
+        assert ring is not None
+        assert ring['counts']['front'] == 6
+        assert ring['counts']['back']  == 6
+        assert 'left'  not in ring['counts']
+        assert 'right' not in ring['counts']
+        assert ring['inner_l'] == pytest.approx(48.0)  # L unchanged (no left/right)
+        assert ring['inner_w'] == pytest.approx(20.0)  # W shrinks by 2×case_l
+
+    def test_returns_none_when_inner_dims_negative(self):
+        # rect 18×18, case 10: inner_l=18-20=-2 < 0 → None
+        ring = place_ring(10, 8, 18, 18, self.ALL4, rounding_gaps=True)
+        assert ring is None
+
+    def test_returns_none_when_front_has_zero_cases(self):
+        # rect 6×40, case 10: front floor(6/8)=0 → None
+        ring = place_ring(10, 8, 6, 40, ['front', 'back'], rounding_gaps=True)
+        assert ring is None
