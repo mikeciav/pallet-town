@@ -402,3 +402,65 @@ class TestBulkCalculate:
         d = r.get_json()[0]
         assert d["case_pack_qty"] == 6
         assert d["truckload_qty"] == 6 * d["total"] * 26
+
+
+# ── Shoppable API validation ──────────────────────────────────
+
+SAMS_ID = "8"   # Sam's Club — is_club_store=True
+AMAZON_ID = "4" # Amazon — is_club_store=False
+VALID_DIMS = {"length": 10, "width": 8, "height": 6, "retailer_id": SAMS_ID}
+
+class TestShoppableAPI:
+    def test_shoppable_rejected_for_non_club_store(self, client):
+        body = {**VALID_DIMS, "retailer_id": AMAZON_ID,
+                "shoppable": {"sides": ["front", "back"]}}
+        r = client.post('/api/calculate',
+                        data=json.dumps(body),
+                        content_type='application/json')
+        assert r.status_code == 400
+        assert 'club store' in r.get_json()['error'].lower()
+
+    def test_shoppable_rejected_for_custom_retailer(self, client):
+        body = {"length": 10, "width": 8, "height": 6,
+                "retailer_id": "custom",
+                "max_height": 60, "double_stack_allowed": False,
+                "max_pallets_per_floor": 26, "no_pallet": False,
+                "shoppable": {"sides": ["front"]}}
+        r = client.post('/api/calculate',
+                        data=json.dumps(body),
+                        content_type='application/json')
+        assert r.status_code == 400
+
+    def test_shoppable_rejected_with_empty_sides(self, client):
+        body = {**VALID_DIMS, "shoppable": {"sides": []}}
+        r = client.post('/api/calculate',
+                        data=json.dumps(body),
+                        content_type='application/json')
+        assert r.status_code == 400
+        assert 'sides' in r.get_json()['error'].lower()
+
+    def test_shoppable_rejected_with_invalid_side_name(self, client):
+        body = {**VALID_DIMS, "shoppable": {"sides": ["front", "diagonal"]}}
+        r = client.post('/api/calculate',
+                        data=json.dumps(body),
+                        content_type='application/json')
+        assert r.status_code == 400
+
+    def test_shoppable_rejected_when_chimney_not_allowed_and_fill_off(self, client):
+        # Sam's Club has chimney_allowed=False; sending force_fill_on_failure=False is invalid
+        body = {**VALID_DIMS,
+                "shoppable": {"sides": ["front"], "force_fill_on_failure": False}}
+        r = client.post('/api/calculate',
+                        data=json.dumps(body),
+                        content_type='application/json')
+        assert r.status_code == 400
+        assert 'chimney' in r.get_json()['error'].lower()
+
+    def test_shoppable_accepted_for_club_store(self, client):
+        body = {**VALID_DIMS, "shoppable": {"sides": ["front", "left", "right"]}}
+        r = client.post('/api/calculate',
+                        data=json.dumps(body),
+                        content_type='application/json')
+        assert r.status_code == 200
+        data = r.get_json()
+        assert 'shoppable' in data
