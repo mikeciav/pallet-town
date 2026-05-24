@@ -26,7 +26,7 @@ For each ring iteration, given the current rectangle (`rect_l × rect_w`):
 
 - **Long-side strips** (spanning `rect_l`): `floor(rect_l / case_w)` cases per strip, `case_l` deep
 - **Short-side strips** (between the long-side corners): `floor((rect_w - 2×case_l) / case_w)` cases per strip, `case_l` deep
-- Shoppable sides are kept flush with the pallet edges; no centering logic is needed
+
 
 A ring is valid only if every selected shoppable side yields ≥1 case. If any selected side yields 0 cases, ring placement stops and the fallback behaviour applies.
 
