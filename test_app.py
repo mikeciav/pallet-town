@@ -464,3 +464,38 @@ class TestShoppableAPI:
         assert r.status_code == 200
         data = r.get_json()
         assert 'shoppable' in data
+
+    def test_shoppable_response_shape(self, client):
+        body = {**VALID_DIMS,
+                "shoppable": {"sides": ["front", "left", "right"],
+                              "max_empty_pct": 0.15,
+                              "rounding_gaps": True}}
+        r = client.post('/api/calculate',
+                        data=json.dumps(body),
+                        content_type='application/json')
+        assert r.status_code == 200
+        d = r.get_json()
+        assert 'total' in d
+        s = d['shoppable']
+        assert isinstance(s['ti'], int)
+        assert s['mode'] in ('pure_facing', 'filled', 'partial', 'error')
+        assert 0.0 <= s['void_pct'] <= 1.0
+        assert isinstance(s['ring_count'], int) and s['ring_count'] >= 0
+        assert 'error' in s
+
+    def test_shoppable_ti_lte_standard_ti(self, client):
+        body = {**VALID_DIMS,
+                "shoppable": {"sides": ["front", "back", "left", "right"]}}
+        r = client.post('/api/calculate',
+                        data=json.dumps(body),
+                        content_type='application/json')
+        d = r.get_json()
+        assert d['shoppable']['ti'] <= d['total']
+
+    def test_no_shoppable_key_without_block(self, client):
+        body = {**VALID_DIMS}
+        r = client.post('/api/calculate',
+                        data=json.dumps(body),
+                        content_type='application/json')
+        assert r.status_code == 200
+        assert 'shoppable' not in r.get_json()
