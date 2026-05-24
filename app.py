@@ -6,7 +6,7 @@ from functools import wraps
 from dotenv import load_dotenv
 from flask import Flask, jsonify, render_template, request, session
 from werkzeug.security import check_password_hash
-from calculator import calculate
+from calculator import calculate, find_shoppable_arrangement
 
 load_dotenv()
 
@@ -271,6 +271,19 @@ def api_calculate():
     result["case_pack_qty"]        = case_pack_qty
     result["max_pallets_per_floor"] = retailer["max_pallets_per_floor"]
     result["stack_multiplier"]      = stack_mult
+    if shoppable_params is not None:
+        shoppable_result = find_shoppable_arrangement(
+            case_l=case_l,
+            case_w=case_w,
+            pallet_l=PALLET_L,
+            pallet_w=PALLET_W,
+            sides=shoppable_params["sides"],
+            max_empty_pct=shoppable_params["max_empty_pct"],
+            rounding_gaps=shoppable_params["rounding_gaps"],
+            min_footprint=shoppable_params["min_footprint"],
+            force_fill_on_failure=shoppable_params["force_fill_on_failure"],
+        )
+        result["shoppable"] = shoppable_result
     return jsonify(result)
 
 
