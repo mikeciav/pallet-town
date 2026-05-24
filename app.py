@@ -37,21 +37,21 @@ SHOW_HI_VIEW = False  # Hi isometric toggle button inside the diagram panel
 SHOW_DEMO_DEFAULTS = os.environ.get("SHOW_DEMO_DEFAULTS", "false").lower() == "true"
 
 DEFAULT_RETAILERS = [
-    {"id": 4,  "name": "Amazon",         "max_height": 50, "double_stack_allowed": True,  "max_pallets_per_floor": 26, "no_pallet": False, "notes": ""},
-    {"id": 13, "name": "Best Buy",       "max_height": 60, "double_stack_allowed": False, "max_pallets_per_floor": 26, "no_pallet": False, "notes": ""},
-    {"id": 15, "name": "BJ's Wholesale", "max_height": 60, "double_stack_allowed": True,  "max_pallets_per_floor": 26, "no_pallet": False, "notes": ""},
-    {"id": 3,  "name": "Costco",         "max_height": 58, "double_stack_allowed": True,  "max_pallets_per_floor": 26, "no_pallet": False, "notes": ""},
-    {"id": 12, "name": "CVS",            "max_height": 60, "double_stack_allowed": False, "max_pallets_per_floor": 26, "no_pallet": False, "notes": ""},
-    {"id": 9,  "name": "Dollar General", "max_height": 57, "double_stack_allowed": False, "max_pallets_per_floor": 26, "no_pallet": False, "notes": ""},
-    {"id": 10, "name": "Dollar Tree",    "max_height": 57, "double_stack_allowed": False, "max_pallets_per_floor": 26, "no_pallet": False, "notes": ""},
-    {"id": 5,  "name": "Home Depot",     "max_height": 60, "double_stack_allowed": False, "max_pallets_per_floor": 26, "no_pallet": False, "notes": ""},
-    {"id": 7,  "name": "Kroger",         "max_height": 60, "double_stack_allowed": False, "max_pallets_per_floor": 26, "no_pallet": False, "notes": ""},
-    {"id": 6,  "name": "Lowe's",         "max_height": 60, "double_stack_allowed": False, "max_pallets_per_floor": 26, "no_pallet": False, "notes": ""},
-    {"id": 8,  "name": "Sam's Club",     "max_height": 60, "double_stack_allowed": True,  "max_pallets_per_floor": 26, "no_pallet": False, "notes": ""},
-    {"id": 2,  "name": "Target",         "max_height": 60, "double_stack_allowed": False, "max_pallets_per_floor": 26, "no_pallet": False, "notes": ""},
-    {"id": 11, "name": "Walgreens",      "max_height": 60, "double_stack_allowed": False, "max_pallets_per_floor": 26, "no_pallet": False, "notes": ""},
-    {"id": 1,  "name": "Walmart",        "max_height": 60, "double_stack_allowed": False, "max_pallets_per_floor": 26, "no_pallet": False, "notes": ""},
-    {"id": 14, "name": "Whole Foods",    "max_height": 60, "double_stack_allowed": False, "max_pallets_per_floor": 26, "no_pallet": False, "notes": ""},
+    {"id": 4,  "name": "Amazon",         "max_height": 50,   "double_stack_allowed": True,  "max_pallets_per_floor": 26, "no_pallet": False, "notes": "", "is_club_store": False, "chimney_allowed": False},
+    {"id": 13, "name": "Best Buy",       "max_height": 60,   "double_stack_allowed": False, "max_pallets_per_floor": 26, "no_pallet": False, "notes": "", "is_club_store": False, "chimney_allowed": False},
+    {"id": 15, "name": "BJ's Wholesale", "max_height": 60,   "double_stack_allowed": True,  "max_pallets_per_floor": 26, "no_pallet": False, "notes": "", "is_club_store": True,  "chimney_allowed": False},
+    {"id": 3,  "name": "Costco",         "max_height": 58.0, "double_stack_allowed": True,  "max_pallets_per_floor": 26, "no_pallet": False, "notes": "", "is_club_store": True,  "chimney_allowed": False},
+    {"id": 12, "name": "CVS",            "max_height": 60,   "double_stack_allowed": False, "max_pallets_per_floor": 26, "no_pallet": False, "notes": "", "is_club_store": False, "chimney_allowed": False},
+    {"id": 9,  "name": "Dollar General", "max_height": 57,   "double_stack_allowed": False, "max_pallets_per_floor": 26, "no_pallet": False, "notes": "", "is_club_store": False, "chimney_allowed": False},
+    {"id": 10, "name": "Dollar Tree",    "max_height": 57,   "double_stack_allowed": False, "max_pallets_per_floor": 26, "no_pallet": False, "notes": "", "is_club_store": False, "chimney_allowed": False},
+    {"id": 5,  "name": "Home Depot",     "max_height": 60,   "double_stack_allowed": False, "max_pallets_per_floor": 26, "no_pallet": False, "notes": "", "is_club_store": False, "chimney_allowed": False},
+    {"id": 7,  "name": "Kroger",         "max_height": 60,   "double_stack_allowed": False, "max_pallets_per_floor": 26, "no_pallet": False, "notes": "", "is_club_store": False, "chimney_allowed": False},
+    {"id": 6,  "name": "Lowe's",         "max_height": 60,   "double_stack_allowed": False, "max_pallets_per_floor": 26, "no_pallet": False, "notes": "", "is_club_store": False, "chimney_allowed": False},
+    {"id": 8,  "name": "Sam's Club",     "max_height": 60,   "double_stack_allowed": True,  "max_pallets_per_floor": 26, "no_pallet": False, "notes": "", "is_club_store": True,  "chimney_allowed": False},
+    {"id": 2,  "name": "Target",         "max_height": 60,   "double_stack_allowed": False, "max_pallets_per_floor": 26, "no_pallet": False, "notes": "", "is_club_store": False, "chimney_allowed": False},
+    {"id": 11, "name": "Walgreens",      "max_height": 60,   "double_stack_allowed": False, "max_pallets_per_floor": 26, "no_pallet": False, "notes": "", "is_club_store": False, "chimney_allowed": False},
+    {"id": 1,  "name": "Walmart",        "max_height": 60,   "double_stack_allowed": False, "max_pallets_per_floor": 26, "no_pallet": False, "notes": "", "is_club_store": False, "chimney_allowed": False},
+    {"id": 14, "name": "Whole Foods",    "max_height": 60,   "double_stack_allowed": False, "max_pallets_per_floor": 26, "no_pallet": False, "notes": "", "is_club_store": False, "chimney_allowed": False},
 ]
 
 
@@ -62,6 +62,8 @@ def load_retailers():
         # Backfill any fields added after initial schema
         for r in data:
             r.setdefault("notes", "")
+            r.setdefault("is_club_store", False)
+            r.setdefault("chimney_allowed", False)
     else:
         data = [dict(r) for r in DEFAULT_RETAILERS]
     data.sort(key=lambda r: r["name"].casefold())
@@ -84,6 +86,8 @@ def _parse_retailer_body(data: dict, base=None) -> dict:
                                               base.get("max_pallets_per_floor", 26))),
         "no_pallet":             bool(data.get("no_pallet", base.get("no_pallet", False))),
         "notes":                 str(data.get("notes", base.get("notes", ""))),
+        "is_club_store":         bool(data.get("is_club_store", base.get("is_club_store", False))),
+        "chimney_allowed":       bool(data.get("chimney_allowed", base.get("chimney_allowed", False))),
     }
 
 

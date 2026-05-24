@@ -184,6 +184,37 @@ class TestLoadRetailersBackfill:
         assert result[0]["notes"] == ""
 
 
+# ── Retailer club fields ──────────────────────────────────────
+
+class TestRetailerClubFields:
+    def test_club_stores_have_is_club_store_true(self, client):
+        r = client.get('/api/retailers')
+        retailers = r.get_json()
+        for name in ("Sam's Club", "Costco", "BJ's Wholesale"):
+            retailer = next(r for r in retailers if r['name'] == name)
+            assert retailer['is_club_store'] is True, f"{name} should be is_club_store=True"
+            assert retailer['chimney_allowed'] is False, f"{name} should be chimney_allowed=False"
+
+    def test_non_club_stores_have_is_club_store_false(self, client):
+        r = client.get('/api/retailers')
+        retailers = r.get_json()
+        amazon = next(r for r in retailers if r['name'] == 'Amazon')
+        assert amazon['is_club_store'] is False
+        assert amazon['chimney_allowed'] is False
+
+    def test_load_retailers_backfills_missing_fields(self, tmp_path, monkeypatch):
+        """Retailers saved before this feature was added get default values."""
+        old_data = [{"id": 1, "name": "OldRetailer", "max_height": 60,
+                     "double_stack_allowed": False, "max_pallets_per_floor": 26,
+                     "no_pallet": False, "notes": ""}]
+        rf = tmp_path / "retailers.json"
+        rf.write_text(json.dumps(old_data))
+        monkeypatch.setattr(flask_app, "RETAILERS_FILE", str(rf))
+        data = flask_app.load_retailers()
+        assert data[0]['is_club_store'] is False
+        assert data[0]['chimney_allowed'] is False
+
+
 # ── Calculate (preset retailer) ───────────────────────────────
 
 class TestCalculatePreset:
