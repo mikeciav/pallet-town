@@ -304,6 +304,35 @@ body::before {
 .vt-btn.active { background: var(--amber-glow); color: var(--amber); }
 .vt-btn:hover:not(.active) { color: var(--text); background: var(--bg-hover); }
 
+/* ── Side selector buttons (Club Display Options) ─────────── */
+.side-btn {
+  background: #1a2235;
+  border: 1px solid #374151;
+  border-radius: 4px;
+  color: #6b7280;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 9px;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  padding: 4px 8px;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s, color 0.15s;
+}
+.side-btn.active {
+  background: #1e1535;
+  border-color: #7c3aed;
+  color: #c4b5fd;
+}
+.side-btn:hover:not(.active) {
+  border-color: #4b5563;
+  color: #9ca3af;
+}
+.toggle-label--disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+  pointer-events: none;
+}
+
 /* ── Form elements ─────────────────────────────────────────── */
 .dim-grid {
   display: grid;
