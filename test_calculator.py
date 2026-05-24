@@ -7,6 +7,7 @@ Run with:  python3 -m pytest test_calculator.py -v
 import pytest
 from calculator import calculate, find_optimal_arrangement, pod_dimensions, generate_positions
 from calculator import place_ring
+from calculator import find_shoppable_arrangement
 
 # Standard pallet constants used in app.py
 PL, PW, PH = 48.0, 40.0, 5.5
@@ -375,3 +376,73 @@ class TestPlaceRing:
         # rect 6×40, case 10: front floor(6/8)=0 → None
         ring = place_ring(10, 8, 6, 40, ['front', 'back'], rounding_gaps=True)
         assert ring is None
+
+
+class TestShoppableArrangement:
+    ALL4 = ['front', 'back', 'left', 'right']
+
+    def test_4sided_10x8_one_ring_then_fill(self):
+        # Ring 1 on 48×40: 16 cases (6+6+2+2). Inner 28×20.
+        # Ring 2 fails (left_right_span=0 for 4-sided). Force-fill 28×20.
+        # find_optimal_arrangement(10,8,28,20): best is floor(28/8)*floor(20/10)=3*2=6 cases
+        result = find_shoppable_arrangement(10, 8, 48, 40, self.ALL4)
+        assert result['ring_count'] == 1
+        assert result['ti'] == 22          # 16 ring + 6 fill
+        assert result['mode'] == 'filled'
+        assert result['void_pct'] == pytest.approx((1920 - 22 * 80) / 1920, abs=1e-4)
+        assert result['error'] is None
+
+    def test_8x8_two_rings_pure_facing(self):
+        # Ring 1 (48×40): front/back=6, left/right span=24, n=3 → 18 cases; inner 32×24
+        # Ring 2 (32×24): front/back=4, left/right span=8, n=1 → 10 cases; inner 16×8
+        # Ring 3 (16×8): inner_w=8-16=-8 → None
+        # Total 28 cases. Void: (1920-28*64)/1920=128/1920=6.67% < 15% → pure_facing
+        result = find_shoppable_arrangement(8, 8, 48, 40, self.ALL4)
+        assert result['ring_count'] == 2
+        assert result['mode'] == 'pure_facing'
+        assert result['void_pct'] == pytest.approx(128 / 1920, abs=1e-4)
+
+    def test_force_fill_brings_within_limit(self):
+        # 10×8 4-sided: ring_ti=16, void=43% before fill, fill gives 6 more → 22 total
+        # void after fill: (1920-22*80)/1920 = 160/1920 = 8.3% < 15% → filled, not error
+        result = find_shoppable_arrangement(10, 8, 48, 40, self.ALL4, max_empty_pct=0.15)
+        assert result['mode'] == 'filled'
+        assert result['void_pct'] < 0.15
+
+    def test_error_when_void_exceeds_limit_after_fill(self):
+        # Very large cases (20×20): left/right span=0 on first ring → 0 rings placed
+        result = find_shoppable_arrangement(20, 20, 48, 40, self.ALL4, max_empty_pct=0.10)
+        assert result['mode'] == 'error'
+        assert result['error'] is not None
+
+    def test_partial_mode_when_force_fill_off(self):
+        result = find_shoppable_arrangement(
+            10, 8, 48, 40, self.ALL4,
+            force_fill_on_failure=False
+        )
+        assert result['mode'] == 'partial'
+        assert result['ring_count'] == 1
+
+    def test_3sided_front_left_right(self):
+        result = find_shoppable_arrangement(10, 8, 48, 40, ['front', 'left', 'right'])
+        assert result['ring_count'] >= 1
+        assert result['ti'] > 0
+        assert result['mode'] in ('pure_facing', 'filled', 'partial')
+
+    def test_rounding_gaps_false_zero_rings_then_error(self):
+        # 10×8 on 48×40: left/right span=20, 20%8=4 → gap → 0 rings placed
+        result = find_shoppable_arrangement(
+            10, 8, 48, 40, self.ALL4, rounding_gaps=False
+        )
+        assert result['ring_count'] == 0
+        assert result['mode'] == 'error'
+
+    def test_ti_never_exceeds_standard_ti(self):
+        from calculator import find_optimal_arrangement
+        ti_standard, _ = find_optimal_arrangement(10, 8, 48, 40)
+        result = find_shoppable_arrangement(10, 8, 48, 40, self.ALL4)
+        assert result['ti'] <= ti_standard
+
+    def test_void_pct_in_0_to_1_range(self):
+        result = find_shoppable_arrangement(10, 8, 48, 40, self.ALL4)
+        assert 0.0 <= result['void_pct'] <= 1.0
