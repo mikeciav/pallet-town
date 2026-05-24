@@ -100,6 +100,62 @@ def _make_config(
     }
 
 
+def place_ring(
+    case_l: float,
+    case_w: float,
+    rect_l: float,
+    rect_w: float,
+    sides: List[str],
+    rounding_gaps: bool,
+) -> Optional[Dict]:
+    sides_set = set(sides)
+
+    fb_count = ("front" in sides_set) + ("back" in sides_set)
+    lr_count = ("left" in sides_set) + ("right" in sides_set)
+    inner_l = rect_l - case_l * min(fb_count, lr_count)
+    inner_w = rect_w - case_l * max(fb_count, lr_count)
+
+    if inner_l < -1e-9 or inner_w < -1e-9:
+        return None
+
+    left_right_span = rect_w
+    if "front" in sides_set:
+        left_right_span -= case_l
+    if "back" in sides_set:
+        left_right_span -= case_l
+
+    counts: Dict[str, int] = {}
+
+    for side in ("front", "back"):
+        if side not in sides_set:
+            continue
+        n = int(rect_l / case_w)
+        if n == 0:
+            return None
+        if not rounding_gaps and rect_l % case_w > 1e-9:
+            return None
+        counts[side] = n
+
+    for side in ("left", "right"):
+        if side not in sides_set:
+            continue
+        if left_right_span < case_w - 1e-9:
+            return None
+        n = int(left_right_span / case_w)
+        if n == 0:
+            return None
+        if not rounding_gaps and left_right_span % case_w > 1e-9:
+            return None
+        counts[side] = n
+
+    return {
+        "counts": counts,
+        "total": sum(counts.values()),
+        "inner_l": max(0.0, inner_l),
+        "inner_w": max(0.0, inner_w),
+    }
+
+
 def generate_positions(config: Dict) -> List[Dict]:
     """Return carton footprint positions for top-down SVG visualization."""
     if not config:
