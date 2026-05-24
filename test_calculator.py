@@ -352,8 +352,8 @@ class TestPlaceRing:
         assert ring['counts']['left']  == 3
         assert ring['counts']['right'] == 3
         assert 'back' not in ring['counts']
-        assert ring['inner_l'] == pytest.approx(38.0)  # 48-10
-        assert ring['inner_w'] == pytest.approx(20.0)  # 40-10-10
+        assert ring['inner_l'] == pytest.approx(28.0)  # 48-10-10 (left+right each eat case_l from L)
+        assert ring['inner_w'] == pytest.approx(30.0)  # 40-10 (front eats case_l from W, no back)
 
     def test_2sided_front_back_only(self):
         # front/back: floor(48/8)=6; no left/right

@@ -112,8 +112,8 @@ def place_ring(
 
     fb_count = ("front" in sides_set) + ("back" in sides_set)
     lr_count = ("left" in sides_set) + ("right" in sides_set)
-    inner_l = rect_l - case_l * min(fb_count, lr_count)
-    inner_w = rect_w - case_l * max(fb_count, lr_count)
+    inner_l = rect_l - case_l * lr_count
+    inner_w = rect_w - case_l * fb_count
 
     if inner_l < -1e-9 or inner_w < -1e-9:
         return None
