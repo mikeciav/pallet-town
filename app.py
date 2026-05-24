@@ -173,6 +173,52 @@ def api_retailers_delete(rid: int):
     return "", 204
 
 
+VALID_SIDES = {"front", "back", "left", "right"}
+
+
+def _parse_shoppable_block(data: dict, retailer: dict):
+    """
+    Parse and validate the 'shoppable' key from an /api/calculate request body.
+    Returns (params_dict, error_str). If error_str is not None, reject with 400.
+    """
+    shoppable = data.get("shoppable")
+    if shoppable is None:
+        return None, None
+
+    if not retailer.get("is_club_store", False):
+        return None, "shoppable display calculations are only available for club store retailers"
+
+    sides = shoppable.get("sides")
+    if not sides or not isinstance(sides, list) or len(sides) == 0:
+        return None, "shoppable.sides must be a non-empty list"
+    invalid = [s for s in sides if s not in VALID_SIDES]
+    if invalid:
+        return None, f"shoppable.sides contains invalid values: {invalid}"
+
+    force_fill = bool(shoppable.get("force_fill_on_failure", True))
+    if not force_fill and not retailer.get("chimney_allowed", False):
+        return None, (
+            f"{retailer.get('name', 'This retailer')} does not permit open chimneys; "
+            "force_fill_on_failure must be true"
+        )
+
+    try:
+        max_empty_pct = float(shoppable.get("max_empty_pct", 0.15))
+        rounding_gaps = bool(shoppable.get("rounding_gaps", True))
+        raw_fp = shoppable.get("min_footprint", [37.0, 45.0])
+        min_footprint = (float(raw_fp[0]), float(raw_fp[1]))
+    except (TypeError, ValueError, IndexError):
+        return None, "invalid shoppable parameter values"
+
+    return {
+        "sides": sides,
+        "max_empty_pct": max_empty_pct,
+        "rounding_gaps": rounding_gaps,
+        "min_footprint": min_footprint,
+        "force_fill_on_failure": force_fill,
+    }, None
+
+
 @app.route("/api/calculate", methods=["POST"])
 def api_calculate():
     data = request.get_json(force=True) or {}
@@ -194,6 +240,8 @@ def api_calculate():
                 "double_stack_allowed":  bool(data.get("double_stack_allowed", False)),
                 "max_pallets_per_floor": int(data.get("max_pallets_per_floor", 26)),
                 "no_pallet":             bool(data.get("no_pallet", False)),
+                "is_club_store":         False,
+                "chimney_allowed":       False,
             }
         except (TypeError, ValueError):
             return jsonify({"error": "Invalid custom retailer params"}), 400
@@ -201,6 +249,10 @@ def api_calculate():
         retailer = next((r for r in load_retailers() if str(r["id"]) == retailer_id), None)
         if not retailer:
             return jsonify({"error": "Retailer not found"}), 404
+
+    shoppable_params, shoppable_error = _parse_shoppable_block(data, retailer)
+    if shoppable_error:
+        return jsonify({"error": shoppable_error}), 400
 
     case_pack_qty = max(1, int(data.get("case_pack_qty", 1)))
     result = calculate(
