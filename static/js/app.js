@@ -246,6 +246,7 @@ async function loadRetailers() {
     // Temporary defaults: pre-select Walmart
     const sel = document.getElementById('retailer-select');
     if (!sel.value) { sel.value = '1'; updateInfoBar(); }
+    updateClubPanel();
   } catch (e) {
     setStatus('Could not load retailers.', true);
   }
@@ -276,7 +277,10 @@ function retailerById(id) {
 
 // ── Single Calculator ────────────────────────────────────────
 function setupCalculator() {
-  document.getElementById('retailer-select').addEventListener('change', updateInfoBar);
+  document.getElementById('retailer-select').addEventListener('change', () => {
+    updateInfoBar();
+    updateClubPanel();
+  });
   document.getElementById('calc-btn').addEventListener('click', doCalculate);
   document.getElementById('clear-btn').addEventListener('click', () => {
     ['c-l', 'c-w', 'c-h', 'c-cw', 'c-cp'].forEach(id => {
@@ -320,6 +324,8 @@ function setupCalculator() {
     body.style.display = collapsed ? 'block' : 'none';
     toggle.textContent = collapsed ? '▲' : '▼';
   });
+
+  setupSideSelector();
 }
 
 
@@ -349,6 +355,108 @@ function updateInfoBar() {
   }
   editor.style.display = 'block';
   notesWrap.style.display = 'block';
+}
+
+function updateClubPanel() {
+  const rid = document.getElementById('retailer-select').value;
+  const r = rid === 'custom' ? null : retailerById(rid);
+  const isClub = r && r.is_club_store;
+  document.getElementById('club-display-panel').style.display = isClub ? '' : 'none';
+  if (!isClub) {
+    document.getElementById('shoppable-metrics-row').style.display = 'none';
+    document.getElementById('shoppable-error-banner').style.display = 'none';
+  }
+
+  const fillInput = document.getElementById('club-fill-chimney');
+  const fillLabel = document.getElementById('club-fill-label');
+  if (isClub && r && !r.chimney_allowed) {
+    fillInput.checked = true;
+    fillInput.disabled = true;
+    fillLabel.classList.add('toggle-label--disabled');
+    fillLabel.title = `${r.name} does not permit open chimneys`;
+  } else {
+    fillInput.disabled = false;
+    fillLabel.classList.remove('toggle-label--disabled');
+    fillLabel.title = '';
+  }
+
+  if (isClub && r) {
+    const DEFAULTS = {
+      "Sam's Club": ['front', 'left', 'right'],
+      "Costco":     ['front', 'left', 'right'],
+      "BJ's Wholesale": ['front', 'back'],
+    };
+    const defaultSides = DEFAULTS[r.name] || ['front', 'left', 'right'];
+    document.querySelectorAll('#side-selector .side-btn').forEach(btn => {
+      btn.classList.toggle('active', defaultSides.includes(btn.dataset.side));
+    });
+  }
+}
+
+function setupSideSelector() {
+  document.querySelectorAll('#side-selector .side-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const active = [...document.querySelectorAll('#side-selector .side-btn.active')];
+      const willDeactivate = btn.classList.contains('active');
+      if (willDeactivate && active.length <= 1) {
+        document.getElementById('side-error').style.display = '';
+        setTimeout(() => { document.getElementById('side-error').style.display = 'none'; }, 2000);
+        return;
+      }
+      btn.classList.toggle('active');
+    });
+  });
+}
+
+function getShoppableParams() {
+  const panel = document.getElementById('club-display-panel');
+  if (!panel || panel.style.display === 'none') return null;
+
+  const sides = [...document.querySelectorAll('#side-selector .side-btn.active')]
+    .map(btn => btn.dataset.side);
+  if (sides.length === 0) return null;
+
+  return {
+    sides,
+    max_empty_pct: (parseFloat(document.getElementById('club-max-empty').value) || 15) / 100,
+    rounding_gaps: document.getElementById('club-rounding-gaps').checked,
+    min_footprint: [
+      parseFloat(document.getElementById('club-fp-w').value) || 37,
+      parseFloat(document.getElementById('club-fp-l').value) || 45,
+    ],
+    force_fill_on_failure: document.getElementById('club-fill-chimney').checked,
+  };
+}
+
+function renderShoppableResults(s) {
+  const banner = document.getElementById('shoppable-error-banner');
+  const row    = document.getElementById('shoppable-metrics-row');
+
+  if (!s) {
+    banner.style.display = 'none';
+    row.style.display = 'none';
+    return;
+  }
+
+  if (s.mode === 'error') {
+    banner.textContent = s.error || 'Shoppable constraints cannot be met.';
+    banner.style.display = '';
+  } else {
+    banner.style.display = 'none';
+  }
+
+  const MODE_LABELS = { pure_facing: 'PURE FACING', filled: 'FILLED', partial: 'PARTIAL', error: 'ERROR' };
+  const MODE_COLORS = { pure_facing: '#4ade80', filled: '#7dd3fc', partial: '#fb923c', error: '#ef4444' };
+
+  document.getElementById('val-shoppable-ti').textContent = s.ti;
+  document.getElementById('val-shoppable-void').textContent = pct(s.void_pct);
+  document.getElementById('val-shoppable-rings').textContent = s.ring_count;
+
+  const modeEl = document.getElementById('val-shoppable-mode');
+  modeEl.textContent = MODE_LABELS[s.mode] || s.mode;
+  modeEl.style.color = MODE_COLORS[s.mode] || '#9ca3af';
+
+  row.style.display = '';
 }
 
 function refreshBulkRetailerInfo() {
@@ -418,6 +526,8 @@ async function doCalculate() {
   try {
     const body = { length: l, width: w, height: h, retailer_id: rid, case_pack_qty: cp };
     if (rid === 'custom') Object.assign(body, customRetailer);
+    const shoppable = getShoppableParams();
+    if (shoppable) body.shoppable = shoppable;
     const res  = await fetch(API.calculate, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -469,6 +579,7 @@ function renderResults(d) {
   document.getElementById('d-tl-wt').textContent  = formatWeight(truckloadWeight);
 
   drawDiagram(d);
+  renderShoppableResults(d.shoppable || null);
 }
 
 function setMetric(valId, value, cardId) {
