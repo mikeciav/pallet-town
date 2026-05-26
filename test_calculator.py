@@ -453,13 +453,14 @@ class TestRingPositions:
     """
     Validate generate_ring_positions() by checking exact coordinates.
     Known input: 48L x 40W pallet, case 4L x 2.3W, all 4 sides.
-    Front = 40" side (W); front/back span W, left/right span L. Cases centered on strip.
+    Front = 40" side (W); front/back span W, left/right span L.
+    Gap placement: pack from both ends, gap falls in the middle of each strip.
       Ring 1 (48Lx40W @ 0,0): front=17@y=0, back=17@y=44, left=17@x=0, right=17@x=36
       Ring 2 (40Lx32W @ 4,4): front=13@y=4, back=13@y=40, left=13@x=4, right=13@x=32
       Ring 3 (32Lx24W @ 8,8): front=10@y=8, back=10@y=36, left=10@x=8, right=10@x=28
       Ring 4 (24Lx16W @ 12,12): front=6@y=12, back=6@y=32, left=6@x=12, right=6@x=24
       Ring 5 (16Lx8W @ 16,16): front=3@y=16, back=3@y=28, left=3@x=16, right=3@x=20
-    Centering: gap/2 offset from strip edge (e.g. ring1 fb_gap=0.9 => start=0.45).
+    Pack-from-both-ends: k=n//2 flush at start, n-k flush at end, gap in the middle.
     """
     ALL4 = ['front', 'back', 'left', 'right']
     CL, CW = 4.0, 2.3
@@ -472,16 +473,20 @@ class TestRingPositions:
     def test_ring1_front_count_and_first_position(self):
         front = [p for p in self._pos() if p['ring'] == 1 and p['side'] == 'front']
         assert len(front) == 17          # floor(40/2.3)=17
-        # centered: gap=40-17*2.3=0.9, start=0.45
-        assert front[0]['x'] == pytest.approx(0.45)
+        # pack-from-both-ends: k=8 flush at x=0, n-k=9 flush ending at 40"
+        assert front[0]['x'] == pytest.approx(0.0)
         assert front[0]['y'] == pytest.approx(0.0)
         assert front[0]['w'] == pytest.approx(2.3)
         assert front[0]['h'] == pytest.approx(4.0)
 
     def test_ring1_front_x_spacing(self):
+        # pack-from-both-ends: gap=0.9, k=8 cases at x=[0..16.1], then 9 cases at x=[19.3..37.7]
         front = [p for p in self._pos() if p['ring'] == 1 and p['side'] == 'front']
         xs = [p['x'] for p in front]
-        assert xs == pytest.approx([0.45 + i * 2.3 for i in range(17)], abs=1e-5)
+        gap = 40 - 17 * 2.3
+        k = 8
+        expected = [i * 2.3 for i in range(k)] + [k * 2.3 + gap + i * 2.3 for i in range(17 - k)]
+        assert xs == pytest.approx(expected, abs=1e-5)
 
     def test_ring1_back_y_at_bottom(self):
         # back strip y = oy + rect_l - case_l = 0 + 48 - 4 = 44
@@ -490,11 +495,11 @@ class TestRingPositions:
         assert all(p['y'] == pytest.approx(44.0) for p in back)
 
     def test_ring1_left_x_and_y_start(self):
-        # left: x=0; lr_span=40, gap=0.9, lr_start=y_offset+gap/2=4+0.45=4.45
+        # left: x=0; lr_span=40, pack-from-both-ends, first case at y=y_offset=4
         left = [p for p in self._pos() if p['ring'] == 1 and p['side'] == 'left']
         assert len(left) == 17
         assert all(p['x'] == pytest.approx(0.0) for p in left)
-        assert left[0]['y'] == pytest.approx(4.45)
+        assert left[0]['y'] == pytest.approx(4.0)
         assert left[0]['w'] == pytest.approx(4.0)
         assert left[0]['h'] == pytest.approx(2.3)
 
@@ -507,10 +512,10 @@ class TestRingPositions:
     # ── Ring 2 ────────────────────────────────────────────────
 
     def test_ring2_front_offset(self):
-        # Ring 2: ox=4, oy=4, rect_w=32; front n=13, gap=2.1, fb_start=4+1.05=5.05
+        # Ring 2: ox=4, oy=4, rect_w=32; front n=13, pack-from-both-ends, first x=ox=4
         front = [p for p in self._pos() if p['ring'] == 2 and p['side'] == 'front']
         assert len(front) == 13          # floor(32/2.3)=13
-        assert front[0]['x'] == pytest.approx(5.05)
+        assert front[0]['x'] == pytest.approx(4.0)
         assert front[0]['y'] == pytest.approx(4.0)
 
     def test_ring2_back_y(self):
@@ -519,11 +524,11 @@ class TestRingPositions:
         assert all(p['y'] == pytest.approx(40.0) for p in back)
 
     def test_ring2_left_x_and_y_start(self):
-        # Ring 2: ox=4; lr_span=32, n=13, gap=2.1, lr_start=4+4+1.05=9.05
+        # Ring 2: ox=4; lr_span=32, n=13, pack-from-both-ends, first y=oy+y_offset=4+4=8
         left = [p for p in self._pos() if p['ring'] == 2 and p['side'] == 'left']
         assert len(left) == 13           # floor(32/2.3)=13
         assert all(p['x'] == pytest.approx(4.0) for p in left)
-        assert left[0]['y'] == pytest.approx(9.05)
+        assert left[0]['y'] == pytest.approx(8.0)
 
     def test_ring2_right_x(self):
         # Ring 2: ox=4, rect_w=32 → right x = 4 + 32 - 4 = 32
@@ -576,11 +581,11 @@ class TestRingPositions:
         assert all(p['side'] in ('front', 'back') for p in positions)
 
     def test_2sided_ring2_ox_stays_at_zero(self):
-        # No left strip → ox never advances → ring 2 front centered within ox=0 origin
+        # No left strip → ox never advances → ring 2 front starts at ox=0
         # ring1: rect_w=40, inner_w=40 (no LR); ring2: rect_w=40 still, gap still 0.9
         positions = generate_ring_positions(4, 2.3, 48, 40, ['front', 'back'])
         front_r2 = [p for p in positions if p['ring'] == 2 and p['side'] == 'front']
-        assert front_r2[0]['x'] == pytest.approx(0.45)  # same centering, ox=0 still
+        assert front_r2[0]['x'] == pytest.approx(0.0)   # pack-from-both-ends, ox=0
         assert front_r2[0]['y'] == pytest.approx(4.0)   # oy=4 after ring 1 front
 
     # ── Error mode ────────────────────────────────────────────

@@ -335,45 +335,53 @@ def generate_ring_positions(
         if "back" in sides_set:
             left_right_span -= case_l
 
-        # front/back span W (rect_w); cases centered on the strip
+        # front/back span W (rect_w); pack from both ends so gap falls in the middle
         if "front" in sides_set:
             n = ring["counts"]["front"]
-            fb_gap = rect_w - n * case_w
-            fb_start = ox + fb_gap / 2
-            for i in range(n):
+            gap = rect_w - n * case_w
+            k = n // 2
+            xs = ([ox + i * case_w for i in range(k)] +
+                  [ox + k * case_w + gap + i * case_w for i in range(n - k)])
+            for x in xs:
                 positions.append({
-                    "x": round(fb_start + i * case_w, 6), "y": round(oy, 6),
+                    "x": round(x, 6), "y": round(oy, 6),
                     "w": case_w, "h": case_l, "ring": ring_num, "side": "front",
                 })
         if "back" in sides_set:
             n = ring["counts"]["back"]
-            fb_gap = rect_w - n * case_w
-            fb_start = ox + fb_gap / 2
-            for i in range(n):
+            gap = rect_w - n * case_w
+            k = n // 2
+            xs = ([ox + i * case_w for i in range(k)] +
+                  [ox + k * case_w + gap + i * case_w for i in range(n - k)])
+            for x in xs:
                 positions.append({
-                    "x": round(fb_start + i * case_w, 6),
+                    "x": round(x, 6),
                     "y": round(oy + rect_l - case_l, 6),
                     "w": case_w, "h": case_l, "ring": ring_num, "side": "back",
                 })
-        # left/right span L (left_right_span); cases centered on the strip
+        # left/right span L (left_right_span); pack from both ends so gap falls in the middle
         if "left" in sides_set:
             n = ring["counts"]["left"]
-            lr_gap = left_right_span - n * case_w
-            lr_start = oy + y_offset + lr_gap / 2
-            for i in range(n):
+            gap = left_right_span - n * case_w
+            k = n // 2
+            ys = ([oy + y_offset + i * case_w for i in range(k)] +
+                  [oy + y_offset + k * case_w + gap + i * case_w for i in range(n - k)])
+            for y in ys:
                 positions.append({
                     "x": round(ox, 6),
-                    "y": round(lr_start + i * case_w, 6),
+                    "y": round(y, 6),
                     "w": case_l, "h": case_w, "ring": ring_num, "side": "left",
                 })
         if "right" in sides_set:
             n = ring["counts"]["right"]
-            lr_gap = left_right_span - n * case_w
-            lr_start = oy + y_offset + lr_gap / 2
-            for i in range(n):
+            gap = left_right_span - n * case_w
+            k = n // 2
+            ys = ([oy + y_offset + i * case_w for i in range(k)] +
+                  [oy + y_offset + k * case_w + gap + i * case_w for i in range(n - k)])
+            for y in ys:
                 positions.append({
                     "x": round(ox + rect_w - case_l, 6),
-                    "y": round(lr_start + i * case_w, 6),
+                    "y": round(y, 6),
                     "w": case_l, "h": case_w, "ring": ring_num, "side": "right",
                 })
 
