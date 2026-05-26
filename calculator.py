@@ -392,7 +392,7 @@ def generate_ring_positions(
         if (void_after_rings > max_empty_pct
                 and rect_l >= min_dim - 1e-9
                 and rect_w >= min_dim - 1e-9):
-            _, fill_config = find_optimal_arrangement(case_l, case_w, rect_l, rect_w)
+            _, fill_config = find_optimal_arrangement(case_l, case_w, rect_w, rect_l)
             if fill_config:
                 for pos in generate_positions(fill_config):
                     positions.append({
