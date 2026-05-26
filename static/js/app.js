@@ -854,9 +854,10 @@ function drawShoppableView(d, box) {
   const PAD = 32;
   const LEGEND_H = 22;
 
-  const scale = Math.min((VW - PAD * 2) / PL, (VH - PAD * 2 - LEGEND_H) / PW);
-  const dW = PL * scale;
-  const dH = PW * scale;
+  // Positions use x in [0,PW] (front face=40") and y in [0,PL] (depth=48")
+  const scale = Math.min((VW - PAD * 2) / PW, (VH - PAD * 2 - LEGEND_H) / PL);
+  const dW = PW * scale;
+  const dH = PL * scale;
   const ox = (VW - dW) / 2;
   const oy = PAD + ((VH - PAD * 2 - LEGEND_H) - dH) / 2;
 
@@ -894,8 +895,8 @@ function drawShoppableView(d, box) {
 
   const af = 'font-family="JetBrains Mono,monospace"';
   const ac = '#3d5068';
-  svg += `<text x="${(ox + dW / 2).toFixed(1)}" y="${(oy - 7).toFixed(1)}" text-anchor="middle" ${af} font-size="9" fill="${ac}">${PL}"</text>`;
-  svg += `<text x="${(ox - 9).toFixed(1)}" y="${(oy + dH / 2).toFixed(1)}" text-anchor="middle" ${af} font-size="9" fill="${ac}" transform="rotate(-90,${(ox - 9).toFixed(1)},${(oy + dH / 2).toFixed(1)})">${PW}"</text>`;
+  svg += `<text x="${(ox + dW / 2).toFixed(1)}" y="${(oy - 7).toFixed(1)}" text-anchor="middle" ${af} font-size="9" fill="${ac}">${PW}" (front face)</text>`;
+  svg += `<text x="${(ox - 9).toFixed(1)}" y="${(oy + dH / 2).toFixed(1)}" text-anchor="middle" ${af} font-size="9" fill="${ac}" transform="rotate(-90,${(ox - 9).toFixed(1)},${(oy + dH / 2).toFixed(1)})">${PL}" (depth)</text>`;
 
   const maxRing = Math.max(...positions.filter(p => p.ring > 0).map(p => p.ring));
   const ly = (oy + dH + 12).toFixed(1);

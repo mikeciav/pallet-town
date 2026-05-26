@@ -112,13 +112,13 @@ def place_ring(
 
     fb_count = ("front" in sides_set) + ("back" in sides_set)
     lr_count = ("left" in sides_set) + ("right" in sides_set)
-    inner_l = rect_l - case_l * lr_count
-    inner_w = rect_w - case_l * fb_count
+    inner_l = rect_l - case_l * fb_count  # front/back eat into L
+    inner_w = rect_w - case_l * lr_count  # left/right eat into W
 
     if inner_l < -1e-9 or inner_w < -1e-9:
         return None
 
-    left_right_span = rect_w
+    left_right_span = rect_l  # left/right span L minus front/back depth
     if "front" in sides_set:
         left_right_span -= case_l
     if "back" in sides_set:
@@ -129,10 +129,10 @@ def place_ring(
     for side in ("front", "back"):
         if side not in sides_set:
             continue
-        n = int(rect_l / case_w)
+        n = int(rect_w / case_w)  # front/back span W (40" side)
         if n == 0:
             return None
-        if not rounding_gaps and rect_l % case_w > 1e-9:
+        if not rounding_gaps and rect_w % case_w > 1e-9:
             return None
         counts[side] = n
 
@@ -172,7 +172,7 @@ def _place_partial_ring(
     sides_set = set(sides)
     total = 0
 
-    left_right_span = rect_w
+    left_right_span = rect_l  # left/right span L minus front/back depth
     if "front" in sides_set:
         left_right_span -= case_l
     if "back" in sides_set:
@@ -181,10 +181,10 @@ def _place_partial_ring(
     for side in ("front", "back"):
         if side not in sides_set:
             continue
-        if rect_w < case_l - 1e-9:
+        if rect_l < case_l - 1e-9:
             continue
-        n = int(rect_l / case_w)
-        if n > 0 and (rounding_gaps or rect_l % case_w < 1e-9):
+        n = int(rect_w / case_w)  # front/back span W (40" side)
+        if n > 0 and (rounding_gaps or rect_w % case_w < 1e-9):
             total += n
 
     if left_right_span >= case_w - 1e-9:
@@ -268,7 +268,8 @@ def find_shoppable_arrangement(
 
     # Force-fill the interior
     fill_ti = 0
-    if rect_l >= case_w - 1e-9 and rect_w >= case_w - 1e-9:
+    min_dim = min(case_l, case_w)
+    if rect_l >= min_dim - 1e-9 and rect_w >= min_dim - 1e-9:
         fill_ti, _ = find_optimal_arrangement(case_l, case_w, rect_l, rect_w)
 
     total_ti = ring_ti + fill_ti
@@ -328,32 +329,51 @@ def generate_ring_positions(
             break
         ring_num += 1
         y_offset = case_l if "front" in sides_set else 0.0
-
+        left_right_span = rect_l
         if "front" in sides_set:
-            for i in range(ring["counts"]["front"]):
+            left_right_span -= case_l
+        if "back" in sides_set:
+            left_right_span -= case_l
+
+        # front/back span W (rect_w); cases centered on the strip
+        if "front" in sides_set:
+            n = ring["counts"]["front"]
+            fb_gap = rect_w - n * case_w
+            fb_start = ox + fb_gap / 2
+            for i in range(n):
                 positions.append({
-                    "x": round(ox + i * case_w, 6), "y": round(oy, 6),
+                    "x": round(fb_start + i * case_w, 6), "y": round(oy, 6),
                     "w": case_w, "h": case_l, "ring": ring_num, "side": "front",
                 })
         if "back" in sides_set:
-            for i in range(ring["counts"]["back"]):
+            n = ring["counts"]["back"]
+            fb_gap = rect_w - n * case_w
+            fb_start = ox + fb_gap / 2
+            for i in range(n):
                 positions.append({
-                    "x": round(ox + i * case_w, 6),
-                    "y": round(oy + rect_w - case_l, 6),
+                    "x": round(fb_start + i * case_w, 6),
+                    "y": round(oy + rect_l - case_l, 6),
                     "w": case_w, "h": case_l, "ring": ring_num, "side": "back",
                 })
+        # left/right span L (left_right_span); cases centered on the strip
         if "left" in sides_set:
-            for i in range(ring["counts"]["left"]):
+            n = ring["counts"]["left"]
+            lr_gap = left_right_span - n * case_w
+            lr_start = oy + y_offset + lr_gap / 2
+            for i in range(n):
                 positions.append({
                     "x": round(ox, 6),
-                    "y": round(oy + y_offset + i * case_w, 6),
+                    "y": round(lr_start + i * case_w, 6),
                     "w": case_l, "h": case_w, "ring": ring_num, "side": "left",
                 })
         if "right" in sides_set:
-            for i in range(ring["counts"]["right"]):
+            n = ring["counts"]["right"]
+            lr_gap = left_right_span - n * case_w
+            lr_start = oy + y_offset + lr_gap / 2
+            for i in range(n):
                 positions.append({
-                    "x": round(ox + rect_l - case_l, 6),
-                    "y": round(oy + y_offset + i * case_w, 6),
+                    "x": round(ox + rect_w - case_l, 6),
+                    "y": round(lr_start + i * case_w, 6),
                     "w": case_l, "h": case_w, "ring": ring_num, "side": "right",
                 })
 
@@ -368,9 +388,10 @@ def generate_ring_positions(
     # Add force-fill positions only when the algorithm would have filled
     if force_fill_on_failure and ring_num > 0:
         void_after_rings = max(0.0, (pallet_area - ring_ti * case_area) / pallet_area)
+        min_dim = min(case_l, case_w)
         if (void_after_rings > max_empty_pct
-                and rect_l >= case_w - 1e-9
-                and rect_w >= case_w - 1e-9):
+                and rect_l >= min_dim - 1e-9
+                and rect_w >= min_dim - 1e-9):
             _, fill_config = find_optimal_arrangement(case_l, case_w, rect_l, rect_w)
             if fill_config:
                 for pos in generate_positions(fill_config):
