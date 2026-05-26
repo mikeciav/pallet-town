@@ -593,17 +593,22 @@ function setMetric(valId, value, cardId) {
 
 // ── SVG Diagram ──────────────────────────────────────────────
 function drawDiagram(d) {
-  if (diagramView === 'hi') {
-    drawStackedView(d, document.getElementById('diagram-box'));
-  } else {
-    drawTiView(d, document.getElementById('diagram-box'));
-  }
-  // Update hint text
+  const box  = document.getElementById('diagram-box');
   const hint = document.getElementById('diagram-hint');
   if (!d) return;
+
+  if (d.shoppable && d.shoppable.arrangement && d.shoppable.arrangement.length > 0) {
+    drawShoppableView(d, box);
+    const s = d.shoppable;
+    hint.textContent = `top-down · ring layout · Shoppable Ti = ${s.ti} · ${s.ring_count} ring${s.ring_count !== 1 ? 's' : ''} · ${s.mode.replace(/_/g, ' ')}`;
+    return;
+  }
+
   if (diagramView === 'hi') {
+    drawStackedView(d, box);
     hint.textContent = `isometric · ${d.hi} layer${d.hi !== 1 ? 's' : ''} · ${d.pod_height}" pod height`;
   } else {
+    drawTiView(d, box);
     hint.textContent = `top-down · 1 layer · Ti = ${d.ti}`;
   }
 }
@@ -831,6 +836,79 @@ function drawStackedView(d, box) {
   svg += `<text x="22" y="${(parseFloat(ly)+7).toFixed(1)}" ${af} font-size="8" fill="#7a8faa">Standard</text>`;
   svg += `<rect x="82" y="${ly}" width="8" height="8" fill="rgba(200,240,160,0.3)" stroke="#d2eca4" stroke-width="0.7"/>`;
   svg += `<text x="94" y="${(parseFloat(ly)+7).toFixed(1)}" ${af} font-size="8" fill="#7a8faa">Rotated</text>`;
+
+  svg += '</svg>';
+  box.innerHTML = svg;
+}
+
+function drawShoppableView(d, box) {
+  const { pallet_length: PL, pallet_width: PW } = d;
+  const positions = d.shoppable.arrangement;
+
+  if (!positions || !positions.length) {
+    box.innerHTML = '<div class="diagram-empty"><svg viewBox="0 0 200 300" fill="none"><text x="100" y="150" text-anchor="middle" font-family="JetBrains Mono,monospace" font-size="9" fill="#3d5068">no ring data</text></svg></div>';
+    return;
+  }
+
+  const VW = 580, VH = 480;
+  const PAD = 32;
+  const LEGEND_H = 22;
+
+  const scale = Math.min((VW - PAD * 2) / PL, (VH - PAD * 2 - LEGEND_H) / PW);
+  const dW = PL * scale;
+  const dH = PW * scale;
+  const ox = (VW - dW) / 2;
+  const oy = PAD + ((VH - PAD * 2 - LEGEND_H) - dH) / 2;
+
+  const RING_STROKES = ['#a78bfa', '#67e8f9', '#86efac', '#fbbf24', '#f472b6'];
+  const RING_FILLS   = ['rgba(167,139,250,.20)', 'rgba(103,232,249,.20)', 'rgba(134,239,172,.20)', 'rgba(251,191,36,.20)', 'rgba(244,114,182,.20)'];
+  const FILL_STROKE  = '#fb923c';
+  const FILL_FILL    = 'rgba(251,146,60,.18)';
+
+  const stroke = (ring) => ring === 0 ? FILL_STROKE : RING_STROKES[(ring - 1) % RING_STROKES.length];
+  const fill   = (ring) => ring === 0 ? FILL_FILL   : RING_FILLS[(ring - 1) % RING_FILLS.length];
+
+  const gPitch = Math.max(4, Math.round(20 / scale)) * scale;
+  let svg = `<svg viewBox="0 0 ${VW} ${VH}" xmlns="http://www.w3.org/2000/svg" style="width:100%;height:100%;display:block">
+<defs>
+  <pattern id="g" x="${ox}" y="${oy}" width="${gPitch}" height="${gPitch}" patternUnits="userSpaceOnUse">
+    <path d="M ${gPitch} 0 L 0 0 0 ${gPitch}" fill="none" stroke="#253047" stroke-width="0.5"/>
+  </pattern>
+  <clipPath id="pal-clip"><rect x="${ox}" y="${oy}" width="${dW}" height="${dH}"/></clipPath>
+</defs>`;
+
+  svg += `<rect x="${ox}" y="${oy}" width="${dW}" height="${dH}" fill="#0d1119"/>`;
+  svg += `<rect x="${ox}" y="${oy}" width="${dW}" height="${dH}" fill="url(#g)"/>`;
+
+  positions.forEach(c => {
+    const cx = ox + c.x * scale;
+    const cy = oy + c.y * scale;
+    const cw = c.w * scale;
+    const ch = c.h * scale;
+    svg += `<rect x="${(cx + .8).toFixed(1)}" y="${(cy + .8).toFixed(1)}" `
+         + `width="${Math.max(0, cw - 1.6).toFixed(1)}" height="${Math.max(0, ch - 1.6).toFixed(1)}" `
+         + `fill="${fill(c.ring)}" stroke="${stroke(c.ring)}" stroke-width="0.7" clip-path="url(#pal-clip)"/>`;
+  });
+
+  svg += `<rect x="${ox}" y="${oy}" width="${dW}" height="${dH}" fill="none" stroke="#334060" stroke-width="1.5"/>`;
+
+  const af = 'font-family="JetBrains Mono,monospace"';
+  const ac = '#3d5068';
+  svg += `<text x="${(ox + dW / 2).toFixed(1)}" y="${(oy - 7).toFixed(1)}" text-anchor="middle" ${af} font-size="9" fill="${ac}">${PL}"</text>`;
+  svg += `<text x="${(ox - 9).toFixed(1)}" y="${(oy + dH / 2).toFixed(1)}" text-anchor="middle" ${af} font-size="9" fill="${ac}" transform="rotate(-90,${(ox - 9).toFixed(1)},${(oy + dH / 2).toFixed(1)})">${PW}"</text>`;
+
+  const maxRing = Math.max(...positions.filter(p => p.ring > 0).map(p => p.ring));
+  const ly = (oy + dH + 12).toFixed(1);
+  let lx = ox;
+  for (let r = 1; r <= Math.min(maxRing, 5); r++) {
+    svg += `<rect x="${lx.toFixed(1)}" y="${ly}" width="8" height="8" fill="${fill(r)}" stroke="${stroke(r)}" stroke-width="0.7"/>`;
+    svg += `<text x="${(lx + 12).toFixed(1)}" y="${(parseFloat(ly) + 7).toFixed(1)}" ${af} font-size="8" fill="#7a8faa">Ring ${r}</text>`;
+    lx += 52;
+  }
+  if (positions.some(p => p.ring === 0)) {
+    svg += `<rect x="${lx.toFixed(1)}" y="${ly}" width="8" height="8" fill="${FILL_FILL}" stroke="${FILL_STROKE}" stroke-width="0.7"/>`;
+    svg += `<text x="${(lx + 12).toFixed(1)}" y="${(parseFloat(ly) + 7).toFixed(1)}" ${af} font-size="8" fill="#7a8faa">Fill</text>`;
+  }
 
   svg += '</svg>';
   box.innerHTML = svg;

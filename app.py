@@ -6,7 +6,7 @@ from functools import wraps
 from dotenv import load_dotenv
 from flask import Flask, jsonify, render_template, request, session
 from werkzeug.security import check_password_hash
-from calculator import calculate, find_shoppable_arrangement
+from calculator import calculate, find_shoppable_arrangement, generate_ring_positions
 
 load_dotenv()
 
@@ -281,6 +281,16 @@ def api_calculate():
             max_empty_pct=shoppable_params["max_empty_pct"],
             rounding_gaps=shoppable_params["rounding_gaps"],
             min_footprint=shoppable_params["min_footprint"],
+            force_fill_on_failure=shoppable_params["force_fill_on_failure"],
+        )
+        shoppable_result["arrangement"] = generate_ring_positions(
+            case_l=case_l,
+            case_w=case_w,
+            pallet_l=PALLET_L,
+            pallet_w=PALLET_W,
+            sides=shoppable_params["sides"],
+            max_empty_pct=shoppable_params["max_empty_pct"],
+            rounding_gaps=shoppable_params["rounding_gaps"],
             force_fill_on_failure=shoppable_params["force_fill_on_failure"],
         )
         result["shoppable"] = shoppable_result
