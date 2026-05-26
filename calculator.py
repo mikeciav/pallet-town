@@ -293,6 +293,97 @@ def find_shoppable_arrangement(
     }
 
 
+def generate_ring_positions(
+    case_l: float,
+    case_w: float,
+    pallet_l: float,
+    pallet_w: float,
+    sides: List[str],
+    max_empty_pct: float = 0.15,
+    rounding_gaps: bool = True,
+    force_fill_on_failure: bool = True,
+) -> List[Dict]:
+    """
+    Return per-case positions for shoppable ring visualization.
+
+    Each entry: {x, y, w, h, ring, side}
+    ring=1,2,... for concentric rings; ring=0 for force-fill cases.
+    side='front'|'back'|'left'|'right'|'fill'.
+
+    Mirrors find_shoppable_arrangement() exactly so the diagram matches
+    the reported Ti and mode.
+    """
+    sides_set = set(sides)
+    positions: List[Dict] = []
+    rect_l, rect_w = pallet_l, pallet_w
+    ox, oy = 0.0, 0.0
+    ring_ti = 0
+    ring_num = 0
+    case_area = case_l * case_w
+    pallet_area = pallet_l * pallet_w
+
+    while True:
+        ring = place_ring(case_l, case_w, rect_l, rect_w, sides, rounding_gaps)
+        if ring is None:
+            break
+        ring_num += 1
+        y_offset = case_l if "front" in sides_set else 0.0
+
+        if "front" in sides_set:
+            for i in range(ring["counts"]["front"]):
+                positions.append({
+                    "x": round(ox + i * case_w, 6), "y": round(oy, 6),
+                    "w": case_w, "h": case_l, "ring": ring_num, "side": "front",
+                })
+        if "back" in sides_set:
+            for i in range(ring["counts"]["back"]):
+                positions.append({
+                    "x": round(ox + i * case_w, 6),
+                    "y": round(oy + rect_w - case_l, 6),
+                    "w": case_w, "h": case_l, "ring": ring_num, "side": "back",
+                })
+        if "left" in sides_set:
+            for i in range(ring["counts"]["left"]):
+                positions.append({
+                    "x": round(ox, 6),
+                    "y": round(oy + y_offset + i * case_w, 6),
+                    "w": case_l, "h": case_w, "ring": ring_num, "side": "left",
+                })
+        if "right" in sides_set:
+            for i in range(ring["counts"]["right"]):
+                positions.append({
+                    "x": round(ox + rect_l - case_l, 6),
+                    "y": round(oy + y_offset + i * case_w, 6),
+                    "w": case_l, "h": case_w, "ring": ring_num, "side": "right",
+                })
+
+        ring_ti += ring["total"]
+        if "left" in sides_set:
+            ox += case_l
+        if "front" in sides_set:
+            oy += case_l
+        rect_l = ring["inner_l"]
+        rect_w = ring["inner_w"]
+
+    # Add force-fill positions only when the algorithm would have filled
+    if force_fill_on_failure and ring_num > 0:
+        void_after_rings = max(0.0, (pallet_area - ring_ti * case_area) / pallet_area)
+        if (void_after_rings > max_empty_pct
+                and rect_l >= case_w - 1e-9
+                and rect_w >= case_w - 1e-9):
+            _, fill_config = find_optimal_arrangement(case_l, case_w, rect_l, rect_w)
+            if fill_config:
+                for pos in generate_positions(fill_config):
+                    positions.append({
+                        "x": round(ox + pos["x"], 6),
+                        "y": round(oy + pos["y"], 6),
+                        "w": pos["w"], "h": pos["h"],
+                        "ring": 0, "side": "fill",
+                    })
+
+    return positions
+
+
 def generate_positions(config: Dict) -> List[Dict]:
     """Return carton footprint positions for top-down SVG visualization."""
     if not config:
