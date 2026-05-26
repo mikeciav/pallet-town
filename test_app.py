@@ -193,7 +193,12 @@ class TestRetailerClubFields:
         for name in ("Sam's Club", "Costco", "BJ's Wholesale"):
             retailer = next(r for r in retailers if r['name'] == name)
             assert retailer['is_club_store'] is True, f"{name} should be is_club_store=True"
-            assert retailer['chimney_allowed'] is False, f"{name} should be chimney_allowed=False"
+        # BJ's does not permit open chimneys; Sam's Club and Costco do
+        bjs = next(r for r in retailers if r['name'] == "BJ's Wholesale")
+        assert bjs['chimney_allowed'] is False
+        for name in ("Sam's Club", "Costco"):
+            retailer = next(r for r in retailers if r['name'] == name)
+            assert retailer['chimney_allowed'] is True, f"{name} should be chimney_allowed=True"
 
     def test_non_club_stores_have_is_club_store_false(self, client):
         r = client.get('/api/retailers')
@@ -406,7 +411,8 @@ class TestBulkCalculate:
 
 # ── Shoppable API validation ──────────────────────────────────
 
-SAMS_ID = "8"   # Sam's Club — is_club_store=True
+SAMS_ID = "8"   # Sam's Club — is_club_store=True, chimney_allowed=True
+BJS_ID  = "15"  # BJ's Wholesale — is_club_store=True, chimney_allowed=False
 AMAZON_ID = "4" # Amazon — is_club_store=False
 VALID_DIMS = {"length": 10, "width": 8, "height": 6, "retailer_id": SAMS_ID}
 
@@ -447,8 +453,8 @@ class TestShoppableAPI:
         assert r.status_code == 400
 
     def test_shoppable_rejected_when_chimney_not_allowed_and_fill_off(self, client):
-        # Sam's Club has chimney_allowed=False; sending force_fill_on_failure=False is invalid
-        body = {**VALID_DIMS,
+        # BJ's Wholesale has chimney_allowed=False; force_fill_on_failure=False is invalid
+        body = {**VALID_DIMS, "retailer_id": BJS_ID,
                 "shoppable": {"sides": ["front"], "force_fill_on_failure": False}}
         r = client.post('/api/calculate',
                         data=json.dumps(body),
