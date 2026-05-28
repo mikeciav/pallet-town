@@ -15,6 +15,7 @@ let bulkData    = [];
 let bulkResults = [];
 let lastResult  = null;
 let diagramView = 'ti';
+let resultUnit  = 'imperial'; // 'imperial' | 'metric'
 let isAdmin     = false;
 let customRetailer = { max_height: 60, double_stack_allowed: false, max_pallets_per_floor: 26, no_pallet: false };
 
@@ -284,12 +285,25 @@ function setupCalculator() {
     });
   });
 
-  document.querySelectorAll('.vt-btn').forEach(btn => {
+  document.querySelectorAll('#view-toggle .vt-btn').forEach(btn => {
     btn.addEventListener('click', () => {
       diagramView = btn.dataset.view;
-      document.querySelectorAll('.vt-btn').forEach(b => b.classList.remove('active'));
+      document.querySelectorAll('#view-toggle .vt-btn').forEach(b => b.classList.remove('active'));
       btn.classList.add('active');
       if (lastResult) drawDiagram(lastResult);
+    });
+  });
+
+  document.querySelectorAll('#unit-toggle .vt-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      resultUnit = btn.dataset.unit;
+      document.querySelectorAll('#unit-toggle .vt-btn').forEach(b =>
+        b.classList.toggle('active', b.dataset.unit === resultUnit)
+      );
+      if (lastResult) {
+        updateDetailStrip(lastResult);
+        drawDiagram(lastResult);
+      }
     });
   });
   ['c-l', 'c-w', 'c-h'].forEach(id => {
@@ -455,20 +469,24 @@ function renderResults(d) {
   document.getElementById('results-meta').textContent =
     r ? `${r.max_pallets_per_floor} pallets · ${r.name}` : '';
 
-  const caseWeight = parseFloat(document.getElementById('c-cw').value) || 0;
+  updateDetailStrip(d);
+  drawDiagram(d);
+}
+
+function updateDetailStrip(d) {
+  const _rid = document.getElementById('retailer-select').value;
+  const r = _rid === 'custom' ? { ...customRetailer, name: 'Custom' } : retailerById(_rid);
+  const caseWeight      = parseFloat(document.getElementById('c-cw').value) || 0;
   const palletWeight    = caseWeight * d.total;
   const truckloadWeight = caseWeight * d.total * d.max_pallets_per_floor * d.stack_multiplier;
 
   document.getElementById('detail-strip').style.display = 'grid';
-  document.getElementById('d-pallet-wt').textContent   = formatWeight(palletWeight);
-  document.getElementById('d-efficiency').textContent  = pct(d.efficiency);
-  document.getElementById('d-height').textContent =
-    `${d.pod_height}"${r?.no_pallet ? ' · no pallet' : ''}`;
-  document.getElementById('d-pod-l').textContent  = d.pod_length ? `${d.pod_length}"` : '—';
-  document.getElementById('d-pod-w').textContent  = d.pod_width  ? `${d.pod_width}"` : '—';
-  document.getElementById('d-tl-wt').textContent  = formatWeight(truckloadWeight);
-
-  drawDiagram(d);
+  document.getElementById('d-pallet-wt').textContent  = fmtResultWt(palletWeight);
+  document.getElementById('d-efficiency').textContent = pct(d.efficiency);
+  document.getElementById('d-height').textContent = fmtResultLen(d.pod_height) + (r?.no_pallet ? ' · no pallet' : '');
+  document.getElementById('d-pod-l').textContent  = fmtResultLen(d.pod_length);
+  document.getElementById('d-pod-w').textContent  = fmtResultLen(d.pod_width);
+  document.getElementById('d-tl-wt').textContent  = fmtResultWt(truckloadWeight);
 }
 
 function setMetric(valId, value, cardId) {
@@ -491,7 +509,7 @@ function drawDiagram(d) {
   const hint = document.getElementById('diagram-hint');
   if (!d) return;
   if (diagramView === 'hi') {
-    hint.textContent = `isometric · ${d.hi} layer${d.hi !== 1 ? 's' : ''} · ${d.pod_height}" pod height`;
+    hint.textContent = `isometric · ${d.hi} layer${d.hi !== 1 ? 's' : ''} · ${fmtResultLen(d.pod_height)} pod height`;
   } else {
     hint.textContent = `top-down · 1 layer · Ti = ${d.ti}`;
   }
@@ -1062,6 +1080,20 @@ function pct(fraction) {
 function formatWeight(lbs) {
   if (!lbs) return '—';
   return lbs.toLocaleString(undefined, { maximumFractionDigits: 0 }) + ' lbs';
+}
+
+function fmtResultLen(inches) {
+  if (!inches) return '—';
+  return resultUnit === 'metric'
+    ? `${(inches * 2.54).toFixed(1)} cm`
+    : `${inches}"`;
+}
+
+function fmtResultWt(lbs) {
+  if (!lbs) return '—';
+  return resultUnit === 'metric'
+    ? `${(lbs * 0.453592).toLocaleString(undefined, { maximumFractionDigits: 1 })} kg`
+    : `${lbs.toLocaleString(undefined, { maximumFractionDigits: 0 })} lbs`;
 }
 
 function esc(s) {
