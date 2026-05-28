@@ -268,13 +268,19 @@
           <div class="diagram-header">
             <span class="panel-label">LAYER DIAGRAM</span>
             <span class="panel-hint" id="diagram-hint"></span>
-            {% if show_hi_view %}
-            <div class="view-toggle" id="view-toggle" style="margin-left:auto">
-              <button class="vt-btn active" data-view="ti">TI</button>
-              <button class="vt-btn" data-view="hi">HI</button>
+            <div style="margin-left:auto;display:flex;align-items:center;gap:8px">
+              {% if show_hi_view %}
+              <div class="view-toggle" id="view-toggle">
+                <button class="vt-btn active" data-view="ti">TI</button>
+                <button class="vt-btn" data-view="hi">HI</button>
+              </div>
+              {% endif %}
+              <div class="view-toggle" id="unit-toggle">
+                <button class="vt-btn active" data-unit="imperial">in / lbs</button>
+                <button class="vt-btn" data-unit="metric">cm / kg</button>
+              </div>
+              <span class="results-meta" id="results-meta"></span>
             </div>
-            {% endif %}
-            <span class="results-meta" id="results-meta" style="margin-left:auto"></span>
           </div>
 
           <!-- Diagram — fills all remaining vertical space -->
