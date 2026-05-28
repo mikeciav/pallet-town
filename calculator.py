@@ -247,12 +247,15 @@ def find_shoppable_arrangement(
         }
 
     if ring_count == 0:
+        # Cases too large for any shoppable ring: fall back to standard packing
+        std_ti, _ = find_optimal_arrangement(case_l, case_w, pallet_l, pallet_w)
+        void_pct = max(0.0, (pallet_area - std_ti * case_area) / pallet_area)
         return {
-            "ti": 0,
-            "mode": "error",
-            "void_pct": 1.0,
+            "ti": std_ti,
+            "mode": "standard",
+            "void_pct": round(void_pct, 4),
             "ring_count": 0,
-            "error": "Case dimensions cannot form a shoppable ring on the selected sides.",
+            "error": None,
         }
 
     void_after_rings = max(0.0, (pallet_area - ring_ti * case_area) / pallet_area)
@@ -266,7 +269,7 @@ def find_shoppable_arrangement(
             "error": None,
         }
 
-    # Force-fill the interior
+    # Fill the interior to minimize void; always return the best result we can achieve
     fill_ti = 0
     min_dim = min(case_l, case_w)
     if rect_l >= min_dim - 1e-9 and rect_w >= min_dim - 1e-9:
@@ -275,22 +278,12 @@ def find_shoppable_arrangement(
     total_ti = ring_ti + fill_ti
     void_pct = max(0.0, (pallet_area - total_ti * case_area) / pallet_area)
 
-    if void_pct <= max_empty_pct:
-        mode = "filled"
-        error_msg = None
-    else:
-        mode = "error"
-        error_msg = (
-            f"Void ({void_pct:.0%}) exceeds maximum allowed ({max_empty_pct:.0%}) "
-            "even after filling the interior."
-        )
-
     return {
         "ti": total_ti,
-        "mode": mode,
+        "mode": "filled",
         "void_pct": round(void_pct, 4),
         "ring_count": ring_count,
-        "error": error_msg,
+        "error": None,
     }
 
 
@@ -393,22 +386,33 @@ def generate_ring_positions(
         rect_l = ring["inner_l"]
         rect_w = ring["inner_w"]
 
-    # Add force-fill positions only when the algorithm would have filled
-    if force_fill_on_failure and ring_num > 0:
-        void_after_rings = max(0.0, (pallet_area - ring_ti * case_area) / pallet_area)
-        min_dim = min(case_l, case_w)
-        if (void_after_rings > max_empty_pct
-                and rect_l >= min_dim - 1e-9
-                and rect_w >= min_dim - 1e-9):
-            _, fill_config = find_optimal_arrangement(case_l, case_w, rect_w, rect_l)
-            if fill_config:
-                for pos in generate_positions(fill_config):
-                    positions.append({
-                        "x": round(ox + pos["x"], 6),
-                        "y": round(oy + pos["y"], 6),
-                        "w": pos["w"], "h": pos["h"],
-                        "ring": 0, "side": "fill",
-                    })
+    if force_fill_on_failure:
+        if ring_num == 0:
+            # No rings fit: generate standard optimal arrangement
+            _, std_config = find_optimal_arrangement(case_l, case_w, pallet_l, pallet_w)
+            for pos in generate_positions(std_config):
+                positions.append({
+                    "x": round(pos["x"], 6),
+                    "y": round(pos["y"], 6),
+                    "w": pos["w"], "h": pos["h"],
+                    "ring": 0, "side": "fill",
+                })
+        else:
+            # Fill the interior when rings leave too much void
+            void_after_rings = max(0.0, (pallet_area - ring_ti * case_area) / pallet_area)
+            min_dim = min(case_l, case_w)
+            if (void_after_rings > max_empty_pct
+                    and rect_l >= min_dim - 1e-9
+                    and rect_w >= min_dim - 1e-9):
+                _, fill_config = find_optimal_arrangement(case_l, case_w, rect_w, rect_l)
+                if fill_config:
+                    for pos in generate_positions(fill_config):
+                        positions.append({
+                            "x": round(ox + pos["x"], 6),
+                            "y": round(oy + pos["y"], 6),
+                            "w": pos["w"], "h": pos["h"],
+                            "ring": 0, "side": "fill",
+                        })
 
     return positions
 

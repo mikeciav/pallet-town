@@ -410,11 +410,13 @@ class TestShoppableArrangement:
         assert result['mode'] == 'filled'
         assert result['void_pct'] < 0.15
 
-    def test_error_when_void_exceeds_limit_after_fill(self):
-        # Very large cases (20×20): left/right span=0 on first ring → 0 rings placed
-        result = find_shoppable_arrangement(20, 20, 48, 40, self.ALL4, max_empty_pct=0.10)
-        assert result['mode'] == 'error'
-        assert result['error'] is not None
+    def test_cases_too_large_for_rings_falls_back_to_standard(self):
+        # 20×20: inner_w=40-40<0, no ring fits → standard arrangement, no error
+        result = find_shoppable_arrangement(20, 20, 48, 40, self.ALL4)
+        assert result['mode'] == 'standard'
+        assert result['ring_count'] == 0
+        assert result['ti'] > 0
+        assert result['error'] is None
 
     def test_partial_mode_when_force_fill_off(self):
         result = find_shoppable_arrangement(
@@ -428,15 +430,16 @@ class TestShoppableArrangement:
         result = find_shoppable_arrangement(10, 8, 48, 40, ['front', 'left', 'right'])
         assert result['ring_count'] >= 1
         assert result['ti'] > 0
-        assert result['mode'] in ('pure_facing', 'filled', 'partial')
+        assert result['mode'] in ('pure_facing', 'filled', 'partial', 'standard')
 
-    def test_rounding_gaps_false_zero_rings_then_error(self):
-        # 10×8 on 48×40: left/right span=20, 20%8=4 → gap → 0 rings placed
+    def test_rounding_gaps_false_zero_rings_falls_back_to_standard(self):
+        # 10×8 on 48×40: left/right span=20, 20%8=4 → gap → 0 rings → standard fallback
         result = find_shoppable_arrangement(
             10, 8, 48, 40, self.ALL4, rounding_gaps=False
         )
         assert result['ring_count'] == 0
-        assert result['mode'] == 'error'
+        assert result['mode'] == 'standard'
+        assert result['error'] is None
 
     def test_ti_never_exceeds_standard_ti(self):
         from calculator import find_optimal_arrangement
@@ -590,7 +593,9 @@ class TestRingPositions:
 
     # ── Error mode ────────────────────────────────────────────
 
-    def test_empty_when_no_ring_fits(self):
-        # Cases too large to form any ring
+    def test_standard_fallback_when_no_ring_fits(self):
+        # Cases too large for any ring → standard arrangement positions returned
         positions = generate_ring_positions(25, 25, 48, 40, self.ALL4)
-        assert positions == []
+        assert len(positions) > 0
+        assert all(p['side'] == 'fill' for p in positions)
+        assert all(p['ring'] == 0 for p in positions)

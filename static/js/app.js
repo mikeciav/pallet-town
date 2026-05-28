@@ -438,15 +438,10 @@ function renderShoppableResults(s) {
     return;
   }
 
-  if (s.mode === 'error') {
-    banner.textContent = s.error || 'Shoppable constraints cannot be met.';
-    banner.style.display = '';
-  } else {
-    banner.style.display = 'none';
-  }
+  banner.style.display = 'none';
 
-  const MODE_LABELS = { pure_facing: 'PURE FACING', filled: 'FILLED', partial: 'PARTIAL', error: 'ERROR' };
-  const MODE_COLORS = { pure_facing: '#4ade80', filled: '#7dd3fc', partial: '#fb923c', error: '#ef4444' };
+  const MODE_LABELS = { pure_facing: 'PURE FACING', filled: 'FILLED', partial: 'PARTIAL', standard: 'STANDARD' };
+  const MODE_COLORS = { pure_facing: '#4ade80', filled: '#7dd3fc', partial: '#fb923c', standard: '#a78bfa' };
 
   document.getElementById('val-shoppable-ti').textContent = s.ti;
   document.getElementById('val-shoppable-void').textContent = pct(s.void_pct);
