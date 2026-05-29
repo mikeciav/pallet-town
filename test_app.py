@@ -484,7 +484,7 @@ class TestShoppableAPI:
         assert 'total' in d
         s = d['shoppable']
         assert isinstance(s['ti'], int)
-        assert s['mode'] in ('pure_facing', 'filled', 'partial', 'standard')
+        assert s['mode'] in ('pure_facing', 'filled', 'partial', 'standard', 'shoppable_columns')
         assert 0.0 <= s['void_pct'] <= 1.0
         assert isinstance(s['ring_count'], int) and s['ring_count'] >= 0
         assert 'error' in s

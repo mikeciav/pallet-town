@@ -420,6 +420,137 @@ def generate_ring_positions(
     return positions
 
 
+def find_shoppable_v2(
+    case_l: float,
+    case_w: float,
+    pallet_l: float,
+    pallet_w: float,
+    sides: List[str],
+) -> Dict:
+    """
+    Column-based shoppable arrangement.
+
+    Fills columns (each case_l wide) across the pallet width.  Each column has
+    n_depth front-facing cases plus one end case that faces the nearest pallet
+    side: left (col 0), right (last col), or back (middle cols).  Remaining
+    space is filled with the standard optimal arrangement.
+
+    n_depth = floor((pallet_l - case_l) / case_w) — stops before the end case
+    would be crowded out.
+    """
+    sides_set = set(sides)
+    pallet_area = pallet_l * pallet_w
+    case_area = case_l * case_w
+
+    n_cols = int(pallet_w / case_l)
+    if n_cols == 0 or pallet_l < case_l - 1e-9:
+        std_ti, _ = find_optimal_arrangement(case_l, case_w, pallet_l, pallet_w)
+        void_pct = max(0.0, (pallet_area - std_ti * case_area) / pallet_area)
+        return {"ti": std_ti, "mode": "standard", "void_pct": round(void_pct, 4),
+                "ring_count": 0, "error": None}
+
+    n_depth = int((pallet_l - case_l) / case_w) if pallet_l > case_l + 1e-9 else 0
+    col_depth = n_depth * case_w + case_l
+    col_cases = n_cols * (n_depth + 1)
+
+    remaining_w = pallet_w - n_cols * case_l
+    remaining_back = pallet_l - col_depth
+    min_dim = min(case_l, case_w)
+
+    fill_right = 0
+    if remaining_w >= min_dim - 1e-9:
+        fill_right, _ = find_optimal_arrangement(case_l, case_w, remaining_w, pallet_l)
+
+    fill_back = 0
+    if remaining_back >= min_dim - 1e-9:
+        fill_back, _ = find_optimal_arrangement(case_l, case_w, n_cols * case_l, remaining_back)
+
+    total_ti = col_cases + fill_right + fill_back
+    void_pct = max(0.0, (pallet_area - total_ti * case_area) / pallet_area)
+    return {
+        "ti": total_ti,
+        "mode": "shoppable_columns",
+        "void_pct": round(void_pct, 4),
+        "ring_count": 0,
+        "error": None,
+    }
+
+
+def generate_shoppable_v2_positions(
+    case_l: float,
+    case_w: float,
+    pallet_l: float,
+    pallet_w: float,
+    sides: List[str],
+) -> List[Dict]:
+    """
+    Return per-case positions for the column-based shoppable visualization.
+
+    Each entry: {x, y, w, h, ring, side}
+    ring=1 for column cases, ring=0 for fill cases.
+    Coordinates: x = W direction, y = L direction.
+    """
+    sides_set = set(sides)
+    positions: List[Dict] = []
+
+    n_cols = int(pallet_w / case_l)
+    if n_cols == 0 or pallet_l < case_l - 1e-9:
+        _, std_config = find_optimal_arrangement(case_l, case_w, pallet_w, pallet_l)
+        for pos in generate_positions(std_config):
+            positions.append({"x": round(pos["x"], 6), "y": round(pos["y"], 6),
+                               "w": pos["w"], "h": pos["h"], "ring": 0, "side": "fill"})
+        return positions
+
+    n_depth = int((pallet_l - case_l) / case_w) if pallet_l > case_l + 1e-9 else 0
+    col_depth = n_depth * case_w + case_l
+    remaining_w = pallet_w - n_cols * case_l
+
+    for col in range(n_cols):
+        x0 = col * case_l
+
+        for d in range(n_depth):
+            positions.append({
+                "x": round(x0, 6), "y": round(d * case_w, 6),
+                "w": case_l, "h": case_w,
+                "ring": 1, "side": "front" if d == 0 else "fill",
+            })
+
+        y_end = n_depth * case_w
+        if col == 0 and "left" in sides_set:
+            positions.append({"x": round(x0, 6), "y": round(y_end, 6),
+                               "w": case_w, "h": case_l, "ring": 1, "side": "left"})
+        elif col == n_cols - 1 and "right" in sides_set:
+            positions.append({"x": round(x0 + case_l - case_w, 6), "y": round(y_end, 6),
+                               "w": case_w, "h": case_l, "ring": 1, "side": "right"})
+        elif "back" in sides_set:
+            positions.append({"x": round(x0, 6), "y": round(y_end, 6),
+                               "w": case_l, "h": case_w, "ring": 1, "side": "back"})
+        else:
+            positions.append({"x": round(x0, 6), "y": round(y_end, 6),
+                               "w": case_l, "h": case_w, "ring": 1, "side": "fill"})
+
+    min_dim = min(case_l, case_w)
+    remaining_back = pallet_l - col_depth
+
+    if remaining_w >= min_dim - 1e-9:
+        _, fill_config = find_optimal_arrangement(case_l, case_w, remaining_w, pallet_l)
+        if fill_config:
+            ox = n_cols * case_l
+            for pos in generate_positions(fill_config):
+                positions.append({"x": round(ox + pos["x"], 6), "y": round(pos["y"], 6),
+                                   "w": pos["w"], "h": pos["h"], "ring": 0, "side": "fill"})
+
+    if remaining_back >= min_dim - 1e-9:
+        _, fill_config = find_optimal_arrangement(case_l, case_w, n_cols * case_l, remaining_back)
+        if fill_config:
+            oy = col_depth
+            for pos in generate_positions(fill_config):
+                positions.append({"x": round(pos["x"], 6), "y": round(oy + pos["y"], 6),
+                                   "w": pos["w"], "h": pos["h"], "ring": 0, "side": "fill"})
+
+    return positions
+
+
 def generate_positions(config: Dict) -> List[Dict]:
     """Return carton footprint positions for top-down SVG visualization."""
     if not config:
