@@ -612,3 +612,108 @@ class TestRingPositions:
         assert len(positions) > 0
         assert all(p['side'] == 'fill' for p in positions)
         assert all(p['ring'] == 0 for p in positions)
+
+
+class TestShoppableV2:
+    """
+    Tests for find_shoppable_v2 and generate_shoppable_v2_positions.
+
+    Column-based algorithm: n_cols columns (each case_l wide) run along pallet
+    width.  Each column has n_depth front-facing cases + 1 end case.
+    n_depth = floor((pallet_l - case_l) / case_w).
+    End cases: left (col 0), right (last col), back (middle cols).
+    """
+    from calculator import find_shoppable_v2, generate_shoppable_v2_positions
+    ALL4 = ['front', 'back', 'left', 'right']
+
+    def _v2(self, cl, cw, sides=None):
+        from calculator import find_shoppable_v2
+        return find_shoppable_v2(cl, cw, 48, 40, sides or self.ALL4)
+
+    def _pos(self, cl, cw, sides=None):
+        from calculator import generate_shoppable_v2_positions
+        return generate_shoppable_v2_positions(cl, cw, 48, 40, sides or self.ALL4)
+
+    # ── find_shoppable_v2 ────────────────────────────────────────
+
+    def test_result_shape(self):
+        r = self._v2(10, 8)
+        assert 'ti' in r and 'mode' in r and 'void_pct' in r
+        assert 'ring_count' in r and 'error' in r
+
+    def test_10x8_col_count(self):
+        # n_cols=floor(40/10)=4; n_depth=floor((48-10)/8)=4; col_cases=4*5=20
+        # remaining_w=0; remaining_back=6 (<8), fill=0; total=20
+        r = self._v2(10, 8)
+        assert r['ti'] == 20
+        assert r['mode'] == 'shoppable_columns'
+
+    def test_void_in_range(self):
+        r = self._v2(10, 8)
+        assert 0.0 <= r['void_pct'] <= 1.0
+
+    def test_fallback_to_standard_when_case_too_large_for_columns(self):
+        # case_l=41 > pallet_w=40, so n_cols=0 → standard fallback
+        # find_optimal_arrangement(41, 20, 48, 40) can fit 2 cases (floor(48/41)*floor(40/20))
+        r = self._v2(41, 20)
+        assert r['mode'] == 'standard'
+        assert r['ti'] > 0
+
+    # ── generate_shoppable_v2_positions ──────────────────────────
+
+    def test_position_count_matches_ti(self):
+        for cl, cw in [(10, 8), (12, 7), (8, 6)]:
+            positions = self._pos(cl, cw)
+            r = self._v2(cl, cw)
+            assert len(positions) == r['ti'], \
+                f"{cl}×{cw}: {len(positions)} positions != ti={r['ti']}"
+
+    def test_10x8_column_structure(self):
+        # Col 0 (x=0): 4 front-facing (h=8) + 1 left end case (w=8,h=10)
+        positions = self._pos(10, 8)
+        col0 = [p for p in positions if p['ring'] == 1 and abs(p['x']) < 1e-9]
+        front0 = [p for p in col0 if p['side'] == 'front']
+        assert len(front0) == 1   # first depth case at y=0
+        assert front0[0]['y'] == pytest.approx(0.0)
+        assert front0[0]['w'] == pytest.approx(10.0)
+        assert front0[0]['h'] == pytest.approx(8.0)
+        left0 = [p for p in col0 if p['side'] == 'left']
+        assert len(left0) == 1
+        assert left0[0]['w'] == pytest.approx(8.0)   # case_w
+        assert left0[0]['h'] == pytest.approx(10.0)  # case_l
+        assert left0[0]['y'] == pytest.approx(4 * 8.0)  # n_depth * case_w
+
+    def test_10x8_last_col_right_end(self):
+        # Last col (x=30): right end case at x=30+10-8=32
+        positions = self._pos(10, 8)
+        right = [p for p in positions if p['side'] == 'right']
+        assert len(right) == 1
+        assert right[0]['x'] == pytest.approx(32.0)  # x0+case_l-case_w = 30+10-8
+        assert right[0]['w'] == pytest.approx(8.0)
+        assert right[0]['h'] == pytest.approx(10.0)
+
+    def test_10x8_middle_col_back_end(self):
+        # Middle cols (x=10, 20) have back end cases (w=case_l, h=case_w)
+        positions = self._pos(10, 8)
+        back = [p for p in positions if p['side'] == 'back']
+        assert len(back) == 2   # n_cols=4, 2 middle cols
+        for p in back:
+            assert p['w'] == pytest.approx(10.0)
+            assert p['h'] == pytest.approx(8.0)
+
+    def test_all_positions_within_pallet_bounds(self):
+        for cl, cw in [(10, 8), (12, 7), (6, 4)]:
+            positions = self._pos(cl, cw)
+            for p in positions:
+                assert p['x'] >= -1e-9, f"{cl}×{cw}: x={p['x']} < 0"
+                assert p['y'] >= -1e-9, f"{cl}×{cw}: y={p['y']} < 0"
+                assert p['x'] + p['w'] <= 40.0 + 1e-9, \
+                    f"{cl}×{cw}: x+w={p['x']+p['w']} > pallet_w=40"
+                assert p['y'] + p['h'] <= 48.0 + 1e-9, \
+                    f"{cl}×{cw}: y+h={p['y']+p['h']} > pallet_l=48"
+
+    def test_standard_fallback_positions(self):
+        # case_l=41 forces standard fallback (n_cols=0); 2 cases fit via standard arrangement
+        positions = self._pos(41, 20)
+        assert len(positions) > 0
+        assert all(p['ring'] == 0 for p in positions)
