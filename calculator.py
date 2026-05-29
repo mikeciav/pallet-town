@@ -112,39 +112,40 @@ def place_ring(
 
     fb_count = ("front" in sides_set) + ("back" in sides_set)
     lr_count = ("left" in sides_set) + ("right" in sides_set)
-    inner_l = rect_l - case_l * fb_count  # front/back eat into L
-    inner_w = rect_w - case_l * lr_count  # left/right eat into W
+    # case_l is the labeled face; strip depth = case_w so labeled face shows outward
+    inner_l = rect_l - case_w * fb_count
+    inner_w = rect_w - case_w * lr_count
 
     if inner_l < -1e-9 or inner_w < -1e-9:
         return None
 
-    left_right_span = rect_l  # left/right span L minus front/back depth
+    left_right_span = rect_l
     if "front" in sides_set:
-        left_right_span -= case_l
+        left_right_span -= case_w
     if "back" in sides_set:
-        left_right_span -= case_l
+        left_right_span -= case_w
 
     counts: Dict[str, int] = {}
 
     for side in ("front", "back"):
         if side not in sides_set:
             continue
-        n = int(rect_w / case_w)  # front/back span W (40" side)
+        n = int(rect_w / case_l)  # labeled face spans W
         if n == 0:
             return None
-        if not rounding_gaps and rect_w % case_w > 1e-9:
+        if not rounding_gaps and rect_w % case_l > 1e-9:
             return None
         counts[side] = n
 
     for side in ("left", "right"):
         if side not in sides_set:
             continue
-        if left_right_span < case_w - 1e-9:
+        if left_right_span < case_l - 1e-9:
             return None
-        n = int(left_right_span / case_w)
+        n = int(left_right_span / case_l)  # labeled face spans L
         if n == 0:
             return None
-        if not rounding_gaps and left_right_span % case_w > 1e-9:
+        if not rounding_gaps and left_right_span % case_l > 1e-9:
             return None
         counts[side] = n
 
@@ -172,27 +173,27 @@ def _place_partial_ring(
     sides_set = set(sides)
     total = 0
 
-    left_right_span = rect_l  # left/right span L minus front/back depth
+    left_right_span = rect_l
     if "front" in sides_set:
-        left_right_span -= case_l
+        left_right_span -= case_w
     if "back" in sides_set:
-        left_right_span -= case_l
+        left_right_span -= case_w
 
     for side in ("front", "back"):
         if side not in sides_set:
             continue
-        if rect_l < case_l - 1e-9:
+        if rect_l < case_w - 1e-9:  # need case_w depth
             continue
-        n = int(rect_w / case_w)  # front/back span W (40" side)
-        if n > 0 and (rounding_gaps or rect_w % case_w < 1e-9):
+        n = int(rect_w / case_l)  # labeled face spans W
+        if n > 0 and (rounding_gaps or rect_w % case_l < 1e-9):
             total += n
 
-    if left_right_span >= case_w - 1e-9:
+    if left_right_span >= case_l - 1e-9:
         for side in ("left", "right"):
             if side not in sides_set:
                 continue
-            n = int(left_right_span / case_w)
-            if n > 0 and (rounding_gaps or left_right_span % case_w < 1e-9):
+            n = int(left_right_span / case_l)  # labeled face spans L
+            if n > 0 and (rounding_gaps or left_right_span % case_l < 1e-9):
                 total += n
 
     return total
@@ -321,75 +322,77 @@ def generate_ring_positions(
         if ring is None:
             break
         ring_num += 1
-        y_offset = case_l if "front" in sides_set else 0.0
+        # case_w is the strip depth; y_offset pushes left/right past the front strip
+        y_offset = case_w if "front" in sides_set else 0.0
         left_right_span = rect_l
         if "front" in sides_set:
-            left_right_span -= case_l
+            left_right_span -= case_w
         if "back" in sides_set:
-            left_right_span -= case_l
+            left_right_span -= case_w
 
-        # front/back span W (rect_w); pack from both ends so gap falls in the middle
+        # front/back: labeled face (case_l) spans W; case_w is depth into L
         if "front" in sides_set:
             n = ring["counts"]["front"]
-            gap = rect_w - n * case_w
+            gap = rect_w - n * case_l
             k = n // 2
-            xs = ([ox + i * case_w for i in range(k)] +
-                  [ox + k * case_w + gap + i * case_w for i in range(n - k)])
+            xs = ([ox + i * case_l for i in range(k)] +
+                  [ox + k * case_l + gap + i * case_l for i in range(n - k)])
             for x in xs:
                 positions.append({
                     "x": round(x, 6), "y": round(oy, 6),
-                    "w": case_w, "h": case_l, "ring": ring_num, "side": "front",
+                    "w": case_l, "h": case_w, "ring": ring_num, "side": "front",
                 })
         if "back" in sides_set:
             n = ring["counts"]["back"]
-            gap = rect_w - n * case_w
+            gap = rect_w - n * case_l
             k = n // 2
-            xs = ([ox + i * case_w for i in range(k)] +
-                  [ox + k * case_w + gap + i * case_w for i in range(n - k)])
+            xs = ([ox + i * case_l for i in range(k)] +
+                  [ox + k * case_l + gap + i * case_l for i in range(n - k)])
             for x in xs:
                 positions.append({
                     "x": round(x, 6),
-                    "y": round(oy + rect_l - case_l, 6),
-                    "w": case_w, "h": case_l, "ring": ring_num, "side": "back",
+                    "y": round(oy + rect_l - case_w, 6),
+                    "w": case_l, "h": case_w, "ring": ring_num, "side": "back",
                 })
-        # left/right span L (left_right_span); pack from both ends so gap falls in the middle
+        # left/right: labeled face (case_l) spans L; case_w is depth into W
         if "left" in sides_set:
             n = ring["counts"]["left"]
-            gap = left_right_span - n * case_w
+            gap = left_right_span - n * case_l
             k = n // 2
-            ys = ([oy + y_offset + i * case_w for i in range(k)] +
-                  [oy + y_offset + k * case_w + gap + i * case_w for i in range(n - k)])
+            ys = ([oy + y_offset + i * case_l for i in range(k)] +
+                  [oy + y_offset + k * case_l + gap + i * case_l for i in range(n - k)])
             for y in ys:
                 positions.append({
                     "x": round(ox, 6),
                     "y": round(y, 6),
-                    "w": case_l, "h": case_w, "ring": ring_num, "side": "left",
+                    "w": case_w, "h": case_l, "ring": ring_num, "side": "left",
                 })
         if "right" in sides_set:
             n = ring["counts"]["right"]
-            gap = left_right_span - n * case_w
+            gap = left_right_span - n * case_l
             k = n // 2
-            ys = ([oy + y_offset + i * case_w for i in range(k)] +
-                  [oy + y_offset + k * case_w + gap + i * case_w for i in range(n - k)])
+            ys = ([oy + y_offset + i * case_l for i in range(k)] +
+                  [oy + y_offset + k * case_l + gap + i * case_l for i in range(n - k)])
             for y in ys:
                 positions.append({
-                    "x": round(ox + rect_w - case_l, 6),
+                    "x": round(ox + rect_w - case_w, 6),
                     "y": round(y, 6),
-                    "w": case_l, "h": case_w, "ring": ring_num, "side": "right",
+                    "w": case_w, "h": case_l, "ring": ring_num, "side": "right",
                 })
 
         ring_ti += ring["total"]
         if "left" in sides_set:
-            ox += case_l
+            ox += case_w  # strip depth = case_w
         if "front" in sides_set:
-            oy += case_l
+            oy += case_w  # strip depth = case_w
         rect_l = ring["inner_l"]
         rect_w = ring["inner_w"]
 
     if force_fill_on_failure:
         if ring_num == 0:
-            # No rings fit: generate standard optimal arrangement
-            _, std_config = find_optimal_arrangement(case_l, case_w, pallet_l, pallet_w)
+            # No rings fit: fall back to standard arrangement.
+            # Swap pallet_w/pallet_l so generate_positions x→W, y→L (matches shoppable axes).
+            _, std_config = find_optimal_arrangement(case_l, case_w, pallet_w, pallet_l)
             for pos in generate_positions(std_config):
                 positions.append({
                     "x": round(pos["x"], 6),
