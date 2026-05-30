@@ -428,7 +428,7 @@ def find_shoppable_v2(
     sides: List[str],
 ) -> Dict:
     """
-    Spiral shoppable arrangement — counts TI from generated positions.
+    Corner-spiral shoppable arrangement — counts TI from generated positions.
     """
     pallet_area = pallet_l * pallet_w
     case_area = case_l * case_w
@@ -461,112 +461,85 @@ def generate_shoppable_v2_positions(
     sides: List[str],
 ) -> List[Dict]:
     """
-    Clockwise spiral shoppable arrangement.
+    Corner-spiral shoppable arrangement.
 
-    Each loop of the spiral has 4 arms:
-      ARM 0: LEFT  wall (+y) — cases face LEFT,  end case at back-left corner
-      ARM 1: BACK  wall (+x) — cases face BACK,  end case at back-right corner
-      ARM 2: RIGHT wall (-y) — cases face RIGHT, end case at front-right corner
-      ARM 3: FRONT wall (-x) — cases face FRONT, end case at front-left corner
+    Clockwise from front-left corner, 4 sides per loop:
+      FRONT (→): n regular cases (case_w × case_l deep) + corner case (case_l × case_w deep)
+      RIGHT  (↑): n regular cases (case_l × case_w)      + corner case (case_w × case_l deep)
+      BACK   (←): n regular cases (case_w × case_l deep) + corner case (case_l × case_w deep)
+      LEFT   (↓): n regular cases (case_l × case_w)      — no trailing corner
 
-    ARM 0 skips the front-left area (y=[by0, by0+case_l]) which is covered by
-    ARM 3's end case from the same loop.  The bounding box shrinks by case_l on
-    all sides after each loop; remaining interior is filled with the standard
-    optimal arrangement.
+    Each regular case has its label face (case_l) perpendicular to the nearest wall.
+    Corner cases bridge to the next side: case_l runs parallel, case_w is the depth.
+    Bounding box shrinks by case_l after each full loop.
 
     Coordinates: x = W direction (0→pallet_w), y = L direction (0→pallet_l).
-    ring=1 for spiral cases, ring=0 for interior fill cases.
     """
     positions: List[Dict] = []
     min_box = case_l + case_w
-    min_dim = min(case_l, case_w)
-
-    if pallet_w < min_box - 1e-9 or pallet_l < min_box - 1e-9:
-        _, std_config = find_optimal_arrangement(case_l, case_w, pallet_w, pallet_l)
-        for pos in generate_positions(std_config):
-            positions.append({"x": round(pos["x"], 6), "y": round(pos["y"], 6),
-                               "w": pos["w"], "h": pos["h"], "ring": 0, "side": "fill"})
-        return positions
 
     bx0, by0 = 0.0, 0.0
     bx1, by1 = float(pallet_w), float(pallet_l)
     ring = 1
 
-    while (bx1 - bx0) >= min_box - 1e-9 and (by1 - by0) >= min_box - 1e-9:
-        # ARM 0: LEFT (+y), face LEFT, w=case_w (x), h=case_l (y)
-        # Starts at y=by0+case_l to leave room for ARM 3 end case at front-left.
-        # n0 cases fill from by0+case_l up to by1-case_w (end case occupies by1-case_w..by1).
-        n0 = max(0, int((by1 - by0 - case_l - case_w) / case_l))
-        for i in range(n0):
-            positions.append({
-                "x": round(bx0, 6), "y": round(by0 + case_l + i * case_l, 6),
-                "w": case_w, "h": case_l, "ring": ring, "side": "left",
-            })
-        # Back-left corner end case (ARM 0 → ARM 1 transition): w=case_l, h=case_w, face BACK
-        positions.append({
-            "x": round(bx0, 6), "y": round(by1 - case_w, 6),
-            "w": case_l, "h": case_w, "ring": ring, "side": "back",
-        })
+    while True:
+        W = bx1 - bx0
+        H = by1 - by0
+        if W < min_box - 1e-9 or H < min_box - 1e-9:
+            break
 
-        # ARM 1: BACK (+x), face BACK, w=case_l (x), h=case_w (y)
-        # Starts at x=bx0+case_l (after ARM 0 end case).  Stop before back-right corner (case_w wide).
-        n1 = max(0, int((bx1 - bx0 - case_l - case_w) / case_l))
-        for i in range(n1):
+        # FRONT (going +x): regular w=case_w, h=case_l; corner w=case_l, h=case_w
+        n_f = max(0, int((W - case_l) / case_w))
+        for i in range(n_f):
             positions.append({
-                "x": round(bx0 + case_l + i * case_l, 6), "y": round(by1 - case_w, 6),
-                "w": case_l, "h": case_w, "ring": ring, "side": "back",
+                "x": round(bx0 + i * case_w, 6), "y": round(by0, 6),
+                "w": case_w, "h": case_l, "ring": ring, "side": "front",
             })
-        # Back-right corner end case (ARM 1 → ARM 2 transition): w=case_w, h=case_l, face RIGHT
-        positions.append({
-            "x": round(bx1 - case_w, 6), "y": round(by1 - case_l, 6),
-            "w": case_w, "h": case_l, "ring": ring, "side": "right",
-        })
-
-        # ARM 2: RIGHT (-y), face RIGHT, w=case_w (x), h=case_l (y)
-        # Starts just below ARM 1 end case (y=by1-case_l) and goes down to by0+case_w.
-        n2 = max(0, int((by1 - by0 - case_l - case_w) / case_l))
-        for i in range(n2):
-            positions.append({
-                "x": round(bx1 - case_w, 6), "y": round(by1 - case_l - (i + 1) * case_l, 6),
-                "w": case_w, "h": case_l, "ring": ring, "side": "right",
-            })
-        # Front-right corner end case (ARM 2 → ARM 3 transition): w=case_l, h=case_w, face FRONT
-        positions.append({
-            "x": round(bx1 - case_l, 6), "y": round(by0, 6),
+        positions.append({  # corner → RIGHT
+            "x": round(bx0 + n_f * case_w, 6), "y": round(by0, 6),
             "w": case_l, "h": case_w, "ring": ring, "side": "front",
         })
 
-        # ARM 3: FRONT (-x), face FRONT, w=case_l (x), h=case_w (y)
-        # Starts just left of ARM 2 end case (x=bx1-case_l) and goes left to bx0+case_w.
-        n3 = max(0, int((bx1 - bx0 - case_l - case_w) / case_l))
-        for i in range(n3):
+        # RIGHT (going +y): regular w=case_l, h=case_w; corner w=case_w, h=case_l
+        right_y0 = by0 + case_w
+        n_r = max(0, int((H - case_w - case_l) / case_w))
+        for i in range(n_r):
             positions.append({
-                "x": round(bx1 - case_l - (i + 1) * case_l, 6), "y": round(by0, 6),
-                "w": case_l, "h": case_w, "ring": ring, "side": "front",
+                "x": round(bx1 - case_l, 6), "y": round(right_y0 + i * case_w, 6),
+                "w": case_l, "h": case_w, "ring": ring, "side": "right",
             })
-        # Front-left corner end case (ARM 3 → next ARM 0): w=case_w, h=case_l, face LEFT
-        positions.append({
-            "x": round(bx0, 6), "y": round(by0, 6),
-            "w": case_w, "h": case_l, "ring": ring, "side": "left",
+        positions.append({  # corner → BACK
+            "x": round(bx1 - case_w, 6), "y": round(right_y0 + n_r * case_w, 6),
+            "w": case_w, "h": case_l, "ring": ring, "side": "right",
         })
+
+        # BACK (going -x): regular w=case_w, h=case_l; corner w=case_l, h=case_w
+        back_x1 = bx1 - case_w
+        n_b = max(0, int((back_x1 - bx0 - case_l) / case_w))
+        for i in range(n_b):
+            positions.append({
+                "x": round(back_x1 - (i + 1) * case_w, 6), "y": round(by1 - case_l, 6),
+                "w": case_w, "h": case_l, "ring": ring, "side": "back",
+            })
+        positions.append({  # corner → LEFT
+            "x": round(back_x1 - n_b * case_w - case_l, 6), "y": round(by1 - case_w, 6),
+            "w": case_l, "h": case_w, "ring": ring, "side": "back",
+        })
+
+        # LEFT (going -y): regular w=case_l, h=case_w; no corner
+        left_y1 = by1 - case_w
+        n_l = max(0, int((left_y1 - (by0 + case_l)) / case_w))
+        for i in range(n_l):
+            positions.append({
+                "x": round(bx0, 6), "y": round(left_y1 - (i + 1) * case_w, 6),
+                "w": case_l, "h": case_w, "ring": ring, "side": "left",
+            })
 
         ring += 1
         bx0 += case_l
         by0 += case_l
         bx1 -= case_l
         by1 -= case_l
-
-    # Fill remaining inner box with standard arrangement
-    inner_w = bx1 - bx0
-    inner_h = by1 - by0
-    if inner_w >= min_dim - 1e-9 and inner_h >= min_dim - 1e-9:
-        _, fill_config = find_optimal_arrangement(case_l, case_w, inner_w, inner_h)
-        if fill_config:
-            for pos in generate_positions(fill_config):
-                positions.append({
-                    "x": round(bx0 + pos["x"], 6), "y": round(by0 + pos["y"], 6),
-                    "w": pos["w"], "h": pos["h"], "ring": 0, "side": "fill",
-                })
 
     return positions
 
