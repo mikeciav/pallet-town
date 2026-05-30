@@ -496,14 +496,14 @@ def generate_shoppable_v2_positions(
                 "w": case_w, "h": case_l, "ring": ring, "side": "front",
             })
         right_x = bx0 + n_f * case_w
-        positions.append({  # corner → RIGHT
-            "x": round(right_x, 6), "y": round(by0, 6),
+        positions.append({  # corner → RIGHT; flush with outer (interior) face of front row
+            "x": round(right_x, 6), "y": round(by0 + case_l - case_w, 6),
             "w": case_l, "h": case_w, "ring": ring, "side": "front",
         })
 
-        # RIGHT (going +y): cases align with front corner (x=right_x), not flush with right wall
-        right_y0 = by0 + case_w
-        n_r = max(0, int((H - case_w - case_l) / case_w))
+        # RIGHT (going +y): starts at inner face of front row, cases align with front corner
+        right_y0 = by0 + case_l
+        n_r = max(0, int((H - 2 * case_l) / case_w))
         for i in range(n_r):
             positions.append({
                 "x": round(right_x, 6), "y": round(right_y0 + i * case_w, 6),
