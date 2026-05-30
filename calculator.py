@@ -488,61 +488,59 @@ def generate_shoppable_v2_positions(
         if W < min_box - 1e-9 or H < min_box - 1e-9:
             break
 
-        # FRONT (going +x): regular w=case_w, h=case_l; corner w=case_l, h=case_w
+        # FRONT (going +x): regular w=case_w, h=case_l; corner w=case_l, h=case_w flush with right wall
         n_f = max(0, int((W - case_l) / case_w))
         for i in range(n_f):
             positions.append({
                 "x": round(bx0 + i * case_w, 6), "y": round(by0, 6),
                 "w": case_w, "h": case_l, "ring": ring, "side": "front",
             })
-        right_x = bx0 + n_f * case_w
-        positions.append({  # corner → RIGHT; flush with outer (interior) face of front row
-            "x": round(right_x, 6), "y": round(by0 + case_l - case_w, 6),
+        right_x = bx1 - case_l  # flush with right wall
+        positions.append({  # corner → RIGHT
+            "x": round(right_x, 6), "y": round(by0, 6),
             "w": case_l, "h": case_w, "ring": ring, "side": "front",
         })
 
-        # RIGHT (going +y): starts at inner face of front row, cases align with front corner
-        right_y0 = by0 + case_l
-        n_r = max(0, int((H - 2 * case_l) / case_w))
+        # RIGHT (going +y): aligned with front corner at x=right_x; corner flush with back wall
+        right_y0 = by0 + case_w
+        n_r = max(0, int((H - case_w - case_l) / case_w))
         for i in range(n_r):
             positions.append({
                 "x": round(right_x, 6), "y": round(right_y0 + i * case_w, 6),
                 "w": case_l, "h": case_w, "ring": ring, "side": "right",
             })
-        back_y = right_y0 + n_r * case_w
         positions.append({  # corner → BACK
-            "x": round(right_x, 6), "y": round(back_y, 6),
+            "x": round(bx1 - case_w, 6), "y": round(right_y0 + n_r * case_w, 6),
             "w": case_w, "h": case_l, "ring": ring, "side": "right",
         })
 
-        # BACK (going -x): cases align with right corner (y=back_y), not flush with back wall
-        n_b = max(0, int((right_x - bx0 - case_l) / case_w))
+        # BACK (going -x): flush with back wall; corner flush with left wall
+        back_x1 = bx1 - case_w
+        n_b = max(0, int((back_x1 - bx0 - case_l) / case_w))
         for i in range(n_b):
             positions.append({
-                "x": round(right_x - (i + 1) * case_w, 6), "y": round(back_y, 6),
+                "x": round(back_x1 - (i + 1) * case_w, 6), "y": round(by1 - case_l, 6),
                 "w": case_w, "h": case_l, "ring": ring, "side": "back",
             })
-        left_x = right_x - n_b * case_w - case_l
-        back_corner_y = back_y + case_l - case_w
         positions.append({  # corner → LEFT
-            "x": round(left_x, 6), "y": round(back_corner_y, 6),
+            "x": round(back_x1 - n_b * case_w - case_l, 6), "y": round(by1 - case_w, 6),
             "w": case_l, "h": case_w, "ring": ring, "side": "back",
         })
 
-        # LEFT (going -y): cases align with back corner (x=left_x), not flush with left wall
-        left_y1 = back_corner_y
+        # LEFT (going -y): flush with left wall; no trailing corner
+        left_y1 = by1 - case_w
         n_l = max(0, int((left_y1 - (by0 + case_l)) / case_w))
         for i in range(n_l):
             positions.append({
-                "x": round(left_x, 6), "y": round(left_y1 - (i + 1) * case_w, 6),
+                "x": round(bx0, 6), "y": round(left_y1 - (i + 1) * case_w, 6),
                 "w": case_l, "h": case_w, "ring": ring, "side": "left",
             })
 
         ring += 1
-        bx0 = left_x + case_l
-        by0 = by0 + case_l
-        bx1 = right_x
-        by1 = back_y
+        bx0 += case_l
+        by0 += case_l
+        bx1 -= case_l
+        by1 -= case_l
 
     return positions
 

@@ -624,12 +624,13 @@ class TestShoppableV2:
     Cases on each new side align with the preceding corner, not the pallet wall.
 
     10×5 case on 26×30 pallet:
-      Loop 1: FRONT 3+corner, RIGHT 2+corner, BACK 1+corner, LEFT 3 = 12 cases
-      Loop 2: W=5 < case_l+case_w=15 → stop. Total: 12.
+      Loop 1: FRONT 3+corner, RIGHT 3+corner, BACK 2+corner, LEFT 3 = 14 cases
+      Loop 2: W=6 < case_l+case_w=15 → stop. Total: 14.
 
     10×8 case on 48×40 pallet (GMA):
-      Loop 1: FRONT 3+corner, RIGHT 3+corner, BACK 1+corner, LEFT 3 = 13 cases
-      Loop 2: W=8 < case_l+case_w=18 → stop. Total: 13.
+      Loop 1: FRONT 3+corner, RIGHT 3+corner, BACK 2+corner, LEFT 3 = 14 cases
+      Loop 2: FRONT 1+corner, RIGHT 1+corner, BACK 0+corner, LEFT 1 = 6 cases
+      Loop 3: W=0 → stop. Total: 20.
     """
     ALL4 = ['front', 'back', 'left', 'right']
 
@@ -655,12 +656,12 @@ class TestShoppableV2:
 
     def test_10x8_ti_and_mode(self):
         r = self._v2(10, 8)
-        assert r['ti'] == 13
+        assert r['ti'] == 20
         assert r['mode'] == 'shoppable_spiral'
 
     def test_10x8_ring_count(self):
         r = self._v2(10, 8)
-        assert r['ring_count'] == 1
+        assert r['ring_count'] == 2
 
     def test_void_in_range(self):
         r = self._v2(10, 8)
@@ -676,7 +677,7 @@ class TestShoppableV2:
 
     def test_10x5_on_26x30_count(self):
         pos = self._pos(10, 5, pl=30, pw=26)
-        assert len(pos) == 12
+        assert len(pos) == 14
 
     def test_10x5_front_regular_cases(self):
         # 3 regular front cases: case_w=5" wide, case_l=10" deep, y=0
@@ -690,23 +691,23 @@ class TestShoppableV2:
             assert p['h'] == pytest.approx(10.0)
 
     def test_10x5_front_corner(self):
-        # Corner case: case_l=10" wide, case_w=5" deep, flush with outer face of front row
+        # Corner case: case_l=10" wide, case_w=5" deep, flush with right pallet wall
         pos = self._pos(10, 5, pl=30, pw=26)
         corner = [p for p in pos if p['side'] == 'front' and p['w'] == pytest.approx(10.0)]
         assert len(corner) == 1
-        assert corner[0]['x'] == pytest.approx(15.0)
-        assert corner[0]['y'] == pytest.approx(5.0)   # case_l - case_w = 10 - 5 = 5
+        assert corner[0]['x'] == pytest.approx(16.0)  # bx1 - case_l = 26 - 10 = 16
+        assert corner[0]['y'] == pytest.approx(0.0)
         assert corner[0]['h'] == pytest.approx(5.0)
 
     def test_10x5_right_regular_cases(self):
-        # 2 regular right cases: start at y=case_l=10 (inner face of front row)
+        # 3 regular right cases: start at y=case_w=5 (outer face of front row)
         pos = self._pos(10, 5, pl=30, pw=26)
         right_reg = [p for p in pos if p['side'] == 'right' and p['h'] == pytest.approx(5.0)]
-        assert len(right_reg) == 2
+        assert len(right_reg) == 3
         ys = sorted(p['y'] for p in right_reg)
-        assert ys == pytest.approx([10.0, 15.0])
+        assert ys == pytest.approx([5.0, 10.0, 15.0])
         for p in right_reg:
-            assert p['x'] == pytest.approx(15.0)
+            assert p['x'] == pytest.approx(16.0)  # aligned with front corner
             assert p['w'] == pytest.approx(10.0)
 
     # ── generate_shoppable_v2_positions — 10×8 on 48×40 (GMA) ───
@@ -740,14 +741,14 @@ class TestShoppableV2:
         assert xs == pytest.approx([0.0, 8.0, 16.0])
 
     def test_10x8_ring1_left_cases(self):
-        # Ring 1 LEFT: 3 cases (w=10,h=8), x=left_x=6 (in line with back corner)
+        # Ring 1 LEFT: 3 cases (w=10,h=8), flush with left pallet wall (x=0)
         positions = self._pos(10, 8)
         left = [p for p in positions if p['ring'] == 1 and p['side'] == 'left']
         assert len(left) == 3
         ys = sorted(p['y'] for p in left)
-        assert ys == pytest.approx([12.0, 20.0, 28.0])
+        assert ys == pytest.approx([16.0, 24.0, 32.0])
         for p in left:
-            assert p['x'] == pytest.approx(6.0)
+            assert p['x'] == pytest.approx(0.0)
             assert p['w'] == pytest.approx(10.0)
             assert p['h'] == pytest.approx(8.0)
 
