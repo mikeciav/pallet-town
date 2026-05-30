@@ -618,26 +618,29 @@ class TestShoppableV2:
     """
     Tests for find_shoppable_v2 and generate_shoppable_v2_positions.
 
-    Spiral algorithm: 4 clockwise arms per loop (LEFT/BACK/RIGHT/FRONT).
-    Each arm has n normal cases + 1 rotated corner end case.
-    n = floor((run_length - case_l - case_w) / case_l) per arm.
-    Bounding box shrinks by case_l per side after each loop.
+    Corner-spiral algorithm: clockwise from front-left corner.
+    Each side: n regular cases (case_w parallel, case_l deep) + corner case
+    (case_l parallel, case_w deep). LEFT side has no trailing corner.
+    Bounding box shrinks by case_l after each full loop.
 
-    For 10×8 case on 48×40 pallet:
-      Loop 1: n0=n2=3, n1=n3=2  → (3+1)*2 + (2+1)*2 = 14 cases
-      Loop 2: n0=n2=1, n1=n3=0  → (1+1)*2 + (0+1)*2 = 6 cases
-      Inner box [20,20,20,28]: width=0, no fill.  Total: 20 cases.
+    10×5 case on 26×30 pallet (user's example):
+      Loop 1: FRONT 3+corner, RIGHT 3+corner, BACK 2+corner, LEFT 3 = 14 cases
+      Loop 2: W=6 < case_l+case_w=15 → stop. Total: 14.
+
+    10×8 case on 48×40 pallet (GMA):
+      Loop 1: FRONT 3+corner, RIGHT 3+corner, BACK 2+corner, LEFT 3 = 14 cases
+      Loop 2: FRONT 1+corner, RIGHT 1+corner, BACK 0+corner, LEFT 1 = 6 cases
+      Loop 3: W=0 → stop. Total: 20.
     """
-    from calculator import find_shoppable_v2, generate_shoppable_v2_positions
     ALL4 = ['front', 'back', 'left', 'right']
 
-    def _v2(self, cl, cw, sides=None):
+    def _v2(self, cl, cw, pl=48, pw=40, sides=None):
         from calculator import find_shoppable_v2
-        return find_shoppable_v2(cl, cw, 48, 40, sides or self.ALL4)
+        return find_shoppable_v2(cl, cw, pl, pw, sides or self.ALL4)
 
-    def _pos(self, cl, cw, sides=None):
+    def _pos(self, cl, cw, pl=48, pw=40, sides=None):
         from calculator import generate_shoppable_v2_positions
-        return generate_shoppable_v2_positions(cl, cw, 48, 40, sides or self.ALL4)
+        return generate_shoppable_v2_positions(cl, cw, pl, pw, sides or self.ALL4)
 
     @staticmethod
     def _overlaps(a, b):
@@ -665,12 +668,49 @@ class TestShoppableV2:
         assert 0.0 <= r['void_pct'] <= 1.0
 
     def test_fallback_to_standard_when_case_too_large(self):
-        # case_l+case_w=41+20=61 > pallet_w=40 → standard fallback
+        # case_l+case_w=61 > pallet_w=40 → standard fallback
         r = self._v2(41, 20)
         assert r['mode'] == 'standard'
         assert r['ti'] > 0
 
-    # ── generate_shoppable_v2_positions ──────────────────────────
+    # ── generate_shoppable_v2_positions — 10×5 on 26×30 (user example) ──
+
+    def test_10x5_on_26x30_count(self):
+        pos = self._pos(10, 5, pl=30, pw=26)
+        assert len(pos) == 14
+
+    def test_10x5_front_regular_cases(self):
+        # 3 regular front cases: case_w=5" wide, case_l=10" deep, y=0
+        pos = self._pos(10, 5, pl=30, pw=26)
+        front_reg = [p for p in pos if p['side'] == 'front' and p['w'] == pytest.approx(5.0)]
+        assert len(front_reg) == 3
+        xs = sorted(p['x'] for p in front_reg)
+        assert xs == pytest.approx([0.0, 5.0, 10.0])
+        for p in front_reg:
+            assert p['y'] == pytest.approx(0.0)
+            assert p['h'] == pytest.approx(10.0)
+
+    def test_10x5_front_corner(self):
+        # Corner case: case_l=10" wide, case_w=5" deep, at x=15
+        pos = self._pos(10, 5, pl=30, pw=26)
+        corner = [p for p in pos if p['side'] == 'front' and p['w'] == pytest.approx(10.0)]
+        assert len(corner) == 1
+        assert corner[0]['x'] == pytest.approx(15.0)
+        assert corner[0]['y'] == pytest.approx(0.0)
+        assert corner[0]['h'] == pytest.approx(5.0)
+
+    def test_10x5_right_regular_cases(self):
+        # 3 regular right cases: case_l=10" wide, case_w=5" tall, x=[16,26]
+        pos = self._pos(10, 5, pl=30, pw=26)
+        right_reg = [p for p in pos if p['side'] == 'right' and p['h'] == pytest.approx(5.0)]
+        assert len(right_reg) == 3
+        ys = sorted(p['y'] for p in right_reg)
+        assert ys == pytest.approx([5.0, 10.0, 15.0])
+        for p in right_reg:
+            assert p['x'] == pytest.approx(16.0)
+            assert p['w'] == pytest.approx(10.0)
+
+    # ── generate_shoppable_v2_positions — 10×8 on 48×40 (GMA) ───
 
     def test_position_count_matches_ti(self):
         for cl, cw in [(10, 8), (12, 7), (8, 6)]:
@@ -680,46 +720,37 @@ class TestShoppableV2:
                 f"{cl}×{cw}: {len(positions)} positions != ti={r['ti']}"
 
     def test_no_overlapping_cases(self):
-        positions = self._pos(10, 8)
-        for i, a in enumerate(positions):
-            for j, b in enumerate(positions):
-                if i >= j:
-                    continue
-                assert not self._overlaps(a, b), \
-                    f"Cases {i} and {j} overlap: {a} vs {b}"
+        for cl, cw in [(10, 8), (10, 5)]:
+            pl, pw = (48, 40) if cw == 8 else (30, 26)
+            positions = self._pos(cl, cw, pl=pl, pw=pw)
+            for i, a in enumerate(positions):
+                for j, b in enumerate(positions):
+                    if i >= j:
+                        continue
+                    assert not self._overlaps(a, b), \
+                        f"{cl}×{cw} cases {i} and {j} overlap: {a} vs {b}"
 
-    def test_10x8_spiral_left_wall(self):
-        # ARM 0 loop 1: 3 left-facing cases at x=0, y=[10,20],[20,30],[30,40]
+    def test_10x8_ring1_front_regular(self):
+        # Ring 1 FRONT: 3 regular cases (w=8,h=10) at y=0 + 1 corner (w=10,h=8)
         positions = self._pos(10, 8)
-        left_main = [p for p in positions
-                     if p['ring'] == 1 and p['side'] == 'left'
-                     and abs(p['x']) < 1e-9 and abs(p['y']) > 1e-9]
-        assert len(left_main) == 3
-        ys = sorted(p['y'] for p in left_main)
-        assert ys == pytest.approx([10.0, 20.0, 30.0])
-        for p in left_main:
-            assert p['w'] == pytest.approx(8.0)   # case_w
-            assert p['h'] == pytest.approx(10.0)  # case_l
+        front = [p for p in positions if p['ring'] == 1 and p['side'] == 'front']
+        assert len(front) == 4  # 3 regular + 1 corner
+        regs = [p for p in front if p['w'] == pytest.approx(8.0)]
+        assert len(regs) == 3
+        xs = sorted(p['x'] for p in regs)
+        assert xs == pytest.approx([0.0, 8.0, 16.0])
 
-    def test_10x8_spiral_back_left_corner(self):
-        # ARM 0 end (back-left): x=0, y=40, w=10, h=8
+    def test_10x8_ring1_left_cases(self):
+        # Ring 1 LEFT: 3 cases (w=10,h=8), going down from y=32
         positions = self._pos(10, 8)
-        corner = [p for p in positions
-                  if p['ring'] == 1 and p['side'] == 'back'
-                  and abs(p['x']) < 1e-9 and abs(p['y'] - 40.0) < 1e-9]
-        assert len(corner) == 1
-        assert corner[0]['w'] == pytest.approx(10.0)
-        assert corner[0]['h'] == pytest.approx(8.0)
-
-    def test_10x8_spiral_front_left_corner(self):
-        # ARM 3 end loop 1 (front-left): x=0, y=0, w=8, h=10
-        positions = self._pos(10, 8)
-        corner = [p for p in positions
-                  if p['ring'] == 1 and p['side'] == 'left'
-                  and abs(p['x']) < 1e-9 and abs(p['y']) < 1e-9]
-        assert len(corner) == 1
-        assert corner[0]['w'] == pytest.approx(8.0)
-        assert corner[0]['h'] == pytest.approx(10.0)
+        left = [p for p in positions if p['ring'] == 1 and p['side'] == 'left']
+        assert len(left) == 3
+        ys = sorted(p['y'] for p in left)
+        assert ys == pytest.approx([16.0, 24.0, 32.0])
+        for p in left:
+            assert p['x'] == pytest.approx(0.0)
+            assert p['w'] == pytest.approx(10.0)
+            assert p['h'] == pytest.approx(8.0)
 
     def test_all_positions_within_pallet_bounds(self):
         for cl, cw in [(10, 8), (12, 7), (6, 4)]:
@@ -732,8 +763,7 @@ class TestShoppableV2:
                 assert p['y'] + p['h'] <= 48.0 + 1e-9, \
                     f"{cl}×{cw}: y+h={p['y']+p['h']} > pallet_l=48"
 
-    def test_standard_fallback_positions(self):
-        # case_l+case_w=61 > pallet_w=40 → standard fallback; ring=0 for all
+    def test_standard_fallback_no_positions(self):
+        # case_l+case_w=61 > min(pallet dims) → no spiral cases
         positions = self._pos(41, 20)
-        assert len(positions) > 0
-        assert all(p['ring'] == 0 for p in positions)
+        assert len(positions) == 0
