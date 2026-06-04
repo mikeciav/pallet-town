@@ -15,7 +15,6 @@ let bulkData    = [];
 let bulkResults = [];
 let lastResult  = null;
 let diagramView = 'ti';
-let resultUnit  = localStorage.getItem('result-unit') || 'imperial'; // 'imperial' | 'metric'
 let isAdmin     = false;
 let customRetailer = { max_height: 60, double_stack_allowed: false, max_pallets_per_floor: 26, no_pallet: false };
 
@@ -82,20 +81,12 @@ document.addEventListener('DOMContentLoaded', async () => {
   setupSidebarToggle();
   setupNav();
   setupAuth();
-  syncUnitToggleUI();
   await checkAuth();
   await loadRetailers();
   setupCalculator();
   setupBulk();
   setupRetailersTab();
 });
-
-// ── Unit toggle sync ─────────────────────────────────────────
-function syncUnitToggleUI() {
-  document.querySelectorAll('#unit-toggle .vt-btn').forEach(b =>
-    b.classList.toggle('active', b.dataset.unit === resultUnit)
-  );
-}
 
 // ── Sidebar collapse ─────────────────────────────────────────
 function setupSidebarToggle() {
@@ -305,19 +296,6 @@ function setupCalculator() {
       if (lastResult) drawDiagram(lastResult);
     });
   });
-
-  document.querySelectorAll('#unit-toggle .vt-btn').forEach(btn => {
-    btn.addEventListener('click', () => {
-      resultUnit = btn.dataset.unit;
-      localStorage.setItem('result-unit', resultUnit);
-      syncUnitToggleUI();
-      if (lastResult) {
-        updateDetailStrip(lastResult);
-        drawDiagram(lastResult);
-      }
-    });
-  });
-
   ['c-l', 'c-w', 'c-h'].forEach(id => {
     document.getElementById(id).addEventListener('keydown', e => {
       if (e.key === 'Enter') doCalculate();
