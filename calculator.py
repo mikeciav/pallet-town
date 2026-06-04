@@ -488,25 +488,24 @@ def generate_shoppable_v2_positions(
         if W < min_box - 1e-9 or H < min_box - 1e-9:
             break
 
-        # FRONT (going +x): regular w=case_w, h=case_l; corner w=case_l, h=case_w flush with right wall
+        # FRONT (going +x): regular w=case_w, h=case_l; corner w=case_l, h=case_w
         n_f = max(0, int((W - case_l) / case_w))
         for i in range(n_f):
             positions.append({
                 "x": round(bx0 + i * case_w, 6), "y": round(by0, 6),
                 "w": case_w, "h": case_l, "ring": ring, "side": "front",
             })
-        right_x = bx1 - case_l  # flush with right wall
         positions.append({  # corner → RIGHT
-            "x": round(right_x, 6), "y": round(by0, 6),
+            "x": round(bx0 + n_f * case_w, 6), "y": round(by0, 6),
             "w": case_l, "h": case_w, "ring": ring, "side": "front",
         })
 
-        # RIGHT (going +y): aligned with front corner at x=right_x; corner flush with back wall
+        # RIGHT (going +y): regular w=case_l, h=case_w; corner w=case_w, h=case_l
         right_y0 = by0 + case_w
         n_r = max(0, int((H - case_w - case_l) / case_w))
         for i in range(n_r):
             positions.append({
-                "x": round(right_x, 6), "y": round(right_y0 + i * case_w, 6),
+                "x": round(bx1 - case_l, 6), "y": round(right_y0 + i * case_w, 6),
                 "w": case_l, "h": case_w, "ring": ring, "side": "right",
             })
         positions.append({  # corner → BACK
@@ -514,7 +513,7 @@ def generate_shoppable_v2_positions(
             "w": case_w, "h": case_l, "ring": ring, "side": "right",
         })
 
-        # BACK (going -x): flush with back wall; corner flush with left wall
+        # BACK (going -x): regular w=case_w, h=case_l; corner w=case_l, h=case_w
         back_x1 = bx1 - case_w
         n_b = max(0, int((back_x1 - bx0 - case_l) / case_w))
         for i in range(n_b):
@@ -527,7 +526,7 @@ def generate_shoppable_v2_positions(
             "w": case_l, "h": case_w, "ring": ring, "side": "back",
         })
 
-        # LEFT (going -y): flush with left wall; no trailing corner
+        # LEFT (going -y): regular w=case_l, h=case_w; no corner
         left_y1 = by1 - case_w
         n_l = max(0, int((left_y1 - (by0 + case_l)) / case_w))
         for i in range(n_l):
