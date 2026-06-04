@@ -621,9 +621,9 @@ class TestShoppableV2:
     Corner-spiral algorithm: clockwise from front-left corner.
     Each side: n regular cases (case_w parallel, case_l deep) + corner case
     (case_l parallel, case_w deep). LEFT side has no trailing corner.
-    Cases on each new side align with the preceding corner, not the pallet wall.
+    Bounding box shrinks by case_l after each full loop.
 
-    10×5 case on 26×30 pallet:
+    10×5 case on 26×30 pallet (user's example):
       Loop 1: FRONT 3+corner, RIGHT 3+corner, BACK 2+corner, LEFT 3 = 14 cases
       Loop 2: W=6 < case_l+case_w=15 → stop. Total: 14.
 
@@ -691,23 +691,23 @@ class TestShoppableV2:
             assert p['h'] == pytest.approx(10.0)
 
     def test_10x5_front_corner(self):
-        # Corner case: case_l=10" wide, case_w=5" deep, flush with right pallet wall
+        # Corner case: case_l=10" wide, case_w=5" deep, at x=15
         pos = self._pos(10, 5, pl=30, pw=26)
         corner = [p for p in pos if p['side'] == 'front' and p['w'] == pytest.approx(10.0)]
         assert len(corner) == 1
-        assert corner[0]['x'] == pytest.approx(16.0)  # bx1 - case_l = 26 - 10 = 16
+        assert corner[0]['x'] == pytest.approx(15.0)
         assert corner[0]['y'] == pytest.approx(0.0)
         assert corner[0]['h'] == pytest.approx(5.0)
 
     def test_10x5_right_regular_cases(self):
-        # 3 regular right cases: start at y=case_w=5 (outer face of front row)
+        # 3 regular right cases: case_l=10" wide, case_w=5" tall, x=[16,26]
         pos = self._pos(10, 5, pl=30, pw=26)
         right_reg = [p for p in pos if p['side'] == 'right' and p['h'] == pytest.approx(5.0)]
         assert len(right_reg) == 3
         ys = sorted(p['y'] for p in right_reg)
         assert ys == pytest.approx([5.0, 10.0, 15.0])
         for p in right_reg:
-            assert p['x'] == pytest.approx(16.0)  # aligned with front corner
+            assert p['x'] == pytest.approx(16.0)
             assert p['w'] == pytest.approx(10.0)
 
     # ── generate_shoppable_v2_positions — 10×8 on 48×40 (GMA) ───
@@ -741,7 +741,7 @@ class TestShoppableV2:
         assert xs == pytest.approx([0.0, 8.0, 16.0])
 
     def test_10x8_ring1_left_cases(self):
-        # Ring 1 LEFT: 3 cases (w=10,h=8), flush with left pallet wall (x=0)
+        # Ring 1 LEFT: 3 cases (w=10,h=8), going down from y=32
         positions = self._pos(10, 8)
         left = [p for p in positions if p['ring'] == 1 and p['side'] == 'left']
         assert len(left) == 3
