@@ -155,27 +155,27 @@ def generate_shoppable_v2_positions(
     """
     positions: List[Dict] = []
 
-    # A ring requires case_l depth for the row + case_w for at least one regular case beside the corner.
-    min_ring_span = case_l + case_w
+    # Each spiral pass needs case_l depth for the row + case_w for at least one regular case beside the corner.
+    min_pass_span = case_l + case_w
 
-    # The bounding box shrinks inward by case_l on each side after every completed loop.
+    # The bounding box shrinks inward by case_l on each side after every completed spiral pass.
     left_x   = 0.0
     bottom_y = 0.0
     right_x  = float(pallet_w)
     top_y    = float(pallet_l)
 
     while True:
-        ring_width  = right_x - left_x   # x-span available for this loop
-        ring_height = top_y - bottom_y   # y-span available for this loop
+        span_x = right_x - left_x   # x-span available for this spiral pass
+        span_y = top_y - bottom_y   # y-span available for this spiral pass
 
-        # Stop when the remaining rectangle is too small for a complete loop on either axis.
-        if ring_width < min_ring_span - 1e-9 or ring_height < min_ring_span - 1e-9:
+        # Stop when the remaining rectangle is too small for a complete spiral pass on either axis.
+        if span_x < min_pass_span - 1e-9 or span_y < min_pass_span - 1e-9:
             break
 
         # ── FRONT side (travelling in the +x direction) ──────────────────────
         # Regular front cases stand case_l deep (into the pallet) and case_w wide (along the wall).
         # They pack from the left wall rightward, reserving space for one corner case at the end.
-        num_front_cases = max(0, int((ring_width - case_l) / case_w))
+        num_front_cases = max(0, int((span_x - case_l) / case_w))
         for i in range(num_front_cases):
             positions.append({
                 "x": round(left_x + i * case_w, 6),
@@ -196,7 +196,7 @@ def generate_shoppable_v2_positions(
         # Regular right cases stand case_l deep (into the pallet) and case_w tall (along the wall).
         # The column starts above the front corner and leaves room for one corner case at the top.
         right_col_start_y = bottom_y + case_w  # front corner occupies case_w in y
-        num_right_cases   = max(0, int((ring_height - case_w - case_l) / case_w))
+        num_right_cases   = max(0, int((span_y - case_w - case_l) / case_w))
         for i in range(num_right_cases):
             positions.append({
                 "x": round(right_x - case_l, 6),
