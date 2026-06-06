@@ -183,7 +183,7 @@ def generate_shoppable_v2_positions(
                 "w": case_w, "h": case_l, "side": "bottom",
             })
 
-        # Front corner case: rotated 90° so its case_l dimension runs along the x-axis,
+        # Bottom corner case: rotated 90° so its case_l dimension runs along the x-axis,
         # bridging the gap between the bottom row and the right column.
         bottom_corner_x = left_x + num_bottom_cases * case_w
         positions.append({
@@ -225,7 +225,7 @@ def generate_shoppable_v2_positions(
                 "w": case_w, "h": case_l, "side": "top",
             })
 
-        # Back corner case: rotated so its case_l dimension runs along the x-axis,
+        # Top corner case: rotated so its case_l dimension runs along the x-axis,
         # bridging the gap between the top row and the left column.
         top_corner_x = top_row_right_x - num_top_cases * case_w - case_l
         positions.append({

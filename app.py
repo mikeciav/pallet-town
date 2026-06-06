@@ -173,7 +173,7 @@ def api_retailers_delete(rid: int):
     return "", 204
 
 
-VALID_SIDES = {"front", "back", "left", "right"}
+VALID_SIDES = {"bottom", "top", "left", "right"}
 
 
 def _parse_shoppable_block(data: dict, retailer: dict):

@@ -419,7 +419,7 @@ VALID_DIMS = {"length": 10, "width": 8, "height": 6, "retailer_id": SAMS_ID}
 class TestShoppableAPI:
     def test_shoppable_rejected_for_non_club_store(self, client):
         body = {**VALID_DIMS, "retailer_id": AMAZON_ID,
-                "shoppable": {"sides": ["front", "back"]}}
+                "shoppable": {"sides": ["bottom", "top"]}}
         r = client.post('/api/calculate',
                         data=json.dumps(body),
                         content_type='application/json')
@@ -431,7 +431,7 @@ class TestShoppableAPI:
                 "retailer_id": "custom",
                 "max_height": 60, "double_stack_allowed": False,
                 "max_pallets_per_floor": 26, "no_pallet": False,
-                "shoppable": {"sides": ["front"]}}
+                "shoppable": {"sides": ["bottom"]}}
         r = client.post('/api/calculate',
                         data=json.dumps(body),
                         content_type='application/json')
@@ -446,7 +446,7 @@ class TestShoppableAPI:
         assert 'sides' in r.get_json()['error'].lower()
 
     def test_shoppable_rejected_with_invalid_side_name(self, client):
-        body = {**VALID_DIMS, "shoppable": {"sides": ["front", "diagonal"]}}
+        body = {**VALID_DIMS, "shoppable": {"sides": ["bottom", "diagonal"]}}
         r = client.post('/api/calculate',
                         data=json.dumps(body),
                         content_type='application/json')
@@ -455,7 +455,7 @@ class TestShoppableAPI:
     def test_shoppable_rejected_when_chimney_not_allowed_and_fill_off(self, client):
         # BJ's Wholesale has chimney_allowed=False; force_fill_on_failure=False is invalid
         body = {**VALID_DIMS, "retailer_id": BJS_ID,
-                "shoppable": {"sides": ["front"], "force_fill_on_failure": False}}
+                "shoppable": {"sides": ["bottom"], "force_fill_on_failure": False}}
         r = client.post('/api/calculate',
                         data=json.dumps(body),
                         content_type='application/json')
@@ -463,7 +463,7 @@ class TestShoppableAPI:
         assert 'chimney' in r.get_json()['error'].lower()
 
     def test_shoppable_accepted_for_club_store(self, client):
-        body = {**VALID_DIMS, "shoppable": {"sides": ["front", "left", "right"]}}
+        body = {**VALID_DIMS, "shoppable": {"sides": ["bottom", "left", "right"]}}
         r = client.post('/api/calculate',
                         data=json.dumps(body),
                         content_type='application/json')
@@ -473,7 +473,7 @@ class TestShoppableAPI:
 
     def test_shoppable_response_shape(self, client):
         body = {**VALID_DIMS,
-                "shoppable": {"sides": ["front", "left", "right"],
+                "shoppable": {"sides": ["bottom", "left", "right"],
                               "max_empty_pct": 0.15,
                               "rounding_gaps": True}}
         r = client.post('/api/calculate',
@@ -490,7 +490,7 @@ class TestShoppableAPI:
 
     def test_shoppable_ti_lte_standard_ti(self, client):
         body = {**VALID_DIMS,
-                "shoppable": {"sides": ["front", "back", "left", "right"]}}
+                "shoppable": {"sides": ["bottom", "top", "left", "right"]}}
         r = client.post('/api/calculate',
                         data=json.dumps(body),
                         content_type='application/json')
