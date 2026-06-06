@@ -319,12 +319,12 @@ class TestShoppableV2:
 
     10×5 case on 26×30 pallet (user's example):
       Loop 1: BOTTOM 3+corner, RIGHT 3+corner, TOP 2+corner, LEFT 3 = 14 cases
-      Loop 2: W=6 < case_l+case_w=15 → sbottom. Total: 14.
+      Loop 2: W=6 < case_l+case_w=15 → stop. Total: 14.
 
     10×8 case on 48×40 pallet (GMA):
       Loop 1: BOTTOM 3+corner, RIGHT 3+corner, TOP 2+corner, LEFT 3 = 14 cases
       Loop 2: BOTTOM 1+corner, RIGHT 1+corner, TOP 0+corner, LEFT 1 = 6 cases
-      Loop 3: W=0 → sbottom. Total: 20.
+      Loop 3: W=0 → stop. Total: 20.
     """
     ALL4 = ['top', 'bottom', 'left', 'right']
 
@@ -420,7 +420,7 @@ class TestShoppableV2:
                         f"{cl}×{cw} cases {i} and {j} overlap: {a} vs {b}"
 
     def test_10x8_top_regular(self):
-        # BOTTOM: 3 regular cases (w=8,h=10) at y=0 + 1 corner (w=10,h=8)
+        # TOP: 3 regular cases (w=8,h=10) at y=0 + 1 corner (w=10,h=8)
         positions = self._pos(10, 8)
         top = [p for p in positions if p['side'] == 'top']
         regs = [p for p in top if p['w'] == pytest.approx(8.0) and p['y'] == pytest.approx(0.0)]
