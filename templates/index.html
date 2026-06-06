@@ -424,7 +424,13 @@ ITEM-002,10,10,8,12.0,1</code>
         <div class="panel bulk-results" id="bulk-results" style="display:none">
           <div class="panel-header">
             <span class="panel-label">RESULTS</span>
-            <button class="ghost-btn" id="export-btn">EXPORT CSV</button>
+            <div style="margin-left:auto;display:flex;align-items:center;gap:8px">
+              <div class="view-toggle" id="bulk-unit-toggle">
+                <button class="vt-btn active" data-unit="imperial">in / lbs</button>
+                <button class="vt-btn" data-unit="metric">cm / kg</button>
+              </div>
+              <button class="ghost-btn" id="export-btn">EXPORT CSV</button>
+            </div>
           </div>
           <div class="table-scroll">
             <table class="data-table" id="data-table">
