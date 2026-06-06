@@ -382,11 +382,11 @@ function updateClubPanel() {
 
   if (isClub && r) {
     const DEFAULTS = {
-      "Sam's Club": ['front', 'left', 'right'],
-      "Costco":     ['front', 'left', 'right'],
-      "BJ's Wholesale": ['front', 'back'],
+      "Sam's Club": ['bottom', 'left', 'right'],
+      "Costco":     ['bottom', 'left', 'right'],
+      "BJ's Wholesale": ['bottom', 'top'],
     };
-    const defaultSides = DEFAULTS[r.name] || ['front', 'left', 'right'];
+    const defaultSides = DEFAULTS[r.name] || ['bottom', 'left', 'right'];
     document.querySelectorAll('#side-selector .side-btn').forEach(btn => {
       btn.classList.toggle('active', defaultSides.includes(btn.dataset.side));
     });
@@ -854,8 +854,8 @@ function drawShoppableView(d, box) {
   const ox = (VW - dW) / 2;
   const oy = PAD + ((VH - PAD * 2 - LEGEND_H) - dH) / 2;
 
-  const SIDE_STROKE = { front: '#a78bfa', right: '#67e8f9', back: '#86efac', left: '#fbbf24' };
-  const SIDE_FILL   = { front: 'rgba(167,139,250,.20)', right: 'rgba(103,232,249,.20)', back: 'rgba(134,239,172,.20)', left: 'rgba(251,191,36,.20)' };
+  const SIDE_STROKE = { bottom: '#a78bfa', right: '#67e8f9', top: '#86efac', left: '#fbbf24' };
+  const SIDE_FILL   = { bottom: 'rgba(167,139,250,.20)', right: 'rgba(103,232,249,.20)', top: 'rgba(134,239,172,.20)', left: 'rgba(251,191,36,.20)' };
 
   const stroke = (side) => SIDE_STROKE[side] || '#a78bfa';
   const fill   = (side) => SIDE_FILL[side]   || 'rgba(167,139,250,.20)';

@@ -326,7 +326,7 @@ class TestShoppableV2:
       Loop 2: FRONT 1+corner, RIGHT 1+corner, BACK 0+corner, LEFT 1 = 6 cases
       Loop 3: W=0 → stop. Total: 20.
     """
-    ALL4 = ['front', 'back', 'left', 'right']
+    ALL4 = ['bottom', 'top', 'left', 'right']
 
     def _v2(self, cl, cw, pl=48, pw=40, sides=None):
         from calculator import find_shoppable_v2
@@ -371,7 +371,7 @@ class TestShoppableV2:
     def test_10x5_front_regular_cases(self):
         # 3 regular front cases: case_w=5" wide, case_l=10" deep, y=0
         pos = self._pos(10, 5, pl=30, pw=26)
-        front_reg = [p for p in pos if p['side'] == 'front' and p['w'] == pytest.approx(5.0)]
+        front_reg = [p for p in pos if p['side'] == 'bottom' and p['w'] == pytest.approx(5.0)]
         assert len(front_reg) == 3
         xs = sorted(p['x'] for p in front_reg)
         assert xs == pytest.approx([0.0, 5.0, 10.0])
@@ -382,7 +382,7 @@ class TestShoppableV2:
     def test_10x5_front_corner(self):
         # Corner case: case_l=10" wide, case_w=5" deep, at x=15
         pos = self._pos(10, 5, pl=30, pw=26)
-        corner = [p for p in pos if p['side'] == 'front' and p['w'] == pytest.approx(10.0)]
+        corner = [p for p in pos if p['side'] == 'bottom' and p['w'] == pytest.approx(10.0)]
         assert len(corner) == 1
         assert corner[0]['x'] == pytest.approx(15.0)
         assert corner[0]['y'] == pytest.approx(0.0)
@@ -422,7 +422,7 @@ class TestShoppableV2:
     def test_10x8_front_regular(self):
         # FRONT: 3 regular cases (w=8,h=10) at y=0 + 1 corner (w=10,h=8)
         positions = self._pos(10, 8)
-        front = [p for p in positions if p['side'] == 'front']
+        front = [p for p in positions if p['side'] == 'bottom']
         regs = [p for p in front if p['w'] == pytest.approx(8.0) and p['y'] == pytest.approx(0.0)]
         assert len(regs) == 3
         xs = sorted(p['x'] for p in regs)
