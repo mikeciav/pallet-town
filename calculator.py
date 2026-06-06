@@ -100,325 +100,6 @@ def _make_config(
     }
 
 
-def place_ring(
-    case_l: float,
-    case_w: float,
-    rect_l: float,
-    rect_w: float,
-    sides: List[str],
-    rounding_gaps: bool,
-) -> Optional[Dict]:
-    sides_set = set(sides)
-
-    fb_count = ("front" in sides_set) + ("back" in sides_set)
-    lr_count = ("left" in sides_set) + ("right" in sides_set)
-    # case_l is the labeled face; strip depth = case_w so labeled face shows outward
-    inner_l = rect_l - case_w * fb_count
-    inner_w = rect_w - case_w * lr_count
-
-    if inner_l < -1e-9 or inner_w < -1e-9:
-        return None
-
-    left_right_span = rect_l
-    if "front" in sides_set:
-        left_right_span -= case_w
-    if "back" in sides_set:
-        left_right_span -= case_w
-
-    counts: Dict[str, int] = {}
-
-    for side in ("front", "back"):
-        if side not in sides_set:
-            continue
-        n = int(rect_w / case_l)  # labeled face spans W
-        if n == 0:
-            return None
-        if not rounding_gaps and rect_w % case_l > 1e-9:
-            return None
-        counts[side] = n
-
-    for side in ("left", "right"):
-        if side not in sides_set:
-            continue
-        if left_right_span < case_l - 1e-9:
-            return None
-        n = int(left_right_span / case_l)  # labeled face spans L
-        if n == 0:
-            return None
-        if not rounding_gaps and left_right_span % case_l > 1e-9:
-            return None
-        counts[side] = n
-
-    return {
-        "counts": counts,
-        "total": sum(counts.values()),
-        "inner_l": max(0.0, inner_l),
-        "inner_w": max(0.0, inner_w),
-    }
-
-
-def _place_partial_ring(
-    case_l: float,
-    case_w: float,
-    rect_l: float,
-    rect_w: float,
-    sides: List[str],
-    rounding_gaps: bool,
-) -> int:
-    """
-    Place cases on whichever selected sides fit ≥1 case independently.
-    Used when force_fill_on_failure=False and a full ring is no longer possible.
-    Returns total cases placed across all feasible sides.
-    """
-    sides_set = set(sides)
-    total = 0
-
-    left_right_span = rect_l
-    if "front" in sides_set:
-        left_right_span -= case_w
-    if "back" in sides_set:
-        left_right_span -= case_w
-
-    for side in ("front", "back"):
-        if side not in sides_set:
-            continue
-        if rect_l < case_w - 1e-9:  # need case_w depth
-            continue
-        n = int(rect_w / case_l)  # labeled face spans W
-        if n > 0 and (rounding_gaps or rect_w % case_l < 1e-9):
-            total += n
-
-    if left_right_span >= case_l - 1e-9:
-        for side in ("left", "right"):
-            if side not in sides_set:
-                continue
-            n = int(left_right_span / case_l)  # labeled face spans L
-            if n > 0 and (rounding_gaps or left_right_span % case_l < 1e-9):
-                total += n
-
-    return total
-
-
-def find_shoppable_arrangement(
-    case_l: float,
-    case_w: float,
-    pallet_l: float,
-    pallet_w: float,
-    sides: List[str],
-    max_empty_pct: float = 0.15,
-    rounding_gaps: bool = True,
-    min_footprint: Tuple[float, float] = (37.0, 45.0),
-    force_fill_on_failure: bool = True,
-) -> Dict:
-    """
-    Place concentric rings then fill or leave chimney per configuration.
-
-    Returns:
-        ti           — total cases placed (rings + optional fill)
-        mode         — 'pure_facing' | 'filled' | 'partial' | 'error'
-        void_pct     — fraction of pallet area not covered by cases
-        ring_count   — number of complete rings placed
-        error        — human-readable message when mode == 'error', else None
-    """
-    pallet_area = pallet_l * pallet_w
-    case_area = case_l * case_w
-    rect_l, rect_w = pallet_l, pallet_w
-    ring_ti = 0
-    ring_count = 0
-
-    while True:
-        ring = place_ring(case_l, case_w, rect_l, rect_w, sides, rounding_gaps)
-        if ring is None:
-            break
-        ring_ti += ring["total"]
-        ring_count += 1
-        rect_l = ring["inner_l"]
-        rect_w = ring["inner_w"]
-
-    if not force_fill_on_failure:
-        partial_ti = _place_partial_ring(case_l, case_w, rect_l, rect_w, sides, rounding_gaps)
-        total_ti = ring_ti + partial_ti
-        void_pct = max(0.0, (pallet_area - total_ti * case_area) / pallet_area)
-        return {
-            "ti": total_ti,
-            "mode": "partial",
-            "void_pct": round(void_pct, 4),
-            "ring_count": ring_count,
-            "error": None,
-        }
-
-    if ring_count == 0:
-        # Cases too large for any shoppable ring: fall back to standard packing
-        std_ti, _ = find_optimal_arrangement(case_l, case_w, pallet_l, pallet_w)
-        void_pct = max(0.0, (pallet_area - std_ti * case_area) / pallet_area)
-        return {
-            "ti": std_ti,
-            "mode": "standard",
-            "void_pct": round(void_pct, 4),
-            "ring_count": 0,
-            "error": None,
-        }
-
-    void_after_rings = max(0.0, (pallet_area - ring_ti * case_area) / pallet_area)
-
-    if void_after_rings <= max_empty_pct:
-        return {
-            "ti": ring_ti,
-            "mode": "pure_facing",
-            "void_pct": round(void_after_rings, 4),
-            "ring_count": ring_count,
-            "error": None,
-        }
-
-    # Fill the interior to minimize void; always return the best result we can achieve
-    fill_ti = 0
-    min_dim = min(case_l, case_w)
-    if rect_l >= min_dim - 1e-9 and rect_w >= min_dim - 1e-9:
-        fill_ti, _ = find_optimal_arrangement(case_l, case_w, rect_l, rect_w)
-
-    total_ti = ring_ti + fill_ti
-    void_pct = max(0.0, (pallet_area - total_ti * case_area) / pallet_area)
-
-    return {
-        "ti": total_ti,
-        "mode": "filled",
-        "void_pct": round(void_pct, 4),
-        "ring_count": ring_count,
-        "error": None,
-    }
-
-
-def generate_ring_positions(
-    case_l: float,
-    case_w: float,
-    pallet_l: float,
-    pallet_w: float,
-    sides: List[str],
-    max_empty_pct: float = 0.15,
-    rounding_gaps: bool = True,
-    force_fill_on_failure: bool = True,
-) -> List[Dict]:
-    """
-    Return per-case positions for shoppable ring visualization.
-
-    Each entry: {x, y, w, h, ring, side}
-    ring=1,2,... for concentric rings; ring=0 for force-fill cases.
-    side='front'|'back'|'left'|'right'|'fill'.
-
-    Mirrors find_shoppable_arrangement() exactly so the diagram matches
-    the reported Ti and mode.
-    """
-    sides_set = set(sides)
-    positions: List[Dict] = []
-    rect_l, rect_w = pallet_l, pallet_w
-    ox, oy = 0.0, 0.0
-    ring_ti = 0
-    ring_num = 0
-    case_area = case_l * case_w
-    pallet_area = pallet_l * pallet_w
-
-    while True:
-        ring = place_ring(case_l, case_w, rect_l, rect_w, sides, rounding_gaps)
-        if ring is None:
-            break
-        ring_num += 1
-        # case_w is the strip depth; y_offset pushes left/right past the front strip
-        y_offset = case_w if "front" in sides_set else 0.0
-        left_right_span = rect_l
-        if "front" in sides_set:
-            left_right_span -= case_w
-        if "back" in sides_set:
-            left_right_span -= case_w
-
-        # front/back: labeled face (case_l) spans W; case_w is depth into L
-        if "front" in sides_set:
-            n = ring["counts"]["front"]
-            gap = rect_w - n * case_l
-            k = n // 2
-            xs = ([ox + i * case_l for i in range(k)] +
-                  [ox + k * case_l + gap + i * case_l for i in range(n - k)])
-            for x in xs:
-                positions.append({
-                    "x": round(x, 6), "y": round(oy, 6),
-                    "w": case_l, "h": case_w, "ring": ring_num, "side": "front",
-                })
-        if "back" in sides_set:
-            n = ring["counts"]["back"]
-            gap = rect_w - n * case_l
-            k = n // 2
-            xs = ([ox + i * case_l for i in range(k)] +
-                  [ox + k * case_l + gap + i * case_l for i in range(n - k)])
-            for x in xs:
-                positions.append({
-                    "x": round(x, 6),
-                    "y": round(oy + rect_l - case_w, 6),
-                    "w": case_l, "h": case_w, "ring": ring_num, "side": "back",
-                })
-        # left/right: labeled face (case_l) spans L; case_w is depth into W
-        if "left" in sides_set:
-            n = ring["counts"]["left"]
-            gap = left_right_span - n * case_l
-            k = n // 2
-            ys = ([oy + y_offset + i * case_l for i in range(k)] +
-                  [oy + y_offset + k * case_l + gap + i * case_l for i in range(n - k)])
-            for y in ys:
-                positions.append({
-                    "x": round(ox, 6),
-                    "y": round(y, 6),
-                    "w": case_w, "h": case_l, "ring": ring_num, "side": "left",
-                })
-        if "right" in sides_set:
-            n = ring["counts"]["right"]
-            gap = left_right_span - n * case_l
-            k = n // 2
-            ys = ([oy + y_offset + i * case_l for i in range(k)] +
-                  [oy + y_offset + k * case_l + gap + i * case_l for i in range(n - k)])
-            for y in ys:
-                positions.append({
-                    "x": round(ox + rect_w - case_w, 6),
-                    "y": round(y, 6),
-                    "w": case_w, "h": case_l, "ring": ring_num, "side": "right",
-                })
-
-        ring_ti += ring["total"]
-        if "left" in sides_set:
-            ox += case_w  # strip depth = case_w
-        if "front" in sides_set:
-            oy += case_w  # strip depth = case_w
-        rect_l = ring["inner_l"]
-        rect_w = ring["inner_w"]
-
-    if force_fill_on_failure:
-        if ring_num == 0:
-            # No rings fit: fall back to standard arrangement.
-            # Swap pallet_w/pallet_l so generate_positions x→W, y→L (matches shoppable axes).
-            _, std_config = find_optimal_arrangement(case_l, case_w, pallet_w, pallet_l)
-            for pos in generate_positions(std_config):
-                positions.append({
-                    "x": round(pos["x"], 6),
-                    "y": round(pos["y"], 6),
-                    "w": pos["w"], "h": pos["h"],
-                    "ring": 0, "side": "fill",
-                })
-        else:
-            # Fill the interior when rings leave too much void
-            void_after_rings = max(0.0, (pallet_area - ring_ti * case_area) / pallet_area)
-            min_dim = min(case_l, case_w)
-            if (void_after_rings > max_empty_pct
-                    and rect_l >= min_dim - 1e-9
-                    and rect_w >= min_dim - 1e-9):
-                _, fill_config = find_optimal_arrangement(case_l, case_w, rect_w, rect_l)
-                if fill_config:
-                    for pos in generate_positions(fill_config):
-                        positions.append({
-                            "x": round(ox + pos["x"], 6),
-                            "y": round(oy + pos["y"], 6),
-                            "w": pos["w"], "h": pos["h"],
-                            "ring": 0, "side": "fill",
-                        })
-
-    return positions
-
 
 def find_shoppable_v2(
     case_l: float,
@@ -437,18 +118,15 @@ def find_shoppable_v2(
     if pallet_w < min_box - 1e-9 or pallet_l < min_box - 1e-9:
         std_ti, _ = find_optimal_arrangement(case_l, case_w, pallet_l, pallet_w)
         void_pct = max(0.0, (pallet_area - std_ti * case_area) / pallet_area)
-        return {"ti": std_ti, "mode": "standard", "void_pct": round(void_pct, 4),
-                "ring_count": 0, "error": None}
+        return {"ti": std_ti, "mode": "standard", "void_pct": round(void_pct, 4), "error": None}
 
     positions = generate_shoppable_v2_positions(case_l, case_w, pallet_l, pallet_w, sides)
     total_ti = len(positions)
-    ring_count = max((p["ring"] for p in positions if p["ring"] > 0), default=0)
     void_pct = max(0.0, (pallet_area - total_ti * case_area) / pallet_area)
     return {
         "ti": total_ti,
         "mode": "shoppable_spiral",
         "void_pct": round(void_pct, 4),
-        "ring_count": ring_count,
         "error": None,
     }
 
@@ -480,18 +158,17 @@ def generate_shoppable_v2_positions(
     # A ring requires case_l depth for the row + case_w for at least one regular case beside the corner.
     min_ring_span = case_l + case_w
 
-    # The bounding box shrinks inward by case_l on each side after every completed ring.
+    # The bounding box shrinks inward by case_l on each side after every completed loop.
     left_x   = 0.0
     bottom_y = 0.0
     right_x  = float(pallet_w)
     top_y    = float(pallet_l)
-    ring = 1
 
     while True:
-        ring_width  = right_x - left_x   # x-span available for this ring
-        ring_height = top_y - bottom_y   # y-span available for this ring
+        ring_width  = right_x - left_x   # x-span available for this loop
+        ring_height = top_y - bottom_y   # y-span available for this loop
 
-        # Stop when the remaining rectangle is too small for a complete ring on either axis.
+        # Stop when the remaining rectangle is too small for a complete loop on either axis.
         if ring_width < min_ring_span - 1e-9 or ring_height < min_ring_span - 1e-9:
             break
 
@@ -503,7 +180,7 @@ def generate_shoppable_v2_positions(
             positions.append({
                 "x": round(left_x + i * case_w, 6),
                 "y": round(bottom_y, 6),
-                "w": case_w, "h": case_l, "ring": ring, "side": "front",
+                "w": case_w, "h": case_l, "side": "front",
             })
 
         # Front corner case: rotated 90° so its case_l dimension runs along the x-axis,
@@ -512,7 +189,7 @@ def generate_shoppable_v2_positions(
         positions.append({
             "x": round(front_corner_x, 6),
             "y": round(bottom_y, 6),
-            "w": case_l, "h": case_w, "ring": ring, "side": "front",
+            "w": case_l, "h": case_w, "side": "front",
         })
 
         # ── RIGHT side (travelling in the +y direction) ──────────────────────
@@ -524,7 +201,7 @@ def generate_shoppable_v2_positions(
             positions.append({
                 "x": round(right_x - case_l, 6),
                 "y": round(right_col_start_y + i * case_w, 6),
-                "w": case_l, "h": case_w, "ring": ring, "side": "right",
+                "w": case_l, "h": case_w, "side": "right",
             })
 
         # Right corner case: rotated so its case_l dimension runs along the y-axis,
@@ -533,7 +210,7 @@ def generate_shoppable_v2_positions(
         positions.append({
             "x": round(right_x - case_w, 6),
             "y": round(right_corner_y, 6),
-            "w": case_w, "h": case_l, "ring": ring, "side": "right",
+            "w": case_w, "h": case_l, "side": "right",
         })
 
         # ── BACK side (travelling in the -x direction) ───────────────────────
@@ -545,7 +222,7 @@ def generate_shoppable_v2_positions(
             positions.append({
                 "x": round(back_row_right_x - (i + 1) * case_w, 6),
                 "y": round(top_y - case_l, 6),
-                "w": case_w, "h": case_l, "ring": ring, "side": "back",
+                "w": case_w, "h": case_l, "side": "back",
             })
 
         # Back corner case: rotated so its case_l dimension runs along the x-axis,
@@ -554,23 +231,22 @@ def generate_shoppable_v2_positions(
         positions.append({
             "x": round(back_corner_x, 6),
             "y": round(top_y - case_w, 6),
-            "w": case_l, "h": case_w, "ring": ring, "side": "back",
+            "w": case_l, "h": case_w, "side": "back",
         })
 
         # ── LEFT side (travelling in the -y direction) ───────────────────────
         # Regular left cases stand case_l deep and case_w tall, packed top-to-bottom.
-        # No trailing corner — the left side terminates where the next ring's front row begins.
+        # No trailing corner — the left side terminates where the next loop's front row begins.
         left_col_top_y = top_y - case_w  # back corner occupies case_w in y
         num_left_cases = max(0, int((left_col_top_y - (bottom_y + case_l)) / case_w))
         for i in range(num_left_cases):
             positions.append({
                 "x": round(left_x, 6),
                 "y": round(left_col_top_y - (i + 1) * case_w, 6),
-                "w": case_l, "h": case_w, "ring": ring, "side": "left",
+                "w": case_l, "h": case_w, "side": "left",
             })
 
-        # Shrink the bounding box inward by case_l on all four sides for the next ring.
-        ring += 1
+        # Shrink the bounding box inward by case_l on all four sides for the next loop.
         left_x   += case_l
         bottom_y += case_l
         right_x  -= case_l
