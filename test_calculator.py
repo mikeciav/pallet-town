@@ -312,18 +312,18 @@ class TestShoppableV2:
     """
     Tests for find_shoppable_v2 and generate_shoppable_v2_positions.
 
-    Corner-spiral algorithm: clockwise from front-left corner.
+    Corner-spiral algorithm: clockwise from bottom-left corner.
     Each side: n regular cases (case_w parallel, case_l deep) + corner case
     (case_l parallel, case_w deep). LEFT side has no trailing corner.
     Bounding box shrinks by case_l after each full loop.
 
     10×5 case on 26×30 pallet (user's example):
-      Loop 1: FRONT 3+corner, RIGHT 3+corner, BACK 2+corner, LEFT 3 = 14 cases
+      Loop 1: BOTTOM 3+corner, RIGHT 3+corner, TOP 2+corner, LEFT 3 = 14 cases
       Loop 2: W=6 < case_l+case_w=15 → stop. Total: 14.
 
     10×8 case on 48×40 pallet (GMA):
-      Loop 1: FRONT 3+corner, RIGHT 3+corner, BACK 2+corner, LEFT 3 = 14 cases
-      Loop 2: FRONT 1+corner, RIGHT 1+corner, BACK 0+corner, LEFT 1 = 6 cases
+      Loop 1: BOTTOM 3+corner, RIGHT 3+corner, TOP 2+corner, LEFT 3 = 14 cases
+      Loop 2: BOTTOM 1+corner, RIGHT 1+corner, TOP 0+corner, LEFT 1 = 6 cases
       Loop 3: W=0 → stop. Total: 20.
     """
     ALL4 = ['bottom', 'top', 'left', 'right']
@@ -368,18 +368,18 @@ class TestShoppableV2:
         pos = self._pos(10, 5, pl=30, pw=26)
         assert len(pos) == 14
 
-    def test_10x5_front_regular_cases(self):
-        # 3 regular front cases: case_w=5" wide, case_l=10" deep, y=0
+    def test_10x5_bottom_regular_cases(self):
+        # 3 regular bottom cases: case_w=5" wide, case_l=10" deep, y=0
         pos = self._pos(10, 5, pl=30, pw=26)
-        front_reg = [p for p in pos if p['side'] == 'bottom' and p['w'] == pytest.approx(5.0)]
-        assert len(front_reg) == 3
-        xs = sorted(p['x'] for p in front_reg)
+        bottom_reg = [p for p in pos if p['side'] == 'bottom' and p['w'] == pytest.approx(5.0)]
+        assert len(bottom_reg) == 3
+        xs = sorted(p['x'] for p in bottom_reg)
         assert xs == pytest.approx([0.0, 5.0, 10.0])
-        for p in front_reg:
+        for p in bottom_reg:
             assert p['y'] == pytest.approx(0.0)
             assert p['h'] == pytest.approx(10.0)
 
-    def test_10x5_front_corner(self):
+    def test_10x5_bottom_corner(self):
         # Corner case: case_l=10" wide, case_w=5" deep, at x=15
         pos = self._pos(10, 5, pl=30, pw=26)
         corner = [p for p in pos if p['side'] == 'bottom' and p['w'] == pytest.approx(10.0)]
@@ -419,11 +419,11 @@ class TestShoppableV2:
                     assert not self._overlaps(a, b), \
                         f"{cl}×{cw} cases {i} and {j} overlap: {a} vs {b}"
 
-    def test_10x8_front_regular(self):
-        # FRONT: 3 regular cases (w=8,h=10) at y=0 + 1 corner (w=10,h=8)
+    def test_10x8_bottom_regular(self):
+        # BOTTOM: 3 regular cases (w=8,h=10) at y=0 + 1 corner (w=10,h=8)
         positions = self._pos(10, 8)
-        front = [p for p in positions if p['side'] == 'bottom']
-        regs = [p for p in front if p['w'] == pytest.approx(8.0) and p['y'] == pytest.approx(0.0)]
+        bottom = [p for p in positions if p['side'] == 'bottom']
+        regs = [p for p in bottom if p['w'] == pytest.approx(8.0) and p['y'] == pytest.approx(0.0)]
         assert len(regs) == 3
         xs = sorted(p['x'] for p in regs)
         assert xs == pytest.approx([0.0, 8.0, 16.0])
