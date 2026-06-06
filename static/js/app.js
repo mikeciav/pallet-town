@@ -297,13 +297,12 @@ function setupCalculator() {
   document.querySelectorAll('#unit-toggle .vt-btn').forEach(btn => {
     btn.addEventListener('click', () => {
       resultUnit = btn.dataset.unit;
-      document.querySelectorAll('#unit-toggle .vt-btn').forEach(b =>
-        b.classList.toggle('active', b.dataset.unit === resultUnit)
-      );
+      syncUnitToggleUI();
       if (lastResult) {
         updateDetailStrip(lastResult);
         drawDiagram(lastResult);
       }
+      if (bulkResults.length) renderBulkTable(bulkResults);
     });
   });
   ['c-l', 'c-w', 'c-h'].forEach(id => {
@@ -798,6 +797,18 @@ function setupBulk() {
     if (e.target === e.currentTarget) closeBulkDiagram();
   });
 
+  document.querySelectorAll('#bulk-unit-toggle .vt-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      resultUnit = btn.dataset.unit;
+      syncUnitToggleUI();
+      if (bulkResults.length) renderBulkTable(bulkResults);
+      if (lastResult) {
+        updateDetailStrip(lastResult);
+        drawDiagram(lastResult);
+      }
+    });
+  });
+
   document.getElementById('dl-template').addEventListener('click', e => {
     e.preventDefault();
     const csv = 'sku,length,width,height,case_weight,case_pack_qty\nITEM-001,12,8,6,18.5,4\nITEM-002,10,10,8,12.0,1\nITEM-003,14,6,5,9.75,2\n';
@@ -906,17 +917,17 @@ function renderBulkTable(rows) {
     const cls = e >= 80 ? 'hi' : e >= 60 ? 'mid' : 'lo';
     return `<tr>
       <td>${esc(r.sku)}</td>
-      <td>${r.length}" × ${r.width}" × ${r.height}"</td>
-      <td>${formatWeight(r.case_weight)}</td>
+      <td>${fmtResultLen(r.length)} × ${fmtResultLen(r.width)} × ${fmtResultLen(r.height)}</td>
+      <td>${fmtResultWt(r.case_weight)}</td>
       <td>${r.case_pack_qty ?? '—'}</td>
       <td class="td-ti">${r.ti}</td>
       <td class="td-hi">${r.hi}</td>
       <td class="td-total">${r.total}</td>
       <td>${r.case_pack_qty != null ? r.case_pack_qty * r.total : '—'}</td>
-      <td>${formatWeight(r.pallet_weight)}</td>
+      <td>${fmtResultWt(r.pallet_weight)}</td>
       <td class="td-tl">${r.truckload_qty != null ? r.truckload_qty.toLocaleString() : '—'}</td>
-      <td>${formatWeight(r.truckload_weight)}</td>
-      <td>${r.pod_length}" × ${r.pod_width}" × ${r.pod_height}"</td>
+      <td>${fmtResultWt(r.truckload_weight)}</td>
+      <td>${fmtResultLen(r.pod_length)} × ${fmtResultLen(r.pod_width)} × ${fmtResultLen(r.pod_height)}</td>
       <td><span class="eff-badge ${cls}">${e}%</span></td>
       <td><button class="view-btn" data-idx="${i}">VIEW</button></td>
     </tr>`;
@@ -1087,6 +1098,14 @@ function pct(fraction) {
 function formatWeight(lbs) {
   if (!lbs) return '—';
   return lbs.toLocaleString(undefined, { maximumFractionDigits: 0 }) + ' lbs';
+}
+
+function syncUnitToggleUI() {
+  ['#unit-toggle .vt-btn', '#bulk-unit-toggle .vt-btn'].forEach(sel => {
+    document.querySelectorAll(sel).forEach(b =>
+      b.classList.toggle('active', b.dataset.unit === resultUnit)
+    );
+  });
 }
 
 function fmtResultLen(inches) {
