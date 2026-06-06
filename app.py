@@ -32,7 +32,7 @@ PALLET_W = 40.0
 PALLET_H = 5.5
 
 # Feature flags
-SHOW_DIAGRAM = True   # diagram panel (Ti bottom-down view)
+SHOW_DIAGRAM = True   # diagram panel (Ti top-down view)
 SHOW_HI_VIEW = False  # Hi isometric toggle button inside the diagram panel
 SHOW_DEMO_DEFAULTS = os.environ.get("SHOW_DEMO_DEFAULTS", "false").lower() == "true"
 

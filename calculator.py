@@ -168,11 +168,11 @@ def generate_shoppable_v2_positions(
         span_x = right_x - left_x   # x-span available for this spiral pass
         span_y = bottom_y - top_y   # y-span available for this spiral pass
 
-        # Sbottom when the remaining rectangle is too small for a complete spiral pass on either axis.
+        # Stop when the remaining rectangle is too small for a complete spiral pass on either axis.
         if span_x < min_pass_span - 1e-9 or span_y < min_pass_span - 1e-9:
             break
 
-        # ── BOTTOM side (travelling in the +x direction) ──────────────────────
+        # ── TOP side (travelling in the +x direction) ──────────────────────
         # Regular top cases stand case_l deep (into the pallet) and case_w wide (along the wall).
         # They pack from the left wall rightward, reserving space for one corner case at the end.
         num_top_cases = max(0, int((span_x - case_l) / case_w))
@@ -183,7 +183,7 @@ def generate_shoppable_v2_positions(
                 "w": case_w, "h": case_l, "side": "top",
             })
 
-        # Bottom corner case: rotated 90° so its case_l dimension runs along the x-axis,
+        # Top corner case: rotated 90° so its case_l dimension runs along the x-axis,
         # bridging the gap between the top row and the right column.
         top_corner_x = left_x + num_top_cases * case_w
         positions.append({
@@ -213,7 +213,7 @@ def generate_shoppable_v2_positions(
             "w": case_w, "h": case_l, "side": "right",
         })
 
-        # ── TOP side (travelling in the -x direction) ───────────────────────
+        # ── BOTTOM side (travelling in the -x direction) ───────────────────────
         # Regular bottom cases stand case_l deep and case_w wide, packed right-to-left.
         # The row's right edge is the inner face of the right corner (right_x - case_w).
         bottom_row_right_x  = right_x - case_w
@@ -225,7 +225,7 @@ def generate_shoppable_v2_positions(
                 "w": case_w, "h": case_l, "side": "bottom",
             })
 
-        # Top corner case: rotated so its case_l dimension runs along the x-axis,
+        # Bottom corner case: rotated so its case_l dimension runs along the x-axis,
         # bridging the gap between the bottom row and the left column.
         bottom_corner_x = bottom_row_right_x - num_bottom_cases * case_w - case_l
         positions.append({
