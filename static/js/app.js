@@ -382,11 +382,11 @@ function updateClubPanel() {
 
   if (isClub && r) {
     const DEFAULTS = {
-      "Sam's Club": ['bottom', 'left', 'right'],
-      "Costco":     ['bottom', 'left', 'right'],
-      "BJ's Wholesale": ['bottom', 'top'],
+      "Sam's Club": ['top', 'left', 'right'],
+      "Costco":     ['top', 'left', 'right'],
+      "BJ's Wholesale": ['top', 'bottom'],
     };
-    const defaultSides = DEFAULTS[r.name] || ['bottom', 'left', 'right'];
+    const defaultSides = DEFAULTS[r.name] || ['top', 'left', 'right'];
     document.querySelectorAll('#side-selector .side-btn').forEach(btn => {
       btn.classList.toggle('active', defaultSides.includes(btn.dataset.side));
     });
@@ -774,12 +774,12 @@ function drawStackedView(d, box) {
   arrangement.forEach(c => { if (!visited.has(cKey(c))) bfsOrder.push(c); });
 
   // For each case column in BFS order: paint right wall → front wall →
-  // layer dividers → top cap. Near columns drawn later overwrite far ones.
+  // layer dividers → bottom cap. Near columns drawn later overwrite far ones.
   bfsOrder.forEach(c => {
     const { x: cx, y: cy, w: cw, h: cdp, rotated } = c;
     const base = rotated ? [200, 240, 160] : [255, 212, 184];
 
-    const topFill   = `rgb(${base.map(v => Math.round(v * 0.88)).join(',')})`;
+    const bottomFill   = `rgb(${base.map(v => Math.round(v * 0.88)).join(',')})`;
     const rightFill = `rgb(${base.map(v => Math.round(v * 0.52)).join(',')})`;
     const frontFill = `rgb(${base.map(v => Math.round(v * 0.38)).join(',')})`;
     const edge      = 'rgba(0,0,0,0.55)';
@@ -809,17 +809,17 @@ function drawStackedView(d, box) {
     // 4. Top face (drawn last = caps the prism and overwrites any side-face artifacts)
     svg += poly(
       [iso(cx,cy,zFull), iso(cx+cw,cy,zFull), iso(cx+cw,cy+cdp,zFull), iso(cx,cy+cdp,zFull)],
-      topFill, edge, 0.7
+      bottomFill, edge, 0.7
     );
   });
 
   // Pallet border re-draw over everything
   svg += poly(f, 'none', '#334060', 1.5);
 
-  // Layer count badge (top of stack, front-left corner)
+  // Layer count badge (bottom of stack, front-left corner)
   if (hi > 0) {
-    const topPt = iso(0, 0, hi * CH);
-    svg += `<text x="${topPt.x.toFixed(1)}" y="${(topPt.y - 5).toFixed(1)}" font-family="JetBrains Mono,monospace" font-size="9" fill="#7a95b0" text-anchor="middle">Hi=${hi}</text>`;
+    const bottomPt = iso(0, 0, hi * CH);
+    svg += `<text x="${bottomPt.x.toFixed(1)}" y="${(bottomPt.y - 5).toFixed(1)}" font-family="JetBrains Mono,monospace" font-size="9" fill="#7a95b0" text-anchor="middle">Hi=${hi}</text>`;
   }
 
   // Legend
@@ -854,8 +854,8 @@ function drawShoppableView(d, box) {
   const ox = (VW - dW) / 2;
   const oy = PAD + ((VH - PAD * 2 - LEGEND_H) - dH) / 2;
 
-  const SIDE_STROKE = { bottom: '#a78bfa', right: '#67e8f9', top: '#86efac', left: '#fbbf24' };
-  const SIDE_FILL   = { bottom: 'rgba(167,139,250,.20)', right: 'rgba(103,232,249,.20)', top: 'rgba(134,239,172,.20)', left: 'rgba(251,191,36,.20)' };
+  const SIDE_STROKE = { top: '#a78bfa', right: '#67e8f9', bottom: '#86efac', left: '#fbbf24' };
+  const SIDE_FILL   = { top: 'rgba(167,139,250,.20)', right: 'rgba(103,232,249,.20)', bottom: 'rgba(134,239,172,.20)', left: 'rgba(251,191,36,.20)' };
 
   const stroke = (side) => SIDE_STROKE[side] || '#a78bfa';
   const fill   = (side) => SIDE_FILL[side]   || 'rgba(167,139,250,.20)';

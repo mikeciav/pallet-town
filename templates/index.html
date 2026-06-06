@@ -81,7 +81,7 @@
       <div class="modal-header-row">
         <div>
           <div class="modal-title" id="bulk-diagram-title">LAYOUT</div>
-          <div class="panel-hint" id="bulk-diagram-hint" style="margin-top:2px"></div>
+          <div class="panel-hint" id="bulk-diagram-hint" style="margin-bottom:2px"></div>
         </div>
         <button class="ghost-btn" id="bulk-diagram-close">CLOSE</button>
       </div>
@@ -99,19 +99,19 @@
                placeholder="enter password" autocomplete="current-password">
       </div>
       <div class="login-error" id="login-error"></div>
-      <button class="pt-btn" id="login-submit" style="margin-top:12px">
+      <button class="pt-btn" id="login-submit" style="margin-bottom:12px">
         <span id="login-btn-text">AUTHENTICATE</span>
       </button>
       <button class="ghost-btn" id="login-cancel"
-              style="width:100%;margin-top:8px;padding:8px">CANCEL</button>
+              style="width:100%;margin-bottom:8px;padding:8px">CANCEL</button>
     </div>
   </div>
 
   <!-- ── Main ────────────────────────────────────────────────── -->
   <main class="main">
 
-    <header class="topbar">
-      <span class="topbar-title" id="page-title">PALLET BUILDER</span>
+    <header class="bottombar">
+      <span class="bottombar-title" id="page-title">PALLET BUILDER</span>
       <div class="status-pill">
         <span class="status-dot"></span>
         <span id="status-text">Ready</span>
@@ -152,7 +152,7 @@
               </div>
             </div>
           </div>
-          <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:8px">
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px">
             <div class="field-group">
               <label class="field-label">CASE WEIGHT</label>
               <div class="field-wrap">
@@ -198,14 +198,14 @@
                   <input type="number" id="ie-pallets" class="dim-input" step="1" min="1">
                 </div>
               </div>
-              <div class="ie-row" style="margin-top:8px">
+              <div class="ie-row" style="margin-bottom:8px">
                 <label class="toggle-label">
                   <input type="checkbox" id="ie-ds" class="toggle-input">
                   <span class="toggle-track"><span class="toggle-thumb"></span></span>
                   <span class="toggle-text">Double Stack Allowed</span>
                 </label>
               </div>
-              <div class="ie-row" style="margin-top:8px">
+              <div class="ie-row" style="margin-bottom:8px">
                 <label class="toggle-label">
                   <input type="checkbox" id="ie-nopallet" class="toggle-input">
                   <span class="toggle-track"><span class="toggle-thumb"></span></span>
@@ -215,7 +215,7 @@
             </div>
           </div>
 
-          <div id="calc-notes-wrap" style="display:none;margin-top:8px">
+          <div id="calc-notes-wrap" style="display:none;margin-bottom:8px">
             <div class="field-group">
               <label class="field-label">NOTES</label>
               <textarea id="calc-retailer-notes" class="retailer-notes" placeholder="Notes about this retailer..."></textarea>
@@ -229,20 +229,20 @@
               <span class="panel-label">CLUB DISPLAY OPTIONS</span>
             </div>
 
-            <div class="field-group" style="margin-top:4px">
+            <div class="field-group" style="margin-bottom:4px">
               <label class="field-label">SHOPPABLE SIDES</label>
-              <div id="side-selector" style="display:flex;gap:6px;margin-top:4px">
-                <button class="side-btn active" data-side="bottom">BOTTOM</button>
-                <button class="side-btn active" data-side="top">TOP</button>
+              <div id="side-selector" style="display:flex;gap:6px;margin-bottom:4px">
+                <button class="side-btn active" data-side="top">BOTTOM</button>
+                <button class="side-btn active" data-side="bottom">TOP</button>
                 <button class="side-btn active" data-side="left">LEFT</button>
                 <button class="side-btn active" data-side="right">RIGHT</button>
               </div>
-              <div id="side-error" style="display:none;color:#ef4444;font-size:10px;margin-top:4px;font-family:monospace">
+              <div id="side-error" style="display:none;color:#ef4444;font-size:10px;margin-bottom:4px;font-family:monospace">
                 At least 1 side must be selected.
               </div>
             </div>
 
-            <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:8px">
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px">
               <div class="field-group">
                 <label class="field-label">MAX EMPTY %</label>
                 <div class="field-wrap">
@@ -259,7 +259,7 @@
               </div>
             </div>
 
-            <div class="field-group" style="margin-top:8px">
+            <div class="field-group" style="margin-bottom:8px">
               <label class="field-label">MIN FOOTPRINT L</label>
               <div class="field-wrap">
                 <input type="number" id="club-fp-l" class="dim-input" value="45" min="0" step="0.5">
@@ -267,7 +267,7 @@
               </div>
             </div>
 
-            <div class="ie-row" style="margin-top:8px">
+            <div class="ie-row" style="margin-bottom:8px">
               <label class="toggle-label">
                 <input type="checkbox" id="club-rounding-gaps" class="toggle-input" checked>
                 <span class="toggle-track"><span class="toggle-thumb"></span></span>
@@ -275,7 +275,7 @@
               </label>
             </div>
 
-            <div class="ie-row" style="margin-top:8px">
+            <div class="ie-row" style="margin-bottom:8px">
               <label class="toggle-label" id="club-fill-label">
                 <input type="checkbox" id="club-fill-chimney" class="toggle-input" checked>
                 <span class="toggle-track"><span class="toggle-thumb"></span></span>
@@ -298,9 +298,9 @@
         <div class="panel results-combined">
 
           <!-- Shoppable error banner (hidden until error mode) -->
-          <div id="shoppable-error-banner" style="display:none;background:#1c0a00;border:1px solid #7f1d1d;border-radius:6px;padding:8px 12px;margin-bottom:8px;font-family:monospace;font-size:11px;color:#f87171"></div>
+          <div id="shoppable-error-banner" style="display:none;background:#1c0a00;border:1px solid #7f1d1d;border-radius:6px;padding:8px 12px;margin-top:8px;font-family:monospace;font-size:11px;color:#f87171"></div>
 
-          <!-- Metrics row: Ti | Hi | Total | TL across the top -->
+          <!-- Metrics row: Ti | Hi | Total | TL across the bottom -->
           <div class="metrics-row">
             <div class="metric-card" id="mc-ti">
               <div class="metric-label">Ti</div>
@@ -330,7 +330,7 @@
           </div>
 
           <!-- Shoppable results row (hidden until a shoppable calc is run) -->
-          <div id="shoppable-metrics-row" class="metrics-row" style="display:none;margin-top:4px;border-top:1px solid #1e2a45;padding-top:8px">
+          <div id="shoppable-metrics-row" class="metrics-row" style="display:none;margin-bottom:4px;border-bottom:1px solid #1e2a45;padding-bottom:8px">
             <div class="metric-card" id="mc-shoppable-ti">
               <div class="metric-label">Shoppable Ti</div>
               <div class="metric-val" id="val-shoppable-ti">—</div>
@@ -413,14 +413,14 @@
           <div class="panel-header">
             <span class="panel-label">CONFIGURATION</span>
           </div>
-          <div class="field-group" style="margin-bottom:1rem">
+          <div class="field-group" style="margin-top:1rem">
             <label class="field-label">RETAILER</label>
             <div class="select-wrap">
               <select id="bulk-retailer" class="pt-select"></select>
             </div>
           </div>
           <!-- Custom retailer editor for bulk (shown only when Custom is selected) -->
-          <div id="bulk-custom-editor" style="display:none;margin-bottom:8px">
+          <div id="bulk-custom-editor" style="display:none;margin-top:8px">
             <div class="inline-editor">
               <div class="ie-header">
                 <span class="panel-label">CUSTOM RETAILER</span>
@@ -439,14 +439,14 @@
                     <input type="number" id="bulk-ie-pallets" class="dim-input" step="1" min="1">
                   </div>
                 </div>
-                <div class="ie-row" style="margin-top:8px">
+                <div class="ie-row" style="margin-bottom:8px">
                   <label class="toggle-label">
                     <input type="checkbox" id="bulk-ie-ds" class="toggle-input">
                     <span class="toggle-track"><span class="toggle-thumb"></span></span>
                     <span class="toggle-text">Double Stack Allowed</span>
                   </label>
                 </div>
-                <div class="ie-row" style="margin-top:8px">
+                <div class="ie-row" style="margin-bottom:8px">
                   <label class="toggle-label">
                     <input type="checkbox" id="bulk-ie-nopallet" class="toggle-input">
                     <span class="toggle-track"><span class="toggle-thumb"></span></span>
@@ -456,20 +456,20 @@
               </div>
             </div>
           </div>
-          <div id="bulk-notes-wrap" style="display:none;margin-bottom:8px">
+          <div id="bulk-notes-wrap" style="display:none;margin-top:8px">
             <div class="field-group">
               <label class="field-label">NOTES</label>
               <textarea id="bulk-retailer-notes" class="retailer-notes" placeholder="Notes about this retailer..."></textarea>
             </div>
           </div>
-          <div class="field-group" style="margin-top:8px">
+          <div class="field-group" style="margin-bottom:8px">
             <label class="field-label">DEFAULT CASE WEIGHT</label>
             <div class="field-wrap">
               <input type="number" id="bulk-cw" class="dim-input" placeholder="0.0" min="0" step="0.1">
               <span class="field-unit">lbs</span>
             </div>
           </div>
-          <div class="field-group" style="margin-top:8px;margin-bottom:8px">
+          <div class="field-group" style="margin-bottom:8px;margin-top:8px">
             <label class="field-label">DEFAULT CASE PACK QTY</label>
             <div class="field-wrap">
               <input type="number" id="bulk-cp" class="dim-input" value="1" min="1" step="1">
@@ -593,7 +593,7 @@ ITEM-002,10,10,8,12.0,1</code>
                 </label>
               </div>
             </div>
-            <div class="r-field" style="margin-top:16px">
+            <div class="r-field" style="margin-bottom:16px">
               <span class="r-field-label">NOTES</span>
               <textarea class="retailer-notes" id="rd-notes" placeholder="Add notes about loading requirements, contacts, special instructions..."></textarea>
             </div>
