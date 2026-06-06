@@ -133,14 +133,14 @@
             <div class="field-group">
               <label class="field-label">LENGTH</label>
               <div class="field-wrap">
-                <input type="number" id="c-l" class="dim-input" placeholder="0.0" min="0.1" step="0.1" {% if show_demo_defaults %}value="13.3"{% endif %}>
+                <input type="number" id="c-l" class="dim-input" placeholder="0.0" min="0.1" step="0.1" {% if show_demo_defaults %}value="6.6"{% endif %}>
                 <span class="field-unit">in</span>
               </div>
             </div>
             <div class="field-group">
               <label class="field-label">WIDTH</label>
               <div class="field-wrap">
-                <input type="number" id="c-w" class="dim-input" placeholder="0.0" min="0.1" step="0.1" {% if show_demo_defaults %}value="6.9"{% endif %}>
+                <input type="number" id="c-w" class="dim-input" placeholder="0.0" min="0.1" step="0.1" {% if show_demo_defaults %}value="3.3"{% endif %}>
                 <span class="field-unit">in</span>
               </div>
             </div>
@@ -605,6 +605,7 @@ ITEM-002,10,10,8,12.0,1</code>
 
   </main>
 
+  <script>window.SHOW_DEMO_DEFAULTS = {{ 'true' if show_demo_defaults else 'false' }};</script>
   <script src="/static/js/app.js"></script>
 </body>
 </html>
