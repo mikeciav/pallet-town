@@ -141,10 +141,10 @@ def generate_shoppable_v2_positions(
     """
     Corner-spiral shoppable arrangement.
 
-    Clockwise from front-left corner, 4 sides per loop:
-      FRONT (→): n regular cases (case_w × case_l deep) + corner case (case_l × case_w deep)
+    Clockwise from bottom-left corner, 4 sides per loop:
+      BOTTOM (→): n regular cases (case_w × case_l deep) + corner case (case_l × case_w deep)
       RIGHT  (↑): n regular cases (case_l × case_w)      + corner case (case_w × case_l deep)
-      BACK   (←): n regular cases (case_w × case_l deep) + corner case (case_l × case_w deep)
+      TOP    (←): n regular cases (case_w × case_l deep) + corner case (case_l × case_w deep)
       LEFT   (↓): n regular cases (case_l × case_w)      — no trailing corner
 
     Each regular case has its label face (case_l) perpendicular to the nearest wall.
@@ -172,30 +172,30 @@ def generate_shoppable_v2_positions(
         if span_x < min_pass_span - 1e-9 or span_y < min_pass_span - 1e-9:
             break
 
-        # ── FRONT side (travelling in the +x direction) ──────────────────────
-        # Regular front cases stand case_l deep (into the pallet) and case_w wide (along the wall).
+        # ── BOTTOM side (travelling in the +x direction) ──────────────────────
+        # Regular bottom cases stand case_l deep (into the pallet) and case_w wide (along the wall).
         # They pack from the left wall rightward, reserving space for one corner case at the end.
-        num_front_cases = max(0, int((span_x - case_l) / case_w))
-        for i in range(num_front_cases):
+        num_bottom_cases = max(0, int((span_x - case_l) / case_w))
+        for i in range(num_bottom_cases):
             positions.append({
                 "x": round(left_x + i * case_w, 6),
                 "y": round(bottom_y, 6),
-                "w": case_w, "h": case_l, "side": "front",
+                "w": case_w, "h": case_l, "side": "bottom",
             })
 
         # Front corner case: rotated 90° so its case_l dimension runs along the x-axis,
-        # bridging the gap between the front row and the right column.
-        front_corner_x = left_x + num_front_cases * case_w
+        # bridging the gap between the bottom row and the right column.
+        bottom_corner_x = left_x + num_bottom_cases * case_w
         positions.append({
-            "x": round(front_corner_x, 6),
+            "x": round(bottom_corner_x, 6),
             "y": round(bottom_y, 6),
-            "w": case_l, "h": case_w, "side": "front",
+            "w": case_l, "h": case_w, "side": "bottom",
         })
 
         # ── RIGHT side (travelling in the +y direction) ──────────────────────
         # Regular right cases stand case_l deep (into the pallet) and case_w tall (along the wall).
-        # The column starts above the front corner and leaves room for one corner case at the top.
-        right_col_start_y = bottom_y + case_w  # front corner occupies case_w in y
+        # The column starts above the bottom corner and leaves room for one corner case at the top.
+        right_col_start_y = bottom_y + case_w  # bottom corner occupies case_w in y
         num_right_cases   = max(0, int((span_y - case_w - case_l) / case_w))
         for i in range(num_right_cases):
             positions.append({
@@ -205,7 +205,7 @@ def generate_shoppable_v2_positions(
             })
 
         # Right corner case: rotated so its case_l dimension runs along the y-axis,
-        # bridging the gap between the right column and the back row.
+        # bridging the gap between the right column and the top row.
         right_corner_y = right_col_start_y + num_right_cases * case_w
         positions.append({
             "x": round(right_x - case_w, 6),
@@ -213,31 +213,31 @@ def generate_shoppable_v2_positions(
             "w": case_w, "h": case_l, "side": "right",
         })
 
-        # ── BACK side (travelling in the -x direction) ───────────────────────
-        # Regular back cases stand case_l deep and case_w wide, packed right-to-left.
+        # ── TOP side (travelling in the -x direction) ───────────────────────
+        # Regular top cases stand case_l deep and case_w wide, packed right-to-left.
         # The row's right edge is the inner face of the right corner (right_x - case_w).
-        back_row_right_x  = right_x - case_w
-        num_back_cases    = max(0, int((back_row_right_x - left_x - case_l) / case_w))
-        for i in range(num_back_cases):
+        top_row_right_x  = right_x - case_w
+        num_top_cases    = max(0, int((top_row_right_x - left_x - case_l) / case_w))
+        for i in range(num_top_cases):
             positions.append({
-                "x": round(back_row_right_x - (i + 1) * case_w, 6),
+                "x": round(top_row_right_x - (i + 1) * case_w, 6),
                 "y": round(top_y - case_l, 6),
-                "w": case_w, "h": case_l, "side": "back",
+                "w": case_w, "h": case_l, "side": "top",
             })
 
         # Back corner case: rotated so its case_l dimension runs along the x-axis,
-        # bridging the gap between the back row and the left column.
-        back_corner_x = back_row_right_x - num_back_cases * case_w - case_l
+        # bridging the gap between the top row and the left column.
+        top_corner_x = top_row_right_x - num_top_cases * case_w - case_l
         positions.append({
-            "x": round(back_corner_x, 6),
+            "x": round(top_corner_x, 6),
             "y": round(top_y - case_w, 6),
-            "w": case_l, "h": case_w, "side": "back",
+            "w": case_l, "h": case_w, "side": "top",
         })
 
         # ── LEFT side (travelling in the -y direction) ───────────────────────
         # Regular left cases stand case_l deep and case_w tall, packed top-to-bottom.
-        # No trailing corner — the left side terminates where the next loop's front row begins.
-        left_col_top_y = top_y - case_w  # back corner occupies case_w in y
+        # No trailing corner — the left side terminates where the next loop's bottom row begins.
+        left_col_top_y = top_y - case_w  # top corner occupies case_w in y
         num_left_cases = max(0, int((left_col_top_y - (bottom_y + case_l)) / case_w))
         for i in range(num_left_cases):
             positions.append({
