@@ -86,6 +86,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   setupCalculator();
   setupBulk();
   setupRetailersTab();
+  if (window.SHOW_DEMO_DEFAULTS) doCalculate();
 });
 
 // ── Sidebar collapse ─────────────────────────────────────────
@@ -243,9 +244,9 @@ async function loadRetailers() {
     retailers = await res.json();
     syncRetailerSelects();
     renderRetailersGrid();
-    // Temporary defaults: pre-select Walmart
+    // Temporary defaults: pre-select Costco
     const sel = document.getElementById('retailer-select');
-    if (!sel.value) { sel.value = '1'; updateInfoBar(); }
+    if (!sel.value) { sel.value = '3'; updateInfoBar(); }
     updateClubPanel();
   } catch (e) {
     setStatus('Could not load retailers.', true);
