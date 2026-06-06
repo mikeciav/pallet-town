@@ -477,109 +477,104 @@ def generate_shoppable_v2_positions(
     """
     positions: List[Dict] = []
 
-    # A ring requires at least (case_l + case_w) in both dimensions:
-    # case_l for the row depth plus case_w for at least one regular case beside the corner.
-    min_box = case_l + case_w
+    # A ring requires case_l depth for the row + case_w for at least one regular case beside the corner.
+    min_ring_span = case_l + case_w
 
-    # bx0/by0 = current inner-rectangle bottom-left corner (grows inward each ring).
-    # bx1/by1 = current inner-rectangle top-right corner (shrinks inward each ring).
-    bx0, by0 = 0.0, 0.0
-    bx1, by1 = float(pallet_w), float(pallet_l)
+    # The bounding box shrinks inward by case_l on each side after every completed ring.
+    left_x   = 0.0
+    bottom_y = 0.0
+    right_x  = float(pallet_w)
+    top_y    = float(pallet_l)
     ring = 1
 
     while True:
-        W = bx1 - bx0  # remaining width available for this ring
-        H = by1 - by0  # remaining height available for this ring
+        ring_width  = right_x - left_x   # x-span available for this ring
+        ring_height = top_y - bottom_y   # y-span available for this ring
 
-        # Stop when the remaining rectangle is too small for even one full ring.
-        if W < min_box - 1e-9 or H < min_box - 1e-9:
+        # Stop when the remaining rectangle is too small for a complete ring on either axis.
+        if ring_width < min_ring_span - 1e-9 or ring_height < min_ring_span - 1e-9:
             break
 
         # ── FRONT side (travelling in the +x direction) ──────────────────────
-        # Regular front cases: case_w wide (along the wall), case_l deep (into pallet).
-        # They fill from the left wall rightward, leaving room for one corner case at the end.
-        # n_f = how many regular cases fit before the corner.
-        n_f = max(0, int((W - case_l) / case_w))
-        for i in range(n_f):
+        # Regular front cases stand case_l deep (into the pallet) and case_w wide (along the wall).
+        # They pack from the left wall rightward, reserving space for one corner case at the end.
+        num_front_cases = max(0, int((ring_width - case_l) / case_w))
+        for i in range(num_front_cases):
             positions.append({
-                "x": round(bx0 + i * case_w, 6),  # step right by case_w each time
-                "y": round(by0, 6),                 # flush with the bottom wall
+                "x": round(left_x + i * case_w, 6),
+                "y": round(bottom_y, 6),
                 "w": case_w, "h": case_l, "ring": ring, "side": "front",
             })
 
-        # Front corner case: rotated 90° relative to the regular front cases.
-        # It is case_l wide (bridges into the right-side column) and case_w deep.
-        # Placed immediately right of the last regular front case.
+        # Front corner case: rotated 90° so its case_l dimension runs along the x-axis,
+        # bridging the gap between the front row and the right column.
+        front_corner_x = left_x + num_front_cases * case_w
         positions.append({
-            "x": round(bx0 + n_f * case_w, 6),  # flush with the right edge of the last regular case
-            "y": round(by0, 6),                   # flush with the bottom wall
+            "x": round(front_corner_x, 6),
+            "y": round(bottom_y, 6),
             "w": case_l, "h": case_w, "ring": ring, "side": "front",
         })
 
         # ── RIGHT side (travelling in the +y direction) ──────────────────────
-        # Regular right cases: case_l wide (along the wall), case_w deep (into pallet).
-        # They start above the front corner case (right_y0) and travel upward.
-        # The top end leaves room for one corner case that transitions to the back side.
-        # right_y0 = the y where the right column begins (just above the front corner).
-        right_y0 = by0 + case_w  # front corner occupies case_w in y, so start above it
-        # n_r = how many regular right cases fit between right_y0 and the back corner.
-        n_r = max(0, int((H - case_w - case_l) / case_w))
-        for i in range(n_r):
+        # Regular right cases stand case_l deep (into the pallet) and case_w tall (along the wall).
+        # The column starts above the front corner and leaves room for one corner case at the top.
+        right_col_start_y = bottom_y + case_w  # front corner occupies case_w in y
+        num_right_cases   = max(0, int((ring_height - case_w - case_l) / case_w))
+        for i in range(num_right_cases):
             positions.append({
-                "x": round(bx1 - case_l, 6),              # flush with the right wall
-                "y": round(right_y0 + i * case_w, 6),     # step upward by case_w each time
+                "x": round(right_x - case_l, 6),
+                "y": round(right_col_start_y + i * case_w, 6),
                 "w": case_l, "h": case_w, "ring": ring, "side": "right",
             })
 
-        # Right corner case: rotated to bridge from the right column into the back row.
-        # It is case_w wide and case_l deep. Placed at the top of the right column.
+        # Right corner case: rotated so its case_l dimension runs along the y-axis,
+        # bridging the gap between the right column and the back row.
+        right_corner_y = right_col_start_y + num_right_cases * case_w
         positions.append({
-            "x": round(bx1 - case_w, 6),                      # inset case_w from the right wall
-            "y": round(right_y0 + n_r * case_w, 6),           # flush with top of last regular right case
+            "x": round(right_x - case_w, 6),
+            "y": round(right_corner_y, 6),
             "w": case_w, "h": case_l, "ring": ring, "side": "right",
         })
 
         # ── BACK side (travelling in the -x direction) ───────────────────────
-        # Regular back cases: case_w wide, case_l deep, packed right-to-left.
-        # back_x1 = the x of the right edge of the back row (the inner face of the right corner).
-        back_x1 = bx1 - case_w  # right corner is case_w wide, so back row starts here
-        # n_b = how many regular back cases fit between back_x1 and the left wall corner.
-        n_b = max(0, int((back_x1 - bx0 - case_l) / case_w))
-        for i in range(n_b):
+        # Regular back cases stand case_l deep and case_w wide, packed right-to-left.
+        # The row's right edge is the inner face of the right corner (right_x - case_w).
+        back_row_right_x  = right_x - case_w
+        num_back_cases    = max(0, int((back_row_right_x - left_x - case_l) / case_w))
+        for i in range(num_back_cases):
             positions.append({
-                "x": round(back_x1 - (i + 1) * case_w, 6),  # step leftward by case_w each time
-                "y": round(by1 - case_l, 6),                  # flush with the top wall
+                "x": round(back_row_right_x - (i + 1) * case_w, 6),
+                "y": round(top_y - case_l, 6),
                 "w": case_w, "h": case_l, "ring": ring, "side": "back",
             })
 
-        # Back corner case: bridges from the back row into the left column.
-        # It is case_l wide and case_w deep.
+        # Back corner case: rotated so its case_l dimension runs along the x-axis,
+        # bridging the gap between the back row and the left column.
+        back_corner_x = back_row_right_x - num_back_cases * case_w - case_l
         positions.append({
-            "x": round(back_x1 - n_b * case_w - case_l, 6),  # flush left of last regular back case
-            "y": round(by1 - case_w, 6),                       # inset case_w from the top wall
+            "x": round(back_corner_x, 6),
+            "y": round(top_y - case_w, 6),
             "w": case_l, "h": case_w, "ring": ring, "side": "back",
         })
 
         # ── LEFT side (travelling in the -y direction) ───────────────────────
-        # Regular left cases: case_l wide, case_w deep, packed top-to-bottom.
-        # No trailing corner — the LEFT side ends where the FRONT row begins next ring.
-        # left_y1 = the y of the bottom edge of the back corner (top of the left column range).
-        left_y1 = by1 - case_w  # back corner is case_w deep, so left column starts below it
-        # n_l = how many regular left cases fit between left_y1 and the top of the front row.
-        n_l = max(0, int((left_y1 - (by0 + case_l)) / case_w))
-        for i in range(n_l):
+        # Regular left cases stand case_l deep and case_w tall, packed top-to-bottom.
+        # No trailing corner — the left side terminates where the next ring's front row begins.
+        left_col_top_y = top_y - case_w  # back corner occupies case_w in y
+        num_left_cases = max(0, int((left_col_top_y - (bottom_y + case_l)) / case_w))
+        for i in range(num_left_cases):
             positions.append({
-                "x": round(bx0, 6),                             # flush with the left wall
-                "y": round(left_y1 - (i + 1) * case_w, 6),    # step downward by case_w each time
+                "x": round(left_x, 6),
+                "y": round(left_col_top_y - (i + 1) * case_w, 6),
                 "w": case_l, "h": case_w, "ring": ring, "side": "left",
             })
 
         # Shrink the bounding box inward by case_l on all four sides for the next ring.
         ring += 1
-        bx0 += case_l
-        by0 += case_l
-        bx1 -= case_l
-        by1 -= case_l
+        left_x   += case_l
+        bottom_y += case_l
+        right_x  -= case_l
+        top_y    -= case_l
 
     return positions
 
