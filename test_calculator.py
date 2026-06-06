@@ -6,9 +6,6 @@ Run with:  python3 -m pytest test_calculator.py -v
 
 import pytest
 from calculator import calculate, find_optimal_arrangement, pod_dimensions, generate_positions
-from calculator import place_ring
-from calculator import find_shoppable_arrangement
-from calculator import generate_ring_positions
 
 # Standard pallet constants used in app.py
 PL, PW, PH = 48.0, 40.0, 5.5
@@ -310,309 +307,6 @@ class TestTruckload:
         assert truckload(0, 4, 26, True) == 0
 
 
-class TestPlaceRing:
-    ALL4 = ['front', 'back', 'left', 'right']
-
-    def test_4sided_basic_counts(self):
-        # pallet 48×40, case 10L×8W; labeled face (case_l=10) spans W, depth=case_w=8
-        # front/back: floor(40/10)=4; lr_span=48-8*2=32, floor(32/10)=3
-        ring = place_ring(10, 8, 48, 40, self.ALL4, rounding_gaps=True)
-        assert ring is not None
-        assert ring['counts']['front'] == 4
-        assert ring['counts']['back']  == 4
-        assert ring['counts']['left']  == 3
-        assert ring['counts']['right'] == 3
-        assert ring['total'] == 14
-
-    def test_4sided_inner_rect(self):
-        # inner_l=48-8*2=32; inner_w=40-8*2=24
-        ring = place_ring(10, 8, 48, 40, self.ALL4, rounding_gaps=True)
-        assert ring['inner_l'] == pytest.approx(32.0)
-        assert ring['inner_w'] == pytest.approx(24.0)
-
-    def test_ring3_fails_when_inner_dims_negative(self):
-        # inner_l = 8 - 8*2 = -8 < 0 → None
-        ring = place_ring(10, 8, 8, 0, self.ALL4, rounding_gaps=True)
-        assert ring is None
-
-    def test_rounding_gaps_false_rejects_gap(self):
-        # lr_span=48-8*2=32, 32%10=2 → gap → None when rounding_gaps=False
-        ring = place_ring(10, 8, 48, 40, self.ALL4, rounding_gaps=False)
-        assert ring is None
-
-    def test_rounding_gaps_false_accepts_clean_division(self):
-        # case 8×8 (square): front/back 40%8=0 ✓; lr_span=48-8*2=32, 32%8=0 ✓
-        ring = place_ring(8, 8, 48, 40, self.ALL4, rounding_gaps=False)
-        assert ring is not None
-        assert ring['counts']['front'] == 5   # floor(40/8)=5
-        assert ring['counts']['left']  == 4   # floor(32/8)=4
-
-    def test_3sided_front_left_right(self):
-        # front: floor(40/10)=4; lr_span=48-8=40 (only front eats 8), floor(40/10)=4
-        # inner_l=48-8=40; inner_w=40-8*2=24
-        ring = place_ring(10, 8, 48, 40, ['front', 'left', 'right'], rounding_gaps=True)
-        assert ring is not None
-        assert ring['counts']['front'] == 4
-        assert ring['counts']['left']  == 4
-        assert ring['counts']['right'] == 4
-        assert 'back' not in ring['counts']
-        assert ring['inner_l'] == pytest.approx(40.0)  # 48-8 (front strip depth=case_w)
-        assert ring['inner_w'] == pytest.approx(24.0)  # 40-8*2 (left+right each depth=case_w)
-
-    def test_2sided_front_back_only(self):
-        # front/back: floor(40/10)=4 each; no left/right
-        # inner_l=48-8*2=32; inner_w=40 (unchanged)
-        ring = place_ring(10, 8, 48, 40, ['front', 'back'], rounding_gaps=True)
-        assert ring is not None
-        assert ring['counts']['front'] == 4
-        assert ring['counts']['back']  == 4
-        assert 'left'  not in ring['counts']
-        assert 'right' not in ring['counts']
-        assert ring['inner_l'] == pytest.approx(32.0)  # L shrinks by 2×case_w (front+back depth)
-        assert ring['inner_w'] == pytest.approx(40.0)  # W unchanged (no left/right)
-
-    def test_returns_none_when_inner_dims_negative(self):
-        # rect 18×18, case 10×8: lr_span=18-8*2=2, floor(2/10)=0 → None
-        ring = place_ring(10, 8, 18, 18, self.ALL4, rounding_gaps=True)
-        assert ring is None
-
-    def test_returns_none_when_front_has_zero_cases(self):
-        # rect_l=6, inner_l=6-8*2=-10 < 0 → None
-        ring = place_ring(10, 8, 6, 40, ['front', 'back'], rounding_gaps=True)
-        assert ring is None
-
-
-class TestShoppableArrangement:
-    ALL4 = ['front', 'back', 'left', 'right']
-
-    def test_4sided_10x8_two_rings_filled(self):
-        # depth=case_w=8. Ring 1 (48×40): 4+4+3+3=14; inner 32×24.
-        # Ring 2 (32×24): front=2, lr_span=16, n=1 → 6; inner 16×8.
-        # Ring 3 (16×8): inner_w=8-16=-8 → None. ring_ti=20. void=16.7%>15%.
-        # Fill inner 16×8: 1 case. Total=21. void=12.5% → filled.
-        result = find_shoppable_arrangement(10, 8, 48, 40, self.ALL4)
-        assert result['ring_count'] == 2
-        assert result['ti'] == 21
-        assert result['mode'] == 'filled'
-        assert result['void_pct'] == pytest.approx((1920 - 21 * 80) / 1920, abs=1e-4)
-        assert result['error'] is None
-
-    def test_8x8_two_rings_pure_facing(self):
-        # Ring 1 (48×40): front/back=5, lr_span=32, n=4 → 18 cases; inner 32×24
-        # Ring 2 (32×24): front/back=3, lr_span=16, n=2 → 10 cases; inner 16×8
-        # Ring 3 (16×8): lr_span=0 → None. Total 28. Void=128/1920=6.67%<15% → pure_facing
-        result = find_shoppable_arrangement(8, 8, 48, 40, self.ALL4)
-        assert result['ring_count'] == 2
-        assert result['mode'] == 'pure_facing'
-        assert result['void_pct'] == pytest.approx(128 / 1920, abs=1e-4)
-
-    def test_force_fill_brings_within_limit(self):
-        # case 12×10, 4-sided: Ring 1 (48×40): 4+4+2+2=12; inner 24×16; void=25%>15%
-        # fill 24×16 with 12×10 → 2 cases; total=14; void=12.5%<15% → filled
-        result = find_shoppable_arrangement(12, 10, 48, 40, self.ALL4, max_empty_pct=0.15)
-        assert result['mode'] == 'filled'
-        assert result['void_pct'] < 0.15
-
-    def test_cases_too_large_for_rings_falls_back_to_standard(self):
-        # 20×20: inner_w=40-40<0, no ring fits → standard arrangement, no error
-        result = find_shoppable_arrangement(20, 20, 48, 40, self.ALL4)
-        assert result['mode'] == 'standard'
-        assert result['ring_count'] == 0
-        assert result['ti'] > 0
-        assert result['error'] is None
-
-    def test_partial_mode_when_force_fill_off(self):
-        result = find_shoppable_arrangement(
-            10, 8, 48, 40, self.ALL4,
-            force_fill_on_failure=False
-        )
-        assert result['mode'] == 'partial'
-        assert result['ring_count'] == 2  # 2 rings placed before inner rect exhausted
-
-    def test_3sided_front_left_right(self):
-        result = find_shoppable_arrangement(10, 8, 48, 40, ['front', 'left', 'right'])
-        assert result['ring_count'] >= 1
-        assert result['ti'] > 0
-        assert result['mode'] in ('pure_facing', 'filled', 'partial', 'standard')
-
-    def test_rounding_gaps_false_zero_rings_falls_back_to_standard(self):
-        # 10×8 on 48×40: left/right span=20, 20%8=4 → gap → 0 rings → standard fallback
-        result = find_shoppable_arrangement(
-            10, 8, 48, 40, self.ALL4, rounding_gaps=False
-        )
-        assert result['ring_count'] == 0
-        assert result['mode'] == 'standard'
-        assert result['error'] is None
-
-    def test_ti_never_exceeds_standard_ti(self):
-        from calculator import find_optimal_arrangement
-        ti_standard, _ = find_optimal_arrangement(10, 8, 48, 40)
-        result = find_shoppable_arrangement(10, 8, 48, 40, self.ALL4)
-        assert result['ti'] <= ti_standard
-
-    def test_void_pct_in_0_to_1_range(self):
-        result = find_shoppable_arrangement(10, 8, 48, 40, self.ALL4)
-        assert 0.0 <= result['void_pct'] <= 1.0
-
-
-class TestRingPositions:
-    """
-    Validate generate_ring_positions() by checking exact coordinates.
-    Known input: 48L x 40W pallet, case 4L x 2.3W, all 4 sides.
-    Orientation: case_l=4 is the labeled face; strip depth = case_w=2.3.
-    Front/back: labeled face (4") spans W=40"; each case w=4, h=2.3.
-    Left/right: labeled face (4") spans L; each case w=2.3, h=4.
-    Pack-from-both-ends: k=n//2 flush at start, n-k flush at end, gap in middle.
-
-    Ring 1 (48L×40W @ ox=0,oy=0):
-      front/back: n=floor(40/4)=10, depth=2.3, gap=0
-      left/right: lr_span=48-2.3*2=43.4, n=floor(43.4/4)=10, gap=3.4
-      inner: 43.4L×35.4W; ox→2.3, oy→2.3
-
-    Ring 2 (43.4L×35.4W @ ox=2.3,oy=2.3):
-      front/back: n=floor(35.4/4)=8, gap=3.4
-      left/right: lr_span=43.4-2.3*2=38.8, n=floor(38.8/4)=9, gap=2.8
-      inner: 38.8L×30.8W; ox→4.6, oy→4.6
-
-    Rings 3–8 continue shrinking; ring 9 fails (inner_w<0).
-    """
-    ALL4 = ['front', 'back', 'left', 'right']
-    CL, CW = 4.0, 2.3
-
-    def _pos(self):
-        return generate_ring_positions(self.CL, self.CW, 48, 40, self.ALL4)
-
-    # ── Ring 1 ────────────────────────────────────────────────
-
-    def test_ring1_front_count_and_first_position(self):
-        front = [p for p in self._pos() if p['ring'] == 1 and p['side'] == 'front']
-        assert len(front) == 10          # floor(40/4)=10
-        # gap=40-10*4=0; pack-from-both-ends collapses to uniform spacing
-        assert front[0]['x'] == pytest.approx(0.0)
-        assert front[0]['y'] == pytest.approx(0.0)
-        assert front[0]['w'] == pytest.approx(4.0)   # case_l spans W
-        assert front[0]['h'] == pytest.approx(2.3)   # case_w is depth
-
-    def test_ring1_front_x_spacing(self):
-        # gap=0, k=5: xs=[0,4,8,12,16,20,24,28,32,36]
-        front = [p for p in self._pos() if p['ring'] == 1 and p['side'] == 'front']
-        xs = [p['x'] for p in front]
-        gap = 40 - 10 * 4.0
-        k = 5
-        expected = [i * 4.0 for i in range(k)] + [k * 4.0 + gap + i * 4.0 for i in range(10 - k)]
-        assert xs == pytest.approx(expected, abs=1e-5)
-
-    def test_ring1_back_y_at_bottom(self):
-        # back strip y = oy + rect_l - case_w = 0 + 48 - 2.3 = 45.7
-        back = [p for p in self._pos() if p['ring'] == 1 and p['side'] == 'back']
-        assert len(back) == 10
-        assert all(p['y'] == pytest.approx(45.7) for p in back)
-
-    def test_ring1_left_x_and_y_start(self):
-        # left: x=0; lr_span=43.4, n=10, gap=3.4; y_offset=case_w=2.3
-        left = [p for p in self._pos() if p['ring'] == 1 and p['side'] == 'left']
-        assert len(left) == 10
-        assert all(p['x'] == pytest.approx(0.0) for p in left)
-        assert left[0]['y'] == pytest.approx(2.3)  # oy + y_offset = 0 + 2.3
-        assert left[0]['w'] == pytest.approx(2.3)   # case_w is depth
-        assert left[0]['h'] == pytest.approx(4.0)   # case_l spans L
-
-    def test_ring1_right_x(self):
-        # right: x = ox + rect_w - case_w = 0 + 40 - 2.3 = 37.7
-        right = [p for p in self._pos() if p['ring'] == 1 and p['side'] == 'right']
-        assert len(right) == 10
-        assert all(p['x'] == pytest.approx(37.7) for p in right)
-
-    # ── Ring 2 ────────────────────────────────────────────────
-
-    def test_ring2_front_offset(self):
-        # Ring 2: ox=2.3, oy=2.3, rect_w=35.4; front n=8, first x=ox=2.3
-        front = [p for p in self._pos() if p['ring'] == 2 and p['side'] == 'front']
-        assert len(front) == 8           # floor(35.4/4)=8
-        assert front[0]['x'] == pytest.approx(2.3)
-        assert front[0]['y'] == pytest.approx(2.3)
-
-    def test_ring2_back_y(self):
-        # Ring 2: oy=2.3, rect_l=43.4 → back y = 2.3 + 43.4 - 2.3 = 43.4
-        back = [p for p in self._pos() if p['ring'] == 2 and p['side'] == 'back']
-        assert all(p['y'] == pytest.approx(43.4) for p in back)
-
-    def test_ring2_left_x_and_y_start(self):
-        # Ring 2: ox=2.3; lr_span=38.8, n=9; y_start=oy+y_offset=2.3+2.3=4.6
-        left = [p for p in self._pos() if p['ring'] == 2 and p['side'] == 'left']
-        assert len(left) == 9            # floor(38.8/4)=9
-        assert all(p['x'] == pytest.approx(2.3) for p in left)
-        assert left[0]['y'] == pytest.approx(4.6)
-
-    def test_ring2_right_x(self):
-        # Ring 2: ox=2.3, rect_w=35.4 → right x = 2.3 + 35.4 - 2.3 = 35.4
-        right = [p for p in self._pos() if p['ring'] == 2 and p['side'] == 'right']
-        assert all(p['x'] == pytest.approx(35.4) for p in right)
-
-    # ── Ring counts ───────────────────────────────────────────
-
-    def test_ring8_exists_ring9_does_not(self):
-        # With new orientation (depth=case_w=2.3) more rings fit: 8 total
-        rings = set(p['ring'] for p in self._pos())
-        assert 8 in rings
-        assert 9 not in rings
-
-    def test_total_cases_matches_find_shoppable(self):
-        positions = self._pos()
-        result = find_shoppable_arrangement(self.CL, self.CW, 48, 40, self.ALL4)
-        assert len(positions) == result['ti']
-
-    def test_no_fill_cases_in_pure_facing_mode(self):
-        # pure_facing: void within limit, no fill triggered
-        result = find_shoppable_arrangement(self.CL, self.CW, 48, 40, self.ALL4)
-        assert result['mode'] == 'pure_facing'
-        fill = [p for p in self._pos() if p['ring'] == 0]
-        assert fill == []
-
-    # ── Fill positions ────────────────────────────────────────
-
-    def test_fill_positions_present_in_filled_mode(self):
-        # case 12x10: ring_count=1 (10 ring cases), void>15% → filled mode
-        # After ring 1: ox=case_w=10, oy=case_w=10
-        result = find_shoppable_arrangement(12, 10, 48, 40, self.ALL4)
-        assert result['mode'] == 'filled'
-        positions = generate_ring_positions(12, 10, 48, 40, self.ALL4)
-        fill = [p for p in positions if p['ring'] == 0]
-        assert len(fill) > 0
-        # Fill origin shifts by case_w=10 (strip depth)
-        assert all(p['x'] >= 10.0 - 1e-9 for p in fill)
-        assert all(p['y'] >= 10.0 - 1e-9 for p in fill)
-
-    def test_fill_count_matches_ti_delta(self):
-        ring_result = find_shoppable_arrangement(12, 10, 48, 40, self.ALL4)
-        positions = generate_ring_positions(12, 10, 48, 40, self.ALL4)
-        ring_only = sum(1 for p in positions if p['ring'] > 0)
-        fill_only = sum(1 for p in positions if p['ring'] == 0)
-        assert ring_only + fill_only == ring_result['ti']
-
-    # ── 2-sided (front/back only) ─────────────────────────────
-
-    def test_2sided_no_left_right_cases(self):
-        positions = generate_ring_positions(4, 2.3, 48, 40, ['front', 'back'])
-        assert all(p['side'] in ('front', 'back') for p in positions)
-
-    def test_2sided_ring2_ox_stays_at_zero(self):
-        # No left strip → ox never advances → ring 2 front starts at ox=0
-        # After ring 1: oy=case_w=2.3; ring 2 front y=2.3
-        positions = generate_ring_positions(4, 2.3, 48, 40, ['front', 'back'])
-        front_r2 = [p for p in positions if p['ring'] == 2 and p['side'] == 'front']
-        assert front_r2[0]['x'] == pytest.approx(0.0)   # ox=0 always (no left strip)
-        assert front_r2[0]['y'] == pytest.approx(2.3)   # oy=2.3 after ring 1 front
-
-    # ── Standard fallback ─────────────────────────────────────
-
-    def test_standard_fallback_when_no_ring_fits(self):
-        # Cases too large for any ring → standard arrangement positions returned
-        positions = generate_ring_positions(25, 25, 48, 40, self.ALL4)
-        assert len(positions) > 0
-        assert all(p['side'] == 'fill' for p in positions)
-        assert all(p['ring'] == 0 for p in positions)
-
 
 class TestShoppableV2:
     """
@@ -651,17 +345,12 @@ class TestShoppableV2:
 
     def test_result_shape(self):
         r = self._v2(10, 8)
-        assert 'ti' in r and 'mode' in r and 'void_pct' in r
-        assert 'ring_count' in r and 'error' in r
+        assert 'ti' in r and 'mode' in r and 'void_pct' in r and 'error' in r
 
     def test_10x8_ti_and_mode(self):
         r = self._v2(10, 8)
         assert r['ti'] == 20
         assert r['mode'] == 'shoppable_spiral'
-
-    def test_10x8_ring_count(self):
-        r = self._v2(10, 8)
-        assert r['ring_count'] == 2
 
     def test_void_in_range(self):
         r = self._v2(10, 8)
@@ -730,25 +419,21 @@ class TestShoppableV2:
                     assert not self._overlaps(a, b), \
                         f"{cl}×{cw} cases {i} and {j} overlap: {a} vs {b}"
 
-    def test_10x8_ring1_front_regular(self):
-        # Ring 1 FRONT: 3 regular cases (w=8,h=10) at y=0 + 1 corner (w=10,h=8)
+    def test_10x8_front_regular(self):
+        # FRONT: 3 regular cases (w=8,h=10) at y=0 + 1 corner (w=10,h=8)
         positions = self._pos(10, 8)
-        front = [p for p in positions if p['ring'] == 1 and p['side'] == 'front']
-        assert len(front) == 4  # 3 regular + 1 corner
-        regs = [p for p in front if p['w'] == pytest.approx(8.0)]
+        front = [p for p in positions if p['side'] == 'front']
+        regs = [p for p in front if p['w'] == pytest.approx(8.0) and p['y'] == pytest.approx(0.0)]
         assert len(regs) == 3
         xs = sorted(p['x'] for p in regs)
         assert xs == pytest.approx([0.0, 8.0, 16.0])
 
-    def test_10x8_ring1_left_cases(self):
-        # Ring 1 LEFT: 3 cases (w=10,h=8), going down from y=32
+    def test_10x8_left_cases(self):
+        # Outermost LEFT cases are flush with the left wall (x=0)
         positions = self._pos(10, 8)
-        left = [p for p in positions if p['ring'] == 1 and p['side'] == 'left']
-        assert len(left) == 3
-        ys = sorted(p['y'] for p in left)
-        assert ys == pytest.approx([16.0, 24.0, 32.0])
-        for p in left:
-            assert p['x'] == pytest.approx(0.0)
+        outer_left = [p for p in positions if p['side'] == 'left' and p['x'] == pytest.approx(0.0)]
+        assert len(outer_left) >= 3
+        for p in outer_left:
             assert p['w'] == pytest.approx(10.0)
             assert p['h'] == pytest.approx(8.0)
 

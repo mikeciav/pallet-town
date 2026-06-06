@@ -445,8 +445,6 @@ function renderShoppableResults(s) {
 
   document.getElementById('val-shoppable-ti').textContent = s.ti;
   document.getElementById('val-shoppable-void').textContent = pct(s.void_pct);
-  document.getElementById('val-shoppable-rings').textContent = s.ring_count;
-
   const modeEl = document.getElementById('val-shoppable-mode');
   modeEl.textContent = MODE_LABELS[s.mode] || s.mode;
   modeEl.style.color = MODE_COLORS[s.mode] || '#9ca3af';
@@ -595,7 +593,7 @@ function drawDiagram(d) {
   if (d.shoppable && d.shoppable.arrangement && d.shoppable.arrangement.length > 0) {
     drawShoppableView(d, box);
     const s = d.shoppable;
-    hint.textContent = `top-down · ring layout · Shoppable Ti = ${s.ti} · ${s.ring_count} ring${s.ring_count !== 1 ? 's' : ''} · ${s.mode.replace(/_/g, ' ')}`;
+    hint.textContent = `top-down · spiral layout · Shoppable Ti = ${s.ti} · ${s.mode.replace(/_/g, ' ')}`;
     return;
   }
 
@@ -841,7 +839,7 @@ function drawShoppableView(d, box) {
   const positions = d.shoppable.arrangement;
 
   if (!positions || !positions.length) {
-    box.innerHTML = '<div class="diagram-empty"><svg viewBox="0 0 200 300" fill="none"><text x="100" y="150" text-anchor="middle" font-family="JetBrains Mono,monospace" font-size="9" fill="#3d5068">no ring data</text></svg></div>';
+    box.innerHTML = '<div class="diagram-empty"><svg viewBox="0 0 200 300" fill="none"><text x="100" y="150" text-anchor="middle" font-family="JetBrains Mono,monospace" font-size="9" fill="#3d5068">no arrangement data</text></svg></div>';
     return;
   }
 
@@ -856,13 +854,11 @@ function drawShoppableView(d, box) {
   const ox = (VW - dW) / 2;
   const oy = PAD + ((VH - PAD * 2 - LEGEND_H) - dH) / 2;
 
-  const RING_STROKES = ['#a78bfa', '#67e8f9', '#86efac', '#fbbf24', '#f472b6'];
-  const RING_FILLS   = ['rgba(167,139,250,.20)', 'rgba(103,232,249,.20)', 'rgba(134,239,172,.20)', 'rgba(251,191,36,.20)', 'rgba(244,114,182,.20)'];
-  const FILL_STROKE  = '#fb923c';
-  const FILL_FILL    = 'rgba(251,146,60,.18)';
+  const SIDE_STROKE = { front: '#a78bfa', right: '#67e8f9', back: '#86efac', left: '#fbbf24' };
+  const SIDE_FILL   = { front: 'rgba(167,139,250,.20)', right: 'rgba(103,232,249,.20)', back: 'rgba(134,239,172,.20)', left: 'rgba(251,191,36,.20)' };
 
-  const stroke = (ring) => ring === 0 ? FILL_STROKE : RING_STROKES[(ring - 1) % RING_STROKES.length];
-  const fill   = (ring) => ring === 0 ? FILL_FILL   : RING_FILLS[(ring - 1) % RING_FILLS.length];
+  const stroke = (side) => SIDE_STROKE[side] || '#a78bfa';
+  const fill   = (side) => SIDE_FILL[side]   || 'rgba(167,139,250,.20)';
 
   const gPitch = Math.max(4, Math.round(20 / scale)) * scale;
   let svg = `<svg viewBox="0 0 ${VW} ${VH}" xmlns="http://www.w3.org/2000/svg" style="width:100%;height:100%;display:block">
@@ -883,7 +879,7 @@ function drawShoppableView(d, box) {
     const ch = c.h * scale;
     svg += `<rect x="${(cx + .8).toFixed(1)}" y="${(cy + .8).toFixed(1)}" `
          + `width="${Math.max(0, cw - 1.6).toFixed(1)}" height="${Math.max(0, ch - 1.6).toFixed(1)}" `
-         + `fill="${fill(c.ring)}" stroke="${stroke(c.ring)}" stroke-width="0.7" clip-path="url(#pal-clip)"/>`;
+         + `fill="${fill(c.side)}" stroke="${stroke(c.side)}" stroke-width="0.7" clip-path="url(#pal-clip)"/>`;
   });
 
   svg += `<rect x="${ox}" y="${oy}" width="${dW}" height="${dH}" fill="none" stroke="#334060" stroke-width="1.5"/>`;
@@ -893,18 +889,14 @@ function drawShoppableView(d, box) {
   svg += `<text x="${(ox + dW / 2).toFixed(1)}" y="${(oy - 7).toFixed(1)}" text-anchor="middle" ${af} font-size="9" fill="${ac}">${PW}" (front face)</text>`;
   svg += `<text x="${(ox - 9).toFixed(1)}" y="${(oy + dH / 2).toFixed(1)}" text-anchor="middle" ${af} font-size="9" fill="${ac}" transform="rotate(-90,${(ox - 9).toFixed(1)},${(oy + dH / 2).toFixed(1)})">${PL}" (depth)</text>`;
 
-  const maxRing = Math.max(...positions.filter(p => p.ring > 0).map(p => p.ring));
   const ly = (oy + dH + 12).toFixed(1);
   let lx = ox;
-  for (let r = 1; r <= Math.min(maxRing, 5); r++) {
-    svg += `<rect x="${lx.toFixed(1)}" y="${ly}" width="8" height="8" fill="${fill(r)}" stroke="${stroke(r)}" stroke-width="0.7"/>`;
-    svg += `<text x="${(lx + 12).toFixed(1)}" y="${(parseFloat(ly) + 7).toFixed(1)}" ${af} font-size="8" fill="#7a8faa">Ring ${r}</text>`;
+  const presentSides = [...new Set(positions.map(p => p.side))].filter(s => SIDE_STROKE[s]);
+  presentSides.forEach(side => {
+    svg += `<rect x="${lx.toFixed(1)}" y="${ly}" width="8" height="8" fill="${fill(side)}" stroke="${stroke(side)}" stroke-width="0.7"/>`;
+    svg += `<text x="${(lx + 12).toFixed(1)}" y="${(parseFloat(ly) + 7).toFixed(1)}" ${af} font-size="8" fill="#7a8faa">${side}</text>`;
     lx += 52;
-  }
-  if (positions.some(p => p.ring === 0)) {
-    svg += `<rect x="${lx.toFixed(1)}" y="${ly}" width="8" height="8" fill="${FILL_FILL}" stroke="${FILL_STROKE}" stroke-width="0.7"/>`;
-    svg += `<text x="${(lx + 12).toFixed(1)}" y="${(parseFloat(ly) + 7).toFixed(1)}" ${af} font-size="8" fill="#7a8faa">Fill</text>`;
-  }
+  });
 
   svg += '</svg>';
   box.innerHTML = svg;
