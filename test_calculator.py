@@ -329,10 +329,6 @@ class TestShoppableV2:
     """
     ALL4 = 4
 
-    def _v2(self, cl, cw, pl=_D(48), pw=_D(40), sides=None):
-        from calculator import find_shoppable_v2
-        return find_shoppable_v2(_D(cl), _D(cw), pl, pw, sides if sides is not None else self.ALL4)
-
     def _pos(self, cl, cw, pl=_D(48), pw=_D(40), sides=None):
         from calculator import generate_shoppable_v2_positions
         return generate_shoppable_v2_positions(_D(cl), _D(cw), pl, pw, sides if sides is not None else self.ALL4)
@@ -341,27 +337,6 @@ class TestShoppableV2:
     def _overlaps(a, b):
         return (a['x'] < b['x'] + b['w'] - 1e-9 and a['x'] + a['w'] > b['x'] + 1e-9 and
                 a['y'] < b['y'] + b['h'] - 1e-9 and a['y'] + a['h'] > b['y'] + 1e-9)
-
-    # ── find_shoppable_v2 ────────────────────────────────────────
-
-    def test_result_shape(self):
-        r = self._v2(10, 8)
-        assert 'ti' in r and 'mode' in r and 'void_pct' in r and 'error' in r
-
-    def test_10x8_ti_and_mode(self):
-        r = self._v2(10, 8)
-        assert r['ti'] == 20
-        assert r['mode'] == 'shoppable_spiral'
-
-    def test_void_in_range(self):
-        r = self._v2(10, 8)
-        assert 0.0 <= r['void_pct'] <= 1.0
-
-    def test_fallback_to_standard_when_case_too_large(self):
-        # case_l+case_w=61 > pallet_w=40 → standard fallback
-        r = self._v2(41, 20)
-        assert r['mode'] == 'standard'
-        assert r['ti'] > 0
 
     # ── generate_shoppable_v2_positions — 10×5 on 26×30 (user example) ──
 
@@ -393,19 +368,6 @@ class TestShoppableV2:
             assert p['h'] == pytest.approx(5.0)
 
     # ── generate_shoppable_v2_positions — 10×8 on 48×40 (GMA) ───
-
-    def test_position_count_matches_ti(self):
-        # find_shoppable_v2 tries both orientations and picks the best, so ti may
-        # exceed the count from a single generate_shoppable_v2_positions call.
-        # Verify ti equals the best of the two orientation counts.
-        from calculator import generate_shoppable_v2_positions
-        for cl, cw in [(10, 8), (12, 7), (8, 6)]:
-            r = self._v2(cl, cw)
-            p1 = generate_shoppable_v2_positions(_D(cl), _D(cw), _D(48), _D(40), 4)
-            p2 = generate_shoppable_v2_positions(_D(cw), _D(cl), _D(40), _D(48), 4)
-            best = max(len(p1), len(p2))
-            assert r['ti'] == best, \
-                f"{cl}×{cw}: ti={r['ti']} != best orientation count={best}"
 
     def test_no_overlapping_cases(self):
         for cl, cw in [(10, 8), (10, 5)]:

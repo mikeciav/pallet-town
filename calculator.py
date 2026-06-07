@@ -107,42 +107,6 @@ def _make_config(
 
 
 
-def find_shoppable_v2(
-    case_l: Decimal,
-    case_w: Decimal,
-    pallet_l: Decimal,
-    pallet_w: Decimal,
-    sides: int,
-) -> Dict:
-
-    if case_l > case_w:
-        case_l, case_w = case_w, case_l  # Ensure case_l is the smaller dimension for consistent orientation
-    """
-    Corner-spiral shoppable arrangement — counts TI from generated positions.
-    """
-    pallet_area = pallet_l * pallet_w
-    case_area = case_l * case_w
-    min_box = case_l + case_w
-
-    if pallet_w < min_box or pallet_l < min_box:
-        std_ti, _ = find_optimal_arrangement(case_l, case_w, pallet_l, pallet_w)
-        void_pct = max(_D('0'), (pallet_area - std_ti * case_area) / pallet_area)
-        return {"ti": std_ti, "mode": "standard", "void_pct": round(float(void_pct), 4), "error": None}
-    variants = [
-        generate_shoppable_v2_positions(case_l, case_w, pallet_l, pallet_w, sides),
-        generate_shoppable_v2_positions(case_w, case_l, pallet_w, pallet_l, sides)
-    ]
-    positions = max(variants, key=len)
-
-    total_ti = len(positions)
-    void_pct = max(_D('0'), (pallet_area - total_ti * case_area) / pallet_area)
-    return {
-        "ti": total_ti,
-        "mode": "shoppable_spiral",
-        "void_pct": round(float(void_pct), 4),
-        "error": None,
-    }
-
 
 def generate_shoppable_v2_positions(
     case_l: Decimal,
@@ -324,8 +288,6 @@ def arrangement_description(config: Optional[Dict], ti: int) -> str:
     has_a = a["count"] > 0 and a["per_stripe"] > 0
     has_b = b["count"] > 0 and b["per_stripe"] > 0
     if has_a and has_b:
-        dir_a = "cols" if not a["rotated"] else "cols (rot.)"
-        dir_b = "cols (rot.)" if not b["rotated"] else "cols"
         return (f"Mixed: {a['count']}×{a['per_stripe']} + "
                 f"{b['count']}×{b['per_stripe']}")
     if has_a:

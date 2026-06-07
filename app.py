@@ -7,7 +7,7 @@ from functools import wraps
 from dotenv import load_dotenv
 from flask import Flask, jsonify, render_template, request, session
 from werkzeug.security import check_password_hash
-from calculator import _D, calculate, find_shoppable_v2, generate_shoppable_v2_positions
+from calculator import _D, calculate, generate_shoppable_v2_positions
 
 load_dotenv()
 
