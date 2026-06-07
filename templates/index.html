@@ -227,6 +227,9 @@
             <div class="divider"></div>
             <div class="panel-header">
               <span class="panel-label">CLUB DISPLAY OPTIONS</span>
+              <span class="beta-badge">BETA
+                <span class="beta-tooltip">Some features may be buggy.<br><br>💡 Pro tip: try swapping the length and width inputs to see if it improves the result.</span>
+              </span>
             </div>
 
             <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px">
@@ -265,13 +268,6 @@
               </div>
             </div>
 
-            <div class="ie-row" style="margin-bottom:8px">
-              <label class="toggle-label" id="club-fill-label">
-                <input type="checkbox" id="club-fill-chimney" class="toggle-input" checked>
-                <span class="toggle-track"><span class="toggle-thumb"></span></span>
-                <span class="toggle-text">Fill Chimney</span>
-              </label>
-            </div>
           </div>
 
           <div class="divider"></div>
@@ -319,24 +315,11 @@
             </div>
           </div>
 
-          <!-- Shoppable results row (hidden until a shoppable calc is run) -->
-          <div id="shoppable-metrics-row" class="metrics-row" style="display:none;margin-bottom:4px;border-bottom:1px solid #1e2a45;padding-bottom:8px">
-            <div class="metric-card" id="mc-shoppable-ti">
-              <div class="metric-label">Shoppable Ti</div>
-              <div class="metric-val" id="val-shoppable-ti">—</div>
-              <div class="metric-sub">CASES / LAYER</div>
-            </div>
-            <div class="metric-card" id="mc-shoppable-void">
-              <div class="metric-label">Void</div>
-              <div class="metric-val" id="val-shoppable-void">—</div>
-              <div class="metric-sub">EMPTY SPACE</div>
-            </div>
-
-          </div>
-
           <!-- Diagram sub-header -->
           <div class="diagram-header">
             <span class="panel-label">LAYER DIAGRAM</span>
+            <span class="panel-hint" id="shoppable-void-hint" style="margin-left:8px"></span>
+            <span class="panel-hint" id="shoppable-fp-hint" style="margin-left:8px"></span>
             {% if show_hi_view %}
             <div class="view-toggle" id="view-toggle" style="margin-left:auto">
               <button class="vt-btn active" data-view="ti">TI</button>

@@ -13,7 +13,13 @@ uniform, and most mixed patterns used in practice.
 """
 
 from __future__ import annotations
+from decimal import Decimal
 from typing import Dict, List, Optional, Tuple
+
+
+def _D(x) -> Decimal:
+    """Convert a number to Decimal via string to avoid inheriting float imprecision."""
+    return Decimal(str(x))
 
 
 def find_optimal_arrangement(
@@ -28,6 +34,8 @@ def find_optimal_arrangement(
     Tries all stripe patterns over both pallet dimensions with both carton
     orientations: n stripes of A + remaining space filled with B stripes.
     """
+    case_l, case_w, pallet_l, pallet_w = _D(case_l), _D(case_w), _D(pallet_l), _D(pallet_w)
+
     if case_l <= 0 or case_w <= 0 or pallet_l <= 0 or pallet_w <= 0:
         return 0, None
 
@@ -53,10 +61,10 @@ def find_optimal_arrangement(
             if ti > best_ti:
                 best_ti = ti
                 best_config = _make_config(
-                    "row", pallet_l, pallet_w,
-                    n_a, per_a, a_l, a_w,
-                    n_b, per_b, b_l, b_w,
-                    case_l, case_w,
+                    "row", float(pallet_l), float(pallet_w),
+                    n_a, per_a, float(a_l), float(a_w),
+                    n_b, per_b, float(b_l), float(b_w),
+                    float(case_l), float(case_w),
                 )
 
         # --- Column stripes: split along pallet LENGTH ---
@@ -72,10 +80,10 @@ def find_optimal_arrangement(
             if ti > best_ti:
                 best_ti = ti
                 best_config = _make_config(
-                    "col", pallet_l, pallet_w,
-                    n_a, per_a, a_l, a_w,
-                    n_b, per_b, b_l, b_w,
-                    case_l, case_w,
+                    "col", float(pallet_l), float(pallet_w),
+                    n_a, per_a, float(a_l), float(a_w),
+                    n_b, per_b, float(b_l), float(b_w),
+                    float(case_l), float(case_w),
                 )
 
     return best_ti, best_config
@@ -109,6 +117,8 @@ def find_shoppable_v2(
     sides: int,
 ) -> Dict:
 
+    case_l, case_w, pallet_l, pallet_w = _D(case_l), _D(case_w), _D(pallet_l), _D(pallet_w)
+
     if case_l > case_w:
         case_l, case_w = case_w, case_l  # Ensure case_l is the smaller dimension for consistent orientation
     """
@@ -118,10 +128,10 @@ def find_shoppable_v2(
     case_area = case_l * case_w
     min_box = case_l + case_w
 
-    if pallet_w < min_box - 1e-9 or pallet_l < min_box - 1e-9:
+    if pallet_w < min_box or pallet_l < min_box:
         std_ti, _ = find_optimal_arrangement(case_l, case_w, pallet_l, pallet_w)
-        void_pct = max(0.0, (pallet_area - std_ti * case_area) / pallet_area)
-        return {"ti": std_ti, "mode": "standard", "void_pct": round(void_pct, 4), "error": None}
+        void_pct = max(_D('0'), (pallet_area - std_ti * case_area) / pallet_area)
+        return {"ti": std_ti, "mode": "standard", "void_pct": round(float(void_pct), 4), "error": None}
     variants = [
         generate_shoppable_v2_positions(case_l, case_w, pallet_l, pallet_w, sides),
         generate_shoppable_v2_positions(case_w, case_l, pallet_w, pallet_l, sides)
@@ -129,11 +139,11 @@ def find_shoppable_v2(
     positions = max(variants, key=len)
 
     total_ti = len(positions)
-    void_pct = max(0.0, (pallet_area - total_ti * case_area) / pallet_area)
+    void_pct = max(_D('0'), (pallet_area - total_ti * case_area) / pallet_area)
     return {
         "ti": total_ti,
         "mode": "shoppable_spiral",
-        "void_pct": round(void_pct, 4),
+        "void_pct": round(float(void_pct), 4),
         "error": None,
     }
 
@@ -160,13 +170,15 @@ def generate_shoppable_v2_positions(
 
     Coordinates: x = W direction (0→pallet_w), y = L direction (0→pallet_l).
     """
+    case_l, case_w, pallet_l, pallet_w = _D(case_l), _D(case_w), _D(pallet_l), _D(pallet_w)
+
     positions: List[Dict] = []
 
     # The bounding box shrinks inward by case_l on each side after every completed spiral pass.
-    left_x   = 0.0
-    top_y = 0.0
-    right_x  = float(pallet_w)
-    bottom_y    = float(pallet_l)
+    left_x   = _D('0')
+    top_y    = _D('0')
+    right_x  = pallet_w
+    bottom_y = pallet_l
 
     # Primary algorithm to place cases in a spiral pattern
     while True:
@@ -181,9 +193,9 @@ def generate_shoppable_v2_positions(
         num_top_cases = max(0, int((right_x - left_x - case_l) / case_w))
         for i in range(num_top_cases):
             positions.append({
-                "x": round(left_x + i * case_w, 6),
-                "y": round(top_y, 6),
-                "w": case_w, "h": case_l, "side": "top",
+                "x": float(left_x + i * case_w),
+                "y": float(top_y),
+                "w": float(case_w), "h": float(case_l), "side": "top",
             })
 
         old_right_x = right_x
@@ -198,9 +210,9 @@ def generate_shoppable_v2_positions(
             num_right_cases = max(0, int((bottom_y - top_y) / case_w))
         for i in range(num_right_cases):
             positions.append({
-                "x": round(right_x - case_l, 6),
-                "y": round(top_y + i * case_w, 6),
-                "w": case_l, "h": case_w, "side": "right",
+                "x": float(right_x - case_l),
+                "y": float(top_y + i * case_w),
+                "w": float(case_l), "h": float(case_w), "side": "right",
             })
 
         if sides > 2:
@@ -215,9 +227,9 @@ def generate_shoppable_v2_positions(
                 num_bottom_cases = max(0, int((old_right_x - left_x) / case_w))
             for i in range(num_bottom_cases):
                 positions.append({
-                    "x": round(right_x - (i + 1) * case_w, 6),
-                    "y": round(bottom_y - case_l, 6),
-                    "w": case_w, "h": case_l, "side": "bottom",
+                    "x": float(right_x - (i + 1) * case_w),
+                    "y": float(bottom_y - case_l),
+                    "w": float(case_w), "h": float(case_l), "side": "bottom",
                 })
 
             if sides > 3:
@@ -227,9 +239,9 @@ def generate_shoppable_v2_positions(
                 num_left_cases = num_right_cases
                 for i in range(num_left_cases):
                     positions.append({
-                        "x": round(left_x, 6),
-                        "y": round(bottom_y - (i + 1) * case_w, 6),
-                        "w": case_l, "h": case_w, "side": "left",
+                        "x": float(left_x),
+                        "y": float(bottom_y - (i + 1) * case_w),
+                        "w": float(case_l), "h": float(case_w), "side": "left",
                     })
 
         # Shrink the bounding box inward by case_l for the next loop.
@@ -245,9 +257,9 @@ def generate_shoppable_v2_positions(
         num_right_cases = max(0, int((bottom_y - top_y) / case_w))
         for i in range(num_right_cases):
             positions.append({
-                "x": round(right_x - case_l, 6),
-                "y": round(top_y + i * case_w, 6),
-                "w": case_l, "h": case_w, "side": "right",
+                "x": float(right_x - case_l),
+                "y": float(top_y + i * case_w),
+                "w": float(case_l), "h": float(case_w), "side": "right",
             })
         right_x -= case_l
 
@@ -255,9 +267,9 @@ def generate_shoppable_v2_positions(
     while top_y + case_l <= bottom_y:
         for i in range(num_top_cases):
             positions.append({
-                "x": round(right_x - (i+1) * case_w, 6),
-                "y": round(top_y, 6),
-                "w": case_w, "h": case_l, "side": "top",
+                "x": float(right_x - (i+1) * case_w),
+                "y": float(top_y),
+                "w": float(case_w), "h": float(case_l), "side": "top",
             })
         top_y += case_l
 
@@ -345,9 +357,12 @@ def calculate(
     pallet board itself. Hi is always based on one pallet — stacking is a
     truckload-level concern handled outside this function.
     """
+    case_l, case_w, case_h = _D(case_l), _D(case_w), _D(case_h)
+    pallet_l, pallet_w, pallet_h, max_height = _D(pallet_l), _D(pallet_w), _D(pallet_h), _D(max_height)
+
     ti, config = find_optimal_arrangement(case_l, case_w, pallet_l, pallet_w)
 
-    case_h_safe = max(case_h, 0.01)
+    case_h_safe = max(case_h, _D('0.01'))
     available_h = max_height - pallet_h
 
     hi = max(0, int(available_h / case_h_safe))
@@ -356,7 +371,7 @@ def calculate(
 
     pallet_area = pallet_l * pallet_w
     case_footprint = case_l * case_w
-    efficiency = (ti * case_footprint) / pallet_area if pallet_area > 0 else 0.0
+    efficiency = (ti * case_footprint) / pallet_area if pallet_area > 0 else _D('0')
 
     positions = generate_positions(config) if config else []
     desc = arrangement_description(config, ti)
@@ -366,14 +381,14 @@ def calculate(
         "ti": ti,
         "hi": hi,
         "total": total,
-        "case_h": round(case_h, 2),
-        "pod_height": round(pod_height, 2),
-        "efficiency": round(efficiency, 4),
-        "pallet_length": pallet_l,
-        "pallet_width": pallet_w,
+        "case_h": round(float(case_h), 2),
+        "pod_height": round(float(pod_height), 2),
+        "efficiency": round(float(efficiency), 4),
+        "pallet_length": float(pallet_l),
+        "pallet_width": float(pallet_w),
         "pod_length": p_len,
         "pod_width": p_wid,
         "arrangement": positions,
         "arrangement_desc": desc,
-        "available_height": round(available_h, 2),
+        "available_height": round(float(available_h), 2),
     }
