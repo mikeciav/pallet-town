@@ -184,6 +184,42 @@ class TestLoadRetailersBackfill:
         assert result[0]["notes"] == ""
 
 
+# ── Retailer club fields ──────────────────────────────────────
+
+class TestRetailerClubFields:
+    def test_club_stores_have_is_club_store_true(self, client):
+        r = client.get('/api/retailers')
+        retailers = r.get_json()
+        for name in ("Sam's Club", "Costco", "BJ's Wholesale"):
+            retailer = next(r for r in retailers if r['name'] == name)
+            assert retailer['is_club_store'] is True, f"{name} should be is_club_store=True"
+        # BJ's does not permit open chimneys; Sam's Club and Costco do
+        bjs = next(r for r in retailers if r['name'] == "BJ's Wholesale")
+        assert bjs['chimney_allowed'] is False
+        for name in ("Sam's Club", "Costco"):
+            retailer = next(r for r in retailers if r['name'] == name)
+            assert retailer['chimney_allowed'] is True, f"{name} should be chimney_allowed=True"
+
+    def test_non_club_stores_have_is_club_store_false(self, client):
+        r = client.get('/api/retailers')
+        retailers = r.get_json()
+        amazon = next(r for r in retailers if r['name'] == 'Amazon')
+        assert amazon['is_club_store'] is False
+        assert amazon['chimney_allowed'] is False
+
+    def test_load_retailers_backfills_missing_fields(self, tmp_path, monkeypatch):
+        """Retailers saved before this feature was added get default values."""
+        old_data = [{"id": 1, "name": "OldRetailer", "max_height": 60,
+                     "double_stack_allowed": False, "max_pallets_per_floor": 26,
+                     "no_pallet": False, "notes": ""}]
+        rf = tmp_path / "retailers.json"
+        rf.write_text(json.dumps(old_data))
+        monkeypatch.setattr(flask_app, "RETAILERS_FILE", str(rf))
+        data = flask_app.load_retailers()
+        assert data[0]['is_club_store'] is False
+        assert data[0]['chimney_allowed'] is False
+
+
 # ── Calculate (preset retailer) ───────────────────────────────
 
 class TestCalculatePreset:
@@ -371,3 +407,82 @@ class TestBulkCalculate:
         d = r.get_json()[0]
         assert d["case_pack_qty"] == 6
         assert d["truckload_qty"] == 6 * d["total"] * 26
+
+
+# ── Shoppable API validation ──────────────────────────────────
+
+SAMS_ID = "8"   # Sam's Club — is_club_store=True, chimney_allowed=True
+BJS_ID  = "15"  # BJ's Wholesale — is_club_store=True, chimney_allowed=False
+AMAZON_ID = "4" # Amazon — is_club_store=False
+VALID_DIMS = {"length": 10, "width": 8, "height": 6, "retailer_id": SAMS_ID}
+
+class TestShoppableAPI:
+    def test_shoppable_rejected_for_non_club_store(self, client):
+        body = {**VALID_DIMS, "retailer_id": AMAZON_ID,
+                "shoppable": {"sides": 4}}
+        r = client.post('/api/calculate',
+                        data=json.dumps(body),
+                        content_type='application/json')
+        assert r.status_code == 400
+        assert 'club store' in r.get_json()['error'].lower()
+
+    def test_shoppable_rejected_for_custom_retailer(self, client):
+        body = {"length": 10, "width": 8, "height": 6,
+                "retailer_id": "custom",
+                "max_height": 60, "double_stack_allowed": False,
+                "max_pallets_per_floor": 26, "no_pallet": False,
+                "shoppable": {"sides": 4}}
+        r = client.post('/api/calculate',
+                        data=json.dumps(body),
+                        content_type='application/json')
+        assert r.status_code == 400
+
+    def test_shoppable_rejected_with_invalid_sides_value(self, client):
+        body = {**VALID_DIMS, "shoppable": {"sides": 1}}
+        r = client.post('/api/calculate',
+                        data=json.dumps(body),
+                        content_type='application/json')
+        assert r.status_code == 400
+        assert 'sides' in r.get_json()['error'].lower()
+
+    def test_shoppable_accepted_for_club_store(self, client):
+        body = {**VALID_DIMS, "shoppable": {"sides": 3}}
+        r = client.post('/api/calculate',
+                        data=json.dumps(body),
+                        content_type='application/json')
+        assert r.status_code == 200
+        data = r.get_json()
+        assert 'shoppable' in data
+
+    def test_shoppable_response_shape(self, client):
+        body = {**VALID_DIMS,
+                "shoppable": {"sides": 3,
+                              "max_empty_pct": 0.15,
+                              "rounding_gaps": True}}
+        r = client.post('/api/calculate',
+                        data=json.dumps(body),
+                        content_type='application/json')
+        assert r.status_code == 200
+        d = r.get_json()
+        assert 'total' in d
+        s = d['shoppable']
+        assert isinstance(s['ti'], int)
+        assert s['mode'] in ('pure_facing', 'filled', 'partial', 'standard', 'shoppable_spiral')
+        assert 0.0 <= s['void_pct'] <= 1.0
+        assert 'error' in s
+
+    def test_shoppable_ti_lte_standard_ti(self, client):
+        body = {**VALID_DIMS, "shoppable": {"sides": 4}}
+        r = client.post('/api/calculate',
+                        data=json.dumps(body),
+                        content_type='application/json')
+        d = r.get_json()
+        assert d['shoppable']['ti'] <= d['total']
+
+    def test_no_shoppable_key_without_block(self, client):
+        body = {**VALID_DIMS}
+        r = client.post('/api/calculate',
+                        data=json.dumps(body),
+                        content_type='application/json')
+        assert r.status_code == 200
+        assert 'shoppable' not in r.get_json()

@@ -5,10 +5,11 @@ Run with:  python3 -m pytest test_calculator.py -v
 """
 
 import pytest
-from calculator import calculate, find_optimal_arrangement, pod_dimensions, generate_positions
+from decimal import Decimal
+from calculator import _D, calculate, find_optimal_arrangement, pod_dimensions, generate_positions
 
 # Standard pallet constants used in app.py
-PL, PW, PH = 48.0, 40.0, 5.5
+PL, PW, PH = _D(48), _D(40), _D('5.5')
 
 
 # ── Ti (cartons per layer) ────────────────────────────────────
@@ -250,9 +251,9 @@ class TestPositions:
             for c in r['arrangement']:
                 assert c['x'] >= 0
                 assert c['y'] >= 0
-                assert c['x'] + c['w'] <= PL + 1e-9, \
+                assert c['x'] + c['w'] <= float(PL) + 1e-9, \
                     f"{cl}×{cw}: carton x+w={c['x']+c['w']} > pallet {PL}"
-                assert c['y'] + c['h'] <= PW + 1e-9, \
+                assert c['y'] + c['h'] <= float(PW) + 1e-9, \
                     f"{cl}×{cw}: carton y+h={c['y']+c['h']} > pallet {PW}"
 
     def test_no_positions_when_ti_zero(self):
@@ -305,3 +306,112 @@ class TestTruckload:
 
     def test_zero_total_gives_zero_truckload(self):
         assert truckload(0, 4, 26, True) == 0
+
+
+
+class TestShoppableV2:
+    """
+    Tests for find_shoppable_v2 and generate_shoppable_v2_positions.
+
+    Corner-spiral algorithm: clockwise from top-left corner.
+    Each side: n regular cases (case_w parallel, case_l deep) + corner case
+    (case_l parallel, case_w deep). LEFT side has no trailing corner.
+    Bounding box shrinks by case_l after each full loop.
+
+    10×5 case on 26×30 pallet (user's example):
+      Loop 1: BOTTOM 3+corner, RIGHT 3+corner, TOP 2+corner, LEFT 3 = 14 cases
+      Loop 2: W=6 < case_l+case_w=15 → stop. Total: 14.
+
+    10×8 case on 48×40 pallet (GMA):
+      Loop 1: BOTTOM 3+corner, RIGHT 3+corner, TOP 2+corner, LEFT 3 = 14 cases
+      Loop 2: BOTTOM 1+corner, RIGHT 1+corner, TOP 0+corner, LEFT 1 = 6 cases
+      Loop 3: W=0 → stop. Total: 20.
+    """
+    ALL4 = 4
+
+    def _pos(self, cl, cw, pl=_D(48), pw=_D(40), sides=None):
+        from calculator import generate_shoppable_v2_positions
+        return generate_shoppable_v2_positions(_D(cl), _D(cw), pl, pw, sides if sides is not None else self.ALL4)
+
+    @staticmethod
+    def _overlaps(a, b):
+        return (a['x'] < b['x'] + b['w'] - 1e-9 and a['x'] + a['w'] > b['x'] + 1e-9 and
+                a['y'] < b['y'] + b['h'] - 1e-9 and a['y'] + a['h'] > b['y'] + 1e-9)
+
+    # ── generate_shoppable_v2_positions — 10×5 on 26×30 (user example) ──
+
+    def test_10x5_on_26x30_count(self):
+        pos = self._pos(10, 5, pl=_D(30), pw=_D(26))
+        assert len(pos) == 15
+
+    def test_10x5_top_wall_cases(self):
+        # 3 top-wall cases (w=5, h=10) at y=0, x=0/5/10, plus 1 chimney case at y=10
+        pos = self._pos(10, 5, pl=_D(30), pw=_D(26))
+        top_wall = [p for p in pos if p['side'] == 'top' and p['y'] == pytest.approx(0.0)]
+        assert len(top_wall) == 3
+        xs = sorted(p['x'] for p in top_wall)
+        assert xs == pytest.approx([0.0, 5.0, 10.0])
+        for p in top_wall:
+            assert p['w'] == pytest.approx(5.0)
+            assert p['h'] == pytest.approx(10.0)
+
+    def test_10x5_right_regular_cases(self):
+        # 4 right cases: case_l=10" wide, case_w=5" tall, x=15, y=0/5/10/15
+        pos = self._pos(10, 5, pl=_D(30), pw=_D(26))
+        right_reg = [p for p in pos if p['side'] == 'right']
+        assert len(right_reg) == 4
+        ys = sorted(p['y'] for p in right_reg)
+        assert ys == pytest.approx([0.0, 5.0, 10.0, 15.0])
+        for p in right_reg:
+            assert p['x'] == pytest.approx(15.0)
+            assert p['w'] == pytest.approx(10.0)
+            assert p['h'] == pytest.approx(5.0)
+
+    # ── generate_shoppable_v2_positions — 10×8 on 48×40 (GMA) ───
+
+    def test_no_overlapping_cases(self):
+        for cl, cw in [(10, 8), (10, 5)]:
+            pl, pw = (_D(48), _D(40)) if cw == 8 else (_D(30), _D(26))
+            positions = self._pos(cl, cw, pl=pl, pw=pw)
+            for i, a in enumerate(positions):
+                for j, b in enumerate(positions):
+                    if i >= j:
+                        continue
+                    assert not self._overlaps(a, b), \
+                        f"{cl}×{cw} cases {i} and {j} overlap: {a} vs {b}"
+
+    def test_10x8_top_wall_cases(self):
+        # 3 top-wall cases (w=8, h=10) at y=0, x=0/8/16
+        positions = self._pos(10, 8)
+        top_wall = [p for p in positions if p['side'] == 'top' and p['y'] == pytest.approx(0.0)]
+        assert len(top_wall) == 3
+        xs = sorted(p['x'] for p in top_wall)
+        assert xs == pytest.approx([0.0, 8.0, 16.0])
+
+    def test_10x8_left_cases(self):
+        # Left cases are flush with the left wall (x=0)
+        positions = self._pos(10, 8)
+        left = [p for p in positions if p['side'] == 'left' and p['x'] == pytest.approx(0.0)]
+        assert len(left) >= 3
+        for p in left:
+            assert p['w'] == pytest.approx(10.0)
+            assert p['h'] == pytest.approx(8.0)
+
+    def test_all_positions_within_pallet_bounds(self):
+        for cl, cw in [(10, 8), (12, 7), (6, 4)]:
+            positions = self._pos(cl, cw)
+            for p in positions:
+                assert p['x'] >= -1e-9, f"{cl}×{cw}: x={p['x']} < 0"
+                assert p['y'] >= -1e-9, f"{cl}×{cw}: y={p['y']} < 0"
+                assert p['x'] + p['w'] <= 40.0 + 1e-9, \
+                    f"{cl}×{cw}: x+w={p['x']+p['w']} > pallet_w=40"
+                assert p['y'] + p['h'] <= 48.0 + 1e-9, \
+                    f"{cl}×{cw}: y+h={p['y']+p['h']} > pallet_l=48"
+
+    def test_oversized_case_chimney_only(self):
+        # 2*case_l=82 > pallet_w=40 → spiral loop skipped, chimney fill only
+        positions = self._pos(41, 20)
+        assert len(positions) == 2
+        for p in positions:
+            assert p['y'] == pytest.approx(0.0)
+            assert p['h'] == pytest.approx(41.0)

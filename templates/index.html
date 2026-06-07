@@ -82,7 +82,7 @@
       <div class="modal-header-row">
         <div>
           <div class="modal-title" id="bulk-diagram-title">LAYOUT</div>
-          <div class="panel-hint" id="bulk-diagram-hint" style="margin-top:2px"></div>
+          <div class="panel-hint" id="bulk-diagram-hint" style="margin-bottom:2px"></div>
         </div>
         <button class="ghost-btn" id="bulk-diagram-close">CLOSE</button>
       </div>
@@ -100,11 +100,11 @@
                placeholder="enter password" autocomplete="current-password">
       </div>
       <div class="login-error" id="login-error"></div>
-      <button class="pt-btn" id="login-submit" style="margin-top:12px">
+      <button class="pt-btn" id="login-submit" style="margin-bottom:12px">
         <span id="login-btn-text">AUTHENTICATE</span>
       </button>
       <button class="ghost-btn" id="login-cancel"
-              style="width:100%;margin-top:8px;padding:8px">CANCEL</button>
+              style="width:100%;margin-bottom:8px;padding:8px">CANCEL</button>
     </div>
   </div>
 
@@ -134,14 +134,14 @@
             <div class="field-group">
               <label class="field-label">LENGTH</label>
               <div class="field-wrap">
-                <input type="number" id="c-l" class="dim-input" placeholder="0.0" min="0.1" step="0.1" {% if show_demo_defaults %}value="13.3"{% endif %}>
+                <input type="number" id="c-l" class="dim-input" placeholder="0.0" min="0.1" step="0.1" {% if show_demo_defaults %}value="6.6"{% endif %}>
                 <span class="field-unit">in</span>
               </div>
             </div>
             <div class="field-group">
               <label class="field-label">WIDTH</label>
               <div class="field-wrap">
-                <input type="number" id="c-w" class="dim-input" placeholder="0.0" min="0.1" step="0.1" {% if show_demo_defaults %}value="6.9"{% endif %}>
+                <input type="number" id="c-w" class="dim-input" placeholder="0.0" min="0.1" step="0.1" {% if show_demo_defaults %}value="3.3"{% endif %}>
                 <span class="field-unit">in</span>
               </div>
             </div>
@@ -153,7 +153,7 @@
               </div>
             </div>
           </div>
-          <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:8px">
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px">
             <div class="field-group">
               <label class="field-label">CASE WEIGHT</label>
               <div class="field-wrap">
@@ -199,14 +199,14 @@
                   <input type="number" id="ie-pallets" class="dim-input" step="1" min="1">
                 </div>
               </div>
-              <div class="ie-row" style="margin-top:8px">
+              <div class="ie-row" style="margin-bottom:8px">
                 <label class="toggle-label">
                   <input type="checkbox" id="ie-ds" class="toggle-input">
                   <span class="toggle-track"><span class="toggle-thumb"></span></span>
                   <span class="toggle-text">Double Stack Allowed</span>
                 </label>
               </div>
-              <div class="ie-row" style="margin-top:8px">
+              <div class="ie-row" style="margin-bottom:8px">
                 <label class="toggle-label">
                   <input type="checkbox" id="ie-nopallet" class="toggle-input">
                   <span class="toggle-track"><span class="toggle-thumb"></span></span>
@@ -216,11 +216,59 @@
             </div>
           </div>
 
-          <div id="calc-notes-wrap" style="display:none;margin-top:8px">
+          <div id="calc-notes-wrap" style="display:none;margin-bottom:8px">
             <div class="field-group">
               <label class="field-label">NOTES</label>
               <textarea id="calc-retailer-notes" class="retailer-notes" placeholder="Notes about this retailer..."></textarea>
             </div>
+          </div>
+
+          <!-- Club Display Options (visible only for club store retailers) -->
+          <div id="club-display-panel" style="display:none">
+            <div class="divider"></div>
+            <div class="panel-header">
+              <span class="panel-label">CLUB DISPLAY OPTIONS</span>
+              <span class="beta-badge">BETA
+                <span class="beta-tooltip">Some features may be buggy.<br><br>💡 Pro tip: try swapping the length and width inputs to see if it improves the result.</span>
+              </span>
+            </div>
+
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px">
+              <div class="field-group">
+                <label class="field-label">SHOPPABLE SIDES</label>
+                <div id="side-selector" style="display:flex;gap:6px">
+                  <button class="side-btn" data-sides="0">0</button>
+                  <button class="side-btn" data-sides="2">2</button>
+                  <button class="side-btn" data-sides="3">3</button>
+                  <button class="side-btn active" data-sides="4">4</button>
+                </div>
+              </div>
+              <div class="field-group">
+                <label class="field-label">MAX EMPTY %</label>
+                <div class="field-wrap">
+                  <input type="number" id="club-max-empty" class="dim-input" value="15" min="0" max="100" step="1">
+                  <span class="field-unit">%</span>
+                </div>
+              </div>
+            </div>
+
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px">
+              <div class="field-group">
+                <label class="field-label">MIN FOOTPRINT W</label>
+                <div class="field-wrap">
+                  <input type="number" id="club-fp-w" class="dim-input" value="37" min="0" step="0.5">
+                  <span class="field-unit">in</span>
+                </div>
+              </div>
+              <div class="field-group">
+                <label class="field-label">MIN FOOTPRINT L</label>
+                <div class="field-wrap">
+                  <input type="number" id="club-fp-l" class="dim-input" value="45" min="0" step="0.5">
+                  <span class="field-unit">in</span>
+                </div>
+              </div>
+            </div>
+
           </div>
 
           <div class="divider"></div>
@@ -236,7 +284,10 @@
         <!-- ── Col 2: Results + Diagram ─────────────────────── -->
         <div class="panel results-combined">
 
-          <!-- Metrics row: Ti | Hi | Total | TL across the top -->
+          <!-- Shoppable error banner (hidden until error mode) -->
+          <div id="shoppable-error-banner" style="display:none;background:#1c0a00;border:1px solid #7f1d1d;border-radius:6px;padding:8px 12px;margin-top:8px;font-family:monospace;font-size:11px;color:#f87171"></div>
+
+          <!-- Metrics row: Ti | Hi | Total | TL across the bottom -->
           <div class="metrics-row">
             <div class="metric-card" id="mc-ti">
               <div class="metric-label">Ti</div>
@@ -268,7 +319,8 @@
           <!-- Diagram sub-header -->
           <div class="diagram-header">
             <span class="panel-label">LAYER DIAGRAM</span>
-            <span class="panel-hint" id="diagram-hint"></span>
+            <span class="panel-hint" id="shoppable-void-hint" style="margin-left:8px"></span>
+            <span class="panel-hint" id="shoppable-fp-hint" style="margin-left:8px"></span>
             <div style="margin-left:auto;display:flex;align-items:center;gap:8px">
               {% if show_hi_view %}
               <div class="view-toggle" id="view-toggle">
@@ -284,43 +336,43 @@
             </div>
           </div>
 
-          <!-- Diagram — fills all remaining vertical space -->
-          <div class="diagram-box" id="diagram-box">
-            <div class="diagram-empty">
-              <svg viewBox="0 0 200 160" fill="none">
-                <rect x="20" y="10" width="160" height="130" stroke="#2a3347" stroke-width="1" stroke-dasharray="4 3"/>
-                <text x="100" y="82" text-anchor="middle" font-family="JetBrains Mono,monospace" font-size="10" fill="#2a3347">awaiting calculation</text>
-              </svg>
+          <!-- Diagram + sidebar -->
+          <div class="diagram-area">
+            <div class="diagram-box" id="diagram-box">
+              <div class="diagram-empty">
+                <svg viewBox="0 0 200 160" fill="none">
+                  <rect x="20" y="10" width="160" height="130" stroke="#2a3347" stroke-width="1" stroke-dasharray="4 3"/>
+                  <text x="100" y="82" text-anchor="middle" font-family="JetBrains Mono,monospace" font-size="10" fill="#2a3347">awaiting calculation</text>
+                </svg>
+              </div>
             </div>
-          </div>
 
-          <!-- Detail strip: 6 fields in a 3-column grid below the diagram -->
-          <div class="detail-strip" id="detail-strip" style="display:none">
-            <div class="detail-item">
-              <span class="detail-label">Pod Length</span>
-              <span class="detail-val" id="d-pod-l">—</span>
+            <div class="detail-sidebar" id="detail-strip" style="display:none">
+              <div class="detail-item">
+                <span class="detail-label">Pod Length</span>
+                <span class="detail-val" id="d-pod-l">—</span>
+              </div>
+              <div class="detail-item">
+                <span class="detail-label">Pod Width</span>
+                <span class="detail-val" id="d-pod-w">—</span>
+              </div>
+              <div class="detail-item">
+                <span class="detail-label">Pod Height</span>
+                <span class="detail-val" id="d-height">—</span>
+              </div>
+              <div class="detail-item">
+                <span class="detail-label">Floor Efficiency</span>
+                <span class="detail-val" id="d-efficiency">—</span>
+              </div>
+              <div class="detail-item">
+                <span class="detail-label">Pallet Weight</span>
+                <span class="detail-val" id="d-pallet-wt">—</span>
+              </div>
+              <div class="detail-item">
+                <span class="detail-label">Truckload Weight</span>
+                <span class="detail-val" id="d-tl-wt">—</span>
+              </div>
             </div>
-            <div class="detail-item">
-              <span class="detail-label">Pod Width</span>
-              <span class="detail-val" id="d-pod-w">—</span>
-            </div>
-            <div class="detail-item">
-              <span class="detail-label">Pod Height</span>
-              <span class="detail-val" id="d-height">—</span>
-            </div>
-            <div class="detail-item">
-              <span class="detail-label">Pallet Weight</span>
-              <span class="detail-val" id="d-pallet-wt">—</span>
-            </div>
-            <div class="detail-item">
-              <span class="detail-label">Truckload Weight</span>
-              <span class="detail-val" id="d-tl-wt">—</span>
-            </div>
-            <div class="detail-item">
-              <span class="detail-label">Floor Efficiency</span>
-              <span class="detail-val" id="d-efficiency">—</span>
-            </div>
-          </div>
 
         </div>
 
@@ -335,14 +387,14 @@
           <div class="panel-header">
             <span class="panel-label">CONFIGURATION</span>
           </div>
-          <div class="field-group" style="margin-bottom:1rem">
+          <div class="field-group" style="margin-top:1rem">
             <label class="field-label">RETAILER</label>
             <div class="select-wrap">
               <select id="bulk-retailer" class="pt-select"></select>
             </div>
           </div>
           <!-- Custom retailer editor for bulk (shown only when Custom is selected) -->
-          <div id="bulk-custom-editor" style="display:none;margin-bottom:8px">
+          <div id="bulk-custom-editor" style="display:none;margin-top:8px">
             <div class="inline-editor">
               <div class="ie-header">
                 <span class="panel-label">CUSTOM RETAILER</span>
@@ -361,14 +413,14 @@
                     <input type="number" id="bulk-ie-pallets" class="dim-input" step="1" min="1">
                   </div>
                 </div>
-                <div class="ie-row" style="margin-top:8px">
+                <div class="ie-row" style="margin-bottom:8px">
                   <label class="toggle-label">
                     <input type="checkbox" id="bulk-ie-ds" class="toggle-input">
                     <span class="toggle-track"><span class="toggle-thumb"></span></span>
                     <span class="toggle-text">Double Stack Allowed</span>
                   </label>
                 </div>
-                <div class="ie-row" style="margin-top:8px">
+                <div class="ie-row" style="margin-bottom:8px">
                   <label class="toggle-label">
                     <input type="checkbox" id="bulk-ie-nopallet" class="toggle-input">
                     <span class="toggle-track"><span class="toggle-thumb"></span></span>
@@ -378,7 +430,7 @@
               </div>
             </div>
           </div>
-          <div id="bulk-notes-wrap" style="display:none;margin-bottom:8px">
+          <div id="bulk-notes-wrap" style="display:none;margin-top:8px">
             <div class="field-group">
               <label class="field-label">NOTES</label>
               <textarea id="bulk-retailer-notes" class="retailer-notes" placeholder="Notes about this retailer..."></textarea>
@@ -507,7 +559,7 @@ ITEM-002,10,10,8,12.0,1</code>
                 </label>
               </div>
             </div>
-            <div class="r-field" style="margin-top:16px">
+            <div class="r-field" style="margin-bottom:16px">
               <span class="r-field-label">NOTES</span>
               <textarea class="retailer-notes" id="rd-notes" placeholder="Add notes about loading requirements, contacts, special instructions..."></textarea>
             </div>
@@ -519,6 +571,7 @@ ITEM-002,10,10,8,12.0,1</code>
 
   </main>
 
+  <script>window.SHOW_DEMO_DEFAULTS = {{ 'true' if show_demo_defaults else 'false' }};</script>
   <script src="/static/js/app.js"></script>
 </body>
 </html>
