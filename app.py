@@ -2,11 +2,12 @@
 
 import json
 import os
+from decimal import Decimal, InvalidOperation
 from functools import wraps
 from dotenv import load_dotenv
 from flask import Flask, jsonify, render_template, request, session
 from werkzeug.security import check_password_hash
-from calculator import calculate, find_shoppable_v2, generate_shoppable_v2_positions
+from calculator import _D, calculate, find_shoppable_v2, generate_shoppable_v2_positions
 
 load_dotenv()
 
@@ -27,9 +28,9 @@ _data_dir = os.environ.get("DATA_DIR", os.path.dirname(os.path.abspath(__file__)
 RETAILERS_FILE = os.path.join(_data_dir, "retailers.json")
 
 # Fixed pallet dimensions — not configurable per retailer
-PALLET_L = 48.0
-PALLET_W = 40.0
-PALLET_H = 5.5
+PALLET_L = Decimal('48')
+PALLET_W = Decimal('40')
+PALLET_H = Decimal('5.5')
 
 # Feature flags
 SHOW_DIAGRAM = True   # diagram panel (Ti top-down view)
@@ -207,10 +208,10 @@ def _parse_shoppable_block(data: dict, retailer: dict):
 def api_calculate():
     data = request.get_json(force=True) or {}
     try:
-        case_l = float(data["length"])
-        case_w = float(data["width"])
-        case_h = float(data["height"])
-    except (KeyError, TypeError, ValueError):
+        case_l = _D(data["length"])
+        case_w = _D(data["width"])
+        case_h = _D(data["height"])
+    except (KeyError, TypeError, ValueError, InvalidOperation):
         return jsonify({"error": "length, width, height are required numbers"}), 400
 
     if case_l <= 0 or case_w <= 0 or case_h <= 0:
@@ -243,10 +244,10 @@ def api_calculate():
         case_l=case_l,
         case_w=case_w,
         case_h=case_h,
-        max_height=retailer["max_height"],
+        max_height=_D(retailer["max_height"]),
         pallet_l=PALLET_L,
         pallet_w=PALLET_W,
-        pallet_h=0.0 if retailer.get("no_pallet", False) else PALLET_H,
+        pallet_h=Decimal('0') if retailer.get("no_pallet", False) else PALLET_H,
     )
     stack_mult = 2 if retailer["double_stack_allowed"] else 1
     result["truckload_qty"] = (
@@ -265,11 +266,11 @@ def api_calculate():
         )
         pallet_area = PALLET_L * PALLET_W
         case_area = case_l * case_w
-        void_pct = max(0.0, (pallet_area - len(arrangement) * case_area) / pallet_area)
+        void_pct = max(Decimal('0'), (pallet_area - len(arrangement) * case_area) / pallet_area)
         result["shoppable"] = {
             "ti": len(arrangement),
             "mode": "shoppable_spiral",
-            "void_pct": round(void_pct, 4),
+            "void_pct": round(float(void_pct), 4),
             "error": None,
             "arrangement": arrangement,
         }
@@ -305,10 +306,10 @@ def api_calculate_bulk():
     results = []
     for case in cases:
         try:
-            l = float(case["length"])
-            w = float(case["width"])
-            h = float(case["height"])
-        except (KeyError, TypeError, ValueError):
+            l = _D(case["length"])
+            w = _D(case["width"])
+            h = _D(case["height"])
+        except (KeyError, TypeError, ValueError, InvalidOperation):
             continue
         if l <= 0 or w <= 0 or h <= 0:
             continue
@@ -316,10 +317,10 @@ def api_calculate_bulk():
         case_pack_qty = max(1, int(case.get("case_pack_qty", data.get("case_pack_qty", 1))))
         r = calculate(
             case_l=l, case_w=w, case_h=h,
-            max_height=retailer["max_height"],
+            max_height=_D(retailer["max_height"]),
             pallet_l=PALLET_L,
             pallet_w=PALLET_W,
-            pallet_h=0.0 if retailer.get("no_pallet", False) else PALLET_H,
+            pallet_h=Decimal('0') if retailer.get("no_pallet", False) else PALLET_H,
         )
         r["truckload_qty"]        = case_pack_qty * r["total"] * max_pallets * stack_mult
         r["case_pack_qty"]        = case_pack_qty
@@ -327,7 +328,7 @@ def api_calculate_bulk():
         r["stack_multiplier"]      = stack_mult
         results.append({
             "sku": str(case.get("sku", "")),
-            "length": l, "width": w, "height": h,
+            "length": float(l), "width": float(w), "height": float(h),
             **r,
         })
 
