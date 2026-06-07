@@ -479,6 +479,21 @@ class TestShoppableAPI:
         d = r.get_json()
         assert d['shoppable']['ti'] <= d['total']
 
+    def test_shoppable_pod_dimensions_13x7(self, client):
+        # Regression: 13.5×7.4 with 4 shoppable sides was reporting 47.9"×37"
+        # (standard grid dims) instead of 43.1"×35.7" (shoppable arrangement dims).
+        body = {
+            "length": 13.5, "width": 7.4, "height": 6,
+            "retailer_id": SAMS_ID,
+            "shoppable": {"sides": 4},
+        }
+        r = client.post('/api/calculate',
+                        data=json.dumps(body),
+                        content_type='application/json')
+        d = r.get_json()
+        assert d['pod_length'] == pytest.approx(43.1, abs=0.05)
+        assert d['pod_width']  == pytest.approx(35.7, abs=0.05)
+
     def test_no_shoppable_key_without_block(self, client):
         body = {**VALID_DIMS}
         r = client.post('/api/calculate',

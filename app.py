@@ -274,6 +274,16 @@ def api_calculate():
             "error": None,
             "arrangement": arrangement,
         }
+        # Arrangement uses swapped pallet dims (pallet_w=48"=PALLET_L, pallet_l=40"=PALLET_W).
+        # Per generate_shoppable_v2_positions: x = W direction (0→pallet_w=48"),
+        # so x-span → pod_length (48" axis), y-span → pod_width (40" axis).
+        if arrangement:
+            min_x = min(c["x"] for c in arrangement)
+            min_y = min(c["y"] for c in arrangement)
+            max_x = max(c["x"] + c["w"] for c in arrangement)
+            max_y = max(c["y"] + c["h"] for c in arrangement)
+            result["pod_length"] = round(float(max_x - min_x), 3)
+            result["pod_width"]  = round(float(max_y - min_y), 3)
     return jsonify(result)
 
 
