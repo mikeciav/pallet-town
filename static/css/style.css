@@ -242,6 +242,44 @@ body::before {
 .panel-label { font-family: var(--font-display); font-size: 10px; font-weight: 600; letter-spacing: .14em; color: var(--text-dim); }
 .panel-hint  { font-family: var(--font-mono); font-size: 10px; color: var(--text-muted); }
 .panel-desc  { font-size: 13px; color: var(--text-dim); line-height: 1.65; }
+
+.beta-badge {
+  display: inline-block;
+  font-family: var(--font-mono);
+  font-size: 9px;
+  font-weight: 600;
+  letter-spacing: .06em;
+  color: #f59e0b;
+  background: rgba(245,158,11,.12);
+  border: 1px solid rgba(245,158,11,.35);
+  border-radius: 3px;
+  padding: 1px 5px;
+  margin-left: 7px;
+  vertical-align: middle;
+  cursor: default;
+  position: relative;
+}
+.beta-badge .beta-tooltip {
+  display: none;
+  position: absolute;
+  left: 50%;
+  bottom: calc(100% + 6px);
+  transform: translateX(-50%);
+  background: #0d1825;
+  border: 1px solid #1e2a45;
+  border-radius: 5px;
+  padding: 7px 10px;
+  width: 210px;
+  font-size: 10px;
+  font-weight: 400;
+  letter-spacing: 0;
+  color: #94a3b8;
+  line-height: 1.5;
+  white-space: normal;
+  pointer-events: none;
+  z-index: 100;
+}
+.beta-badge:hover .beta-tooltip { display: block; }
 .panel-desc code { font-family: var(--font-mono); font-size: 11px; color: var(--blue); }
 
 /* ── Calculator layout ─────────────────────────────────────── */

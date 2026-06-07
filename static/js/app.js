@@ -364,22 +364,11 @@ function updateClubPanel() {
   const isClub = r && r.is_club_store;
   document.getElementById('club-display-panel').style.display = isClub ? '' : 'none';
   if (!isClub) {
-    document.getElementById('shoppable-metrics-row').style.display = 'none';
     document.getElementById('shoppable-error-banner').style.display = 'none';
+    document.getElementById('shoppable-void-hint').textContent = '';
+    document.getElementById('shoppable-fp-hint').textContent = '';
   }
 
-  const fillInput = document.getElementById('club-fill-chimney');
-  const fillLabel = document.getElementById('club-fill-label');
-  if (isClub && r && !r.chimney_allowed) {
-    fillInput.checked = true;
-    fillInput.disabled = true;
-    fillLabel.classList.add('toggle-label--disabled');
-    fillLabel.title = `${r.name} does not permit open chimneys`;
-  } else {
-    fillInput.disabled = false;
-    fillLabel.classList.remove('toggle-label--disabled');
-    fillLabel.title = '';
-  }
 
   if (isClub && r) {
     const DEFAULTS = { "BJ's Wholesale": 2 };
@@ -414,26 +403,45 @@ function getShoppableParams() {
       parseFloat(document.getElementById('club-fp-w').value) || 37,
       parseFloat(document.getElementById('club-fp-l').value) || 45,
     ],
-    force_fill_on_failure: document.getElementById('club-fill-chimney').checked,
   };
 }
 
 function renderShoppableResults(s) {
-  const banner = document.getElementById('shoppable-error-banner');
-  const row    = document.getElementById('shoppable-metrics-row');
+  const banner   = document.getElementById('shoppable-error-banner');
+  const voidHint = document.getElementById('shoppable-void-hint');
+  const fpHint   = document.getElementById('shoppable-fp-hint');
 
   if (!s) {
     banner.style.display = 'none';
-    row.style.display = 'none';
+    voidHint.textContent = '';
+    voidHint.style.cssText = '';
+    fpHint.textContent = '';
+    fpHint.style.cssText = '';
     return;
   }
 
   banner.style.display = 'none';
 
-  document.getElementById('val-shoppable-ti').textContent = s.ti;
-  document.getElementById('val-shoppable-void').textContent = pct(s.void_pct);
+  // ── Max empty % check ────────────────────────────────────────
+  const maxEmptyPct = (parseFloat(document.getElementById('club-max-empty').value) || 15) / 100;
+  const voidFail = s.void_pct > maxEmptyPct;
+  voidHint.textContent = `${pct(s.void_pct)} empty`;
+  voidHint.style.fontWeight = voidFail ? 'bold' : '';
+  voidHint.style.color      = voidFail ? '#ef4444' : '';
 
-  row.style.display = '';
+  // ── Min footprint check ──────────────────────────────────────
+  // Arrangement coords: c.x/c.w in the length (48") direction, c.y/c.h in the width (40") direction.
+  const minFpW = parseFloat(document.getElementById('club-fp-w').value) || 37;
+  const minFpL = parseFloat(document.getElementById('club-fp-l').value) || 45;
+  const arr = s.arrangement || [];
+  const bboxL = arr.length ? Math.max(...arr.map(c => c.x + c.w)) : 0;
+  const bboxW = arr.length ? Math.max(...arr.map(c => c.y + c.h)) : 0;
+  const fpFail = bboxL < minFpL || bboxW < minFpW;
+  fpHint.textContent = fpFail
+    ? `footprint ${bboxL.toFixed(1)}"×${bboxW.toFixed(1)}" (min ${minFpL}"×${minFpW}")`
+    : '';
+  fpHint.style.fontWeight = fpFail ? 'bold' : '';
+  fpHint.style.color      = fpFail ? '#ef4444' : '';
 }
 
 function refreshBulkRetailerInfo() {
@@ -525,7 +533,7 @@ async function doCalculate() {
 function renderResults(d) {
   lastResult = d;
 
-  setMetric('val-ti',    d.ti,    'mc-ti');
+  setMetric('val-ti',    d.shoppable ? d.shoppable.ti : d.ti,    'mc-ti');
   setMetric('val-hi',    d.hi,    'mc-hi');
   setMetric('val-total', d.total, 'mc-total');
   setMetric('val-upp',   d.case_pack_qty * d.total, 'mc-upp');
@@ -826,8 +834,7 @@ function drawShoppableView(d, box) {
   const PAD = 32;
   const LEGEND_H = 22;
 
-  // Rotated 90°: PL (depth) runs horizontally, PW (front face) runs vertically.
-  // Case coords transform: rx = PL - c.y - c.h,  ry = c.x,  rw = c.h,  rh = c.w
+  // c.x spans [0, PL=48"] (top/bottom = long side), c.y spans [0, PW=40"] (left/right = short side).
   const scale = Math.min((VW - PAD * 2) / PL, (VH - PAD * 2 - LEGEND_H) / PW);
   const dW = PL * scale;
   const dH = PW * scale;
@@ -853,10 +860,10 @@ function drawShoppableView(d, box) {
   svg += `<rect x="${ox}" y="${oy}" width="${dW}" height="${dH}" fill="url(#g)"/>`;
 
   positions.forEach(c => {
-    const cx = ox + (PL - c.y - c.h) * scale;
-    const cy = oy + c.x * scale;
-    const cw = c.h * scale;
-    const ch = c.w * scale;
+    const cx = ox + c.x * scale;
+    const cy = oy + c.y * scale;
+    const cw = c.w * scale;
+    const ch = c.h * scale;
     svg += `<rect x="${(cx + .8).toFixed(1)}" y="${(cy + .8).toFixed(1)}" `
          + `width="${Math.max(0, cw - 1.6).toFixed(1)}" height="${Math.max(0, ch - 1.6).toFixed(1)}" `
          + `fill="${fill(c.side)}" stroke="${stroke(c.side)}" stroke-width="0.7" clip-path="url(#pal-clip)"/>`;
@@ -866,8 +873,8 @@ function drawShoppableView(d, box) {
 
   const af = 'font-family="JetBrains Mono,monospace"';
   const ac = '#3d5068';
-  svg += `<text x="${(ox + dW / 2).toFixed(1)}" y="${(oy - 7).toFixed(1)}" text-anchor="middle" ${af} font-size="9" fill="${ac}">${PL}" (depth)</text>`;
-  svg += `<text x="${(ox - 9).toFixed(1)}" y="${(oy + dH / 2).toFixed(1)}" text-anchor="middle" ${af} font-size="9" fill="${ac}" transform="rotate(-90,${(ox - 9).toFixed(1)},${(oy + dH / 2).toFixed(1)})">${PW}" (front face)</text>`;
+  svg += `<text x="${(ox + dW / 2).toFixed(1)}" y="${(oy - 7).toFixed(1)}" text-anchor="middle" ${af} font-size="9" fill="${ac}">${PL}" (length)</text>`;
+  svg += `<text x="${(ox - 9).toFixed(1)}" y="${(oy + dH / 2).toFixed(1)}" text-anchor="middle" ${af} font-size="9" fill="${ac}" transform="rotate(-90,${(ox - 9).toFixed(1)},${(oy + dH / 2).toFixed(1)})">${PW}" (width)</text>`;
 
   const ly = (oy + dH + 12).toFixed(1);
   let lx = ox;

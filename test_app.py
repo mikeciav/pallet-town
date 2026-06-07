@@ -445,16 +445,6 @@ class TestShoppableAPI:
         assert r.status_code == 400
         assert 'sides' in r.get_json()['error'].lower()
 
-    def test_shoppable_rejected_when_chimney_not_allowed_and_fill_off(self, client):
-        # BJ's Wholesale has chimney_allowed=False; force_fill_on_failure=False is invalid
-        body = {**VALID_DIMS, "retailer_id": BJS_ID,
-                "shoppable": {"sides": 2, "force_fill_on_failure": False}}
-        r = client.post('/api/calculate',
-                        data=json.dumps(body),
-                        content_type='application/json')
-        assert r.status_code == 400
-        assert 'chimney' in r.get_json()['error'].lower()
-
     def test_shoppable_accepted_for_club_store(self, client):
         body = {**VALID_DIMS, "shoppable": {"sides": 3}}
         r = client.post('/api/calculate',

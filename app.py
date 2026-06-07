@@ -189,13 +189,6 @@ def _parse_shoppable_block(data: dict, retailer: dict):
     if sides is None or not isinstance(sides, int) or sides not in (2, 3, 4):
         return None, "shoppable.sides must be 2, 3, or 4"
 
-    force_fill = bool(shoppable.get("force_fill_on_failure", True))
-    if not force_fill and not retailer.get("chimney_allowed", False):
-        return None, (
-            f"{retailer.get('name', 'This retailer')} does not permit open chimneys; "
-            "force_fill_on_failure must be true"
-        )
-
     try:
         max_empty_pct = float(shoppable.get("max_empty_pct", 0.15))
         raw_fp = shoppable.get("min_footprint", [37.0, 45.0])
@@ -207,7 +200,6 @@ def _parse_shoppable_block(data: dict, retailer: dict):
         "sides": sides,
         "max_empty_pct": max_empty_pct,
         "min_footprint": min_footprint,
-        "force_fill_on_failure": force_fill,
     }, None
 
 
@@ -264,21 +256,23 @@ def api_calculate():
     result["max_pallets_per_floor"] = retailer["max_pallets_per_floor"]
     result["stack_multiplier"]      = stack_mult
     if shoppable_params is not None:
-        shoppable_result = find_shoppable_v2(
+        arrangement = generate_shoppable_v2_positions(
             case_l=case_l,
             case_w=case_w,
-            pallet_l=PALLET_L,
-            pallet_w=PALLET_W,
+            pallet_l=PALLET_W,
+            pallet_w=PALLET_L,
             sides=shoppable_params["sides"],
         )
-        shoppable_result["arrangement"] = generate_shoppable_v2_positions(
-            case_l=case_l,
-            case_w=case_w,
-            pallet_l=PALLET_L,
-            pallet_w=PALLET_W,
-            sides=shoppable_params["sides"],
-        )
-        result["shoppable"] = shoppable_result
+        pallet_area = PALLET_L * PALLET_W
+        case_area = case_l * case_w
+        void_pct = max(0.0, (pallet_area - len(arrangement) * case_area) / pallet_area)
+        result["shoppable"] = {
+            "ti": len(arrangement),
+            "mode": "shoppable_spiral",
+            "void_pct": round(void_pct, 4),
+            "error": None,
+            "arrangement": arrangement,
+        }
     return jsonify(result)
 
 
