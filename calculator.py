@@ -106,12 +106,11 @@ def find_shoppable_v2(
     case_w: float,
     pallet_l: float,
     pallet_w: float,
-    sides: List[str],
+    sides: int,
 ) -> Dict:
 
-    if case_w > case_l:
-        case_l, case_w = case_w, case_l  # Ensure case_l is the longer dimension for consistent orientation
-
+    if case_l > case_w:
+        case_l, case_w = case_w, case_l  # Ensure case_l is the smaller dimension for consistent orientation
     """
     Corner-spiral shoppable arrangement — counts TI from generated positions.
     """
@@ -123,8 +122,12 @@ def find_shoppable_v2(
         std_ti, _ = find_optimal_arrangement(case_l, case_w, pallet_l, pallet_w)
         void_pct = max(0.0, (pallet_area - std_ti * case_area) / pallet_area)
         return {"ti": std_ti, "mode": "standard", "void_pct": round(void_pct, 4), "error": None}
+    variants = [
+        generate_shoppable_v2_positions(case_l, case_w, pallet_l, pallet_w, sides),
+        generate_shoppable_v2_positions(case_w, case_l, pallet_w, pallet_l, sides)
+    ]
+    positions = max(variants, key=len)
 
-    positions = generate_shoppable_v2_positions(case_l, case_w, pallet_l, pallet_w, sides)
     total_ti = len(positions)
     void_pct = max(0.0, (pallet_area - total_ti * case_area) / pallet_area)
     return {
@@ -140,7 +143,7 @@ def generate_shoppable_v2_positions(
     case_w: float,
     pallet_l: float,
     pallet_w: float,
-    sides: List[str],
+    sides: int,
 ) -> List[Dict]:
     """
     Corner-spiral shoppable arrangement.
@@ -183,12 +186,16 @@ def generate_shoppable_v2_positions(
                 "w": case_w, "h": case_l, "side": "top",
             })
 
+        old_right_x = right_x
         right_x = left_x + num_top_cases * case_w + case_l  # right edge of the last regular top case + case_l for the corner
 
         # ── RIGHT side (traveling in the +y direction) ──────────────────────
         # Regular right cases stand case_l deep (into the pallet) and case_w tall (along the wall).
         # The column starts above the top corner and leaves room for one corner case at the bottom.
-        num_right_cases   = max(0, int((bottom_y - top_y - case_l) / case_w))
+        if sides > 2:
+            num_right_cases = max(0, int((bottom_y - top_y - case_l) / case_w))
+        else:
+            num_right_cases = max(0, int((bottom_y - top_y) / case_w))
         for i in range(num_right_cases):
             positions.append({
                 "x": round(right_x - case_l, 6),
@@ -196,35 +203,42 @@ def generate_shoppable_v2_positions(
                 "w": case_l, "h": case_w, "side": "right",
             })
 
-        bottom_y = top_y + num_right_cases * case_w + case_l # bottom edge of the last regular right case + case_l for the corner
+        if sides > 2:
+            bottom_y = top_y + num_right_cases * case_w + case_l  # bottom edge of the last regular right case + case_l for the corner
 
-        # ── BOTTOM side (traveling in the -x direction) ───────────────────────
-        # Regular bottom cases stand case_l deep and case_w wide, packed right-to-left.
-        # The row's right edge is the inner face of the right corner (right_x - case_w).
-        num_bottom_cases    = num_top_cases
-        for i in range(num_bottom_cases):
-            positions.append({
-                "x": round(right_x - (i + 1) * case_w, 6),
-                "y": round(bottom_y - case_l, 6),
-                "w": case_w, "h": case_l, "side": "bottom",
-            })
+            # ── BOTTOM side (traveling in the -x direction) ───────────────────────
+            # Regular bottom cases stand case_l deep and case_w wide, packed right-to-left.
+            # The row's right edge is the inner face of the right corner (right_x - case_w).
+            if sides > 3:
+                num_bottom_cases = num_top_cases
+            else:
+                num_bottom_cases = max(0, int((old_right_x - left_x) / case_w))
+            for i in range(num_bottom_cases):
+                positions.append({
+                    "x": round(right_x - (i + 1) * case_w, 6),
+                    "y": round(bottom_y - case_l, 6),
+                    "w": case_w, "h": case_l, "side": "bottom",
+                })
 
-        # ── LEFT side (traveling in the -y direction) ───────────────────────
-        # Regular left cases stand case_l deep and case_w tall, packed bottom-to-top.
-        # No trailing corner — the left side terminates where the next loop's top row begins.
-        num_left_cases = num_right_cases
-        for i in range(num_left_cases):
-            positions.append({
-                "x": round(left_x, 6),
-                "y": round(bottom_y - (i + 1) * case_w, 6),
-                "w": case_l, "h": case_w, "side": "left",
-            })
+            if sides > 3:
+                # ── LEFT side (traveling in the -y direction) ───────────────────────
+                # Regular left cases stand case_l deep and case_w tall, packed bottom-to-top.
+                # No trailing corner — the left side terminates where the next loop's top row begins.
+                num_left_cases = num_right_cases
+                for i in range(num_left_cases):
+                    positions.append({
+                        "x": round(left_x, 6),
+                        "y": round(bottom_y - (i + 1) * case_w, 6),
+                        "w": case_l, "h": case_w, "side": "left",
+                    })
 
-        # Shrink the bounding box inward by case_l on all four sides for the next loop.
-        left_x += case_l
+        # Shrink the bounding box inward by case_l for the next loop.
+        if sides > 3:
+            left_x += case_l
         top_y += case_l
         right_x -= case_l
-        bottom_y -= case_l
+        if sides > 2:
+            bottom_y -= case_l
 
     # Chimney fill algorithm
     if right_x - left_x > case_l:

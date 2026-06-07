@@ -326,15 +326,15 @@ class TestShoppableV2:
       Loop 2: BOTTOM 1+corner, RIGHT 1+corner, TOP 0+corner, LEFT 1 = 6 cases
       Loop 3: W=0 → stop. Total: 20.
     """
-    ALL4 = ['top', 'bottom', 'left', 'right']
+    ALL4 = 4
 
     def _v2(self, cl, cw, pl=48, pw=40, sides=None):
         from calculator import find_shoppable_v2
-        return find_shoppable_v2(cl, cw, pl, pw, sides or self.ALL4)
+        return find_shoppable_v2(cl, cw, pl, pw, sides if sides is not None else self.ALL4)
 
     def _pos(self, cl, cw, pl=48, pw=40, sides=None):
         from calculator import generate_shoppable_v2_positions
-        return generate_shoppable_v2_positions(cl, cw, pl, pw, sides or self.ALL4)
+        return generate_shoppable_v2_positions(cl, cw, pl, pw, sides if sides is not None else self.ALL4)
 
     @staticmethod
     def _overlaps(a, b):
@@ -366,47 +366,45 @@ class TestShoppableV2:
 
     def test_10x5_on_26x30_count(self):
         pos = self._pos(10, 5, pl=30, pw=26)
-        assert len(pos) == 14
+        assert len(pos) == 15
 
-    def test_10x5_top_regular_cases(self):
-        # 3 regular top cases: case_w=5" wide, case_l=10" deep, y=0
+    def test_10x5_top_wall_cases(self):
+        # 3 top-wall cases (w=5, h=10) at y=0, x=0/5/10, plus 1 chimney case at y=10
         pos = self._pos(10, 5, pl=30, pw=26)
-        top_reg = [p for p in pos if p['side'] == 'top' and p['w'] == pytest.approx(5.0)]
-        assert len(top_reg) == 3
-        xs = sorted(p['x'] for p in top_reg)
+        top_wall = [p for p in pos if p['side'] == 'top' and p['y'] == pytest.approx(0.0)]
+        assert len(top_wall) == 3
+        xs = sorted(p['x'] for p in top_wall)
         assert xs == pytest.approx([0.0, 5.0, 10.0])
-        for p in top_reg:
-            assert p['y'] == pytest.approx(0.0)
+        for p in top_wall:
+            assert p['w'] == pytest.approx(5.0)
             assert p['h'] == pytest.approx(10.0)
 
-    def test_10x5_top_corner(self):
-        # Corner case: case_l=10" wide, case_w=5" deep, at x=15
-        pos = self._pos(10, 5, pl=30, pw=26)
-        corner = [p for p in pos if p['side'] == 'top' and p['w'] == pytest.approx(10.0)]
-        assert len(corner) == 1
-        assert corner[0]['x'] == pytest.approx(15.0)
-        assert corner[0]['y'] == pytest.approx(0.0)
-        assert corner[0]['h'] == pytest.approx(5.0)
-
     def test_10x5_right_regular_cases(self):
-        # 3 regular right cases: case_l=10" wide, case_w=5" tall, x=[16,26]
+        # 4 right cases: case_l=10" wide, case_w=5" tall, x=15, y=0/5/10/15
         pos = self._pos(10, 5, pl=30, pw=26)
-        right_reg = [p for p in pos if p['side'] == 'right' and p['h'] == pytest.approx(5.0)]
-        assert len(right_reg) == 3
+        right_reg = [p for p in pos if p['side'] == 'right']
+        assert len(right_reg) == 4
         ys = sorted(p['y'] for p in right_reg)
-        assert ys == pytest.approx([5.0, 10.0, 15.0])
+        assert ys == pytest.approx([0.0, 5.0, 10.0, 15.0])
         for p in right_reg:
-            assert p['x'] == pytest.approx(16.0)
+            assert p['x'] == pytest.approx(15.0)
             assert p['w'] == pytest.approx(10.0)
+            assert p['h'] == pytest.approx(5.0)
 
     # ── generate_shoppable_v2_positions — 10×8 on 48×40 (GMA) ───
 
     def test_position_count_matches_ti(self):
+        # find_shoppable_v2 tries both orientations and picks the best, so ti may
+        # exceed the count from a single generate_shoppable_v2_positions call.
+        # Verify ti equals the best of the two orientation counts.
+        from calculator import generate_shoppable_v2_positions
         for cl, cw in [(10, 8), (12, 7), (8, 6)]:
-            positions = self._pos(cl, cw)
             r = self._v2(cl, cw)
-            assert len(positions) == r['ti'], \
-                f"{cl}×{cw}: {len(positions)} positions != ti={r['ti']}"
+            p1 = generate_shoppable_v2_positions(cl, cw, 48, 40, 4)
+            p2 = generate_shoppable_v2_positions(cw, cl, 40, 48, 4)
+            best = max(len(p1), len(p2))
+            assert r['ti'] == best, \
+                f"{cl}×{cw}: ti={r['ti']} != best orientation count={best}"
 
     def test_no_overlapping_cases(self):
         for cl, cw in [(10, 8), (10, 5)]:
@@ -419,21 +417,20 @@ class TestShoppableV2:
                     assert not self._overlaps(a, b), \
                         f"{cl}×{cw} cases {i} and {j} overlap: {a} vs {b}"
 
-    def test_10x8_top_regular(self):
-        # TOP: 3 regular cases (w=8,h=10) at y=0 + 1 corner (w=10,h=8)
+    def test_10x8_top_wall_cases(self):
+        # 3 top-wall cases (w=8, h=10) at y=0, x=0/8/16
         positions = self._pos(10, 8)
-        top = [p for p in positions if p['side'] == 'top']
-        regs = [p for p in top if p['w'] == pytest.approx(8.0) and p['y'] == pytest.approx(0.0)]
-        assert len(regs) == 3
-        xs = sorted(p['x'] for p in regs)
+        top_wall = [p for p in positions if p['side'] == 'top' and p['y'] == pytest.approx(0.0)]
+        assert len(top_wall) == 3
+        xs = sorted(p['x'] for p in top_wall)
         assert xs == pytest.approx([0.0, 8.0, 16.0])
 
     def test_10x8_left_cases(self):
-        # Outermost LEFT cases are flush with the left wall (x=0)
+        # Left cases are flush with the left wall (x=0)
         positions = self._pos(10, 8)
-        outer_left = [p for p in positions if p['side'] == 'left' and p['x'] == pytest.approx(0.0)]
-        assert len(outer_left) >= 3
-        for p in outer_left:
+        left = [p for p in positions if p['side'] == 'left' and p['x'] == pytest.approx(0.0)]
+        assert len(left) >= 3
+        for p in left:
             assert p['w'] == pytest.approx(10.0)
             assert p['h'] == pytest.approx(8.0)
 
@@ -448,7 +445,10 @@ class TestShoppableV2:
                 assert p['y'] + p['h'] <= 48.0 + 1e-9, \
                     f"{cl}×{cw}: y+h={p['y']+p['h']} > pallet_l=48"
 
-    def test_standard_fallback_no_positions(self):
-        # case_l+case_w=61 > min(pallet dims) → no spiral cases
+    def test_oversized_case_chimney_only(self):
+        # 2*case_l=82 > pallet_w=40 → spiral loop skipped, chimney fill only
         positions = self._pos(41, 20)
-        assert len(positions) == 0
+        assert len(positions) == 2
+        for p in positions:
+            assert p['y'] == pytest.approx(0.0)
+            assert p['h'] == pytest.approx(41.0)

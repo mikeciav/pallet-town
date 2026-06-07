@@ -229,20 +229,16 @@
               <span class="panel-label">CLUB DISPLAY OPTIONS</span>
             </div>
 
-            <div class="field-group" style="margin-bottom:4px">
-              <label class="field-label">SHOPPABLE SIDES</label>
-              <div id="side-selector" style="display:flex;gap:6px;margin-bottom:4px">
-                <button class="side-btn active" data-side="top">TOP</button>
-                <button class="side-btn active" data-side="bottom">BOTTOM</button>
-                <button class="side-btn active" data-side="left">LEFT</button>
-                <button class="side-btn active" data-side="right">RIGHT</button>
-              </div>
-              <div id="side-error" style="display:none;color:#ef4444;font-size:10px;margin-bottom:4px;font-family:monospace">
-                At least 1 side must be selected.
-              </div>
-            </div>
-
             <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px">
+              <div class="field-group">
+                <label class="field-label">SHOPPABLE SIDES</label>
+                <div id="side-selector" style="display:flex;gap:6px">
+                  <button class="side-btn" data-sides="0">0</button>
+                  <button class="side-btn" data-sides="2">2</button>
+                  <button class="side-btn" data-sides="3">3</button>
+                  <button class="side-btn active" data-sides="4">4</button>
+                </div>
+              </div>
               <div class="field-group">
                 <label class="field-label">MAX EMPTY %</label>
                 <div class="field-wrap">
@@ -250,6 +246,9 @@
                   <span class="field-unit">%</span>
                 </div>
               </div>
+            </div>
+
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px">
               <div class="field-group">
                 <label class="field-label">MIN FOOTPRINT W</label>
                 <div class="field-wrap">
@@ -257,22 +256,13 @@
                   <span class="field-unit">in</span>
                 </div>
               </div>
-            </div>
-
-            <div class="field-group" style="margin-bottom:8px">
-              <label class="field-label">MIN FOOTPRINT L</label>
-              <div class="field-wrap">
-                <input type="number" id="club-fp-l" class="dim-input" value="45" min="0" step="0.5">
-                <span class="field-unit">in</span>
+              <div class="field-group">
+                <label class="field-label">MIN FOOTPRINT L</label>
+                <div class="field-wrap">
+                  <input type="number" id="club-fp-l" class="dim-input" value="45" min="0" step="0.5">
+                  <span class="field-unit">in</span>
+                </div>
               </div>
-            </div>
-
-            <div class="ie-row" style="margin-bottom:8px">
-              <label class="toggle-label">
-                <input type="checkbox" id="club-rounding-gaps" class="toggle-input" checked>
-                <span class="toggle-track"><span class="toggle-thumb"></span></span>
-                <span class="toggle-text">Allow Rounding Gaps</span>
-              </label>
             </div>
 
             <div class="ie-row" style="margin-bottom:8px">
@@ -342,17 +332,11 @@
               <div class="metric-sub">EMPTY SPACE</div>
             </div>
 
-            <div class="metric-card" id="mc-shoppable-mode">
-              <div class="metric-label">Mode</div>
-              <div class="metric-val" id="val-shoppable-mode" style="font-size:12px">—</div>
-              <div class="metric-sub">DISPLAY TYPE</div>
-            </div>
           </div>
 
           <!-- Diagram sub-header -->
           <div class="diagram-header">
             <span class="panel-label">LAYER DIAGRAM</span>
-            <span class="panel-hint" id="diagram-hint"></span>
             {% if show_hi_view %}
             <div class="view-toggle" id="view-toggle" style="margin-left:auto">
               <button class="vt-btn active" data-view="ti">TI</button>
