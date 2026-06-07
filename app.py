@@ -173,9 +173,6 @@ def api_retailers_delete(rid: int):
     return "", 204
 
 
-VALID_SIDES = {"top", "bottom", "left", "right"}
-
-
 def _parse_shoppable_block(data: dict, retailer: dict):
     """
     Parse and validate the 'shoppable' key from an /api/calculate request body.
@@ -189,11 +186,8 @@ def _parse_shoppable_block(data: dict, retailer: dict):
         return None, "shoppable display calculations are only available for club store retailers"
 
     sides = shoppable.get("sides")
-    if not sides or not isinstance(sides, list) or len(sides) == 0:
-        return None, "shoppable.sides must be a non-empty list"
-    invalid = [s for s in sides if s not in VALID_SIDES]
-    if invalid:
-        return None, f"shoppable.sides contains invalid values: {invalid}"
+    if sides is None or not isinstance(sides, int) or sides not in (2, 3, 4):
+        return None, "shoppable.sides must be 2, 3, or 4"
 
     force_fill = bool(shoppable.get("force_fill_on_failure", True))
     if not force_fill and not retailer.get("chimney_allowed", False):
@@ -204,7 +198,6 @@ def _parse_shoppable_block(data: dict, retailer: dict):
 
     try:
         max_empty_pct = float(shoppable.get("max_empty_pct", 0.15))
-        rounding_gaps = bool(shoppable.get("rounding_gaps", True))
         raw_fp = shoppable.get("min_footprint", [37.0, 45.0])
         min_footprint = (float(raw_fp[0]), float(raw_fp[1]))
     except (TypeError, ValueError, IndexError):
@@ -213,7 +206,6 @@ def _parse_shoppable_block(data: dict, retailer: dict):
     return {
         "sides": sides,
         "max_empty_pct": max_empty_pct,
-        "rounding_gaps": rounding_gaps,
         "min_footprint": min_footprint,
         "force_fill_on_failure": force_fill,
     }, None

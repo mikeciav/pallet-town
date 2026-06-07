@@ -382,14 +382,10 @@ function updateClubPanel() {
   }
 
   if (isClub && r) {
-    const DEFAULTS = {
-      "Sam's Club": ['top', 'left', 'right'],
-      "Costco":     ['top', 'left', 'right'],
-      "BJ's Wholesale": ['top', 'bottom'],
-    };
-    const defaultSides = DEFAULTS[r.name] || ['top', 'left', 'right'];
+    const DEFAULTS = { "BJ's Wholesale": 2 };
+    const defaultSides = DEFAULTS[r.name] || 4;
     document.querySelectorAll('#side-selector .side-btn').forEach(btn => {
-      btn.classList.toggle('active', defaultSides.includes(btn.dataset.side));
+      btn.classList.toggle('active', parseInt(btn.dataset.sides) === defaultSides);
     });
   }
 }
@@ -397,14 +393,8 @@ function updateClubPanel() {
 function setupSideSelector() {
   document.querySelectorAll('#side-selector .side-btn').forEach(btn => {
     btn.addEventListener('click', () => {
-      const active = [...document.querySelectorAll('#side-selector .side-btn.active')];
-      const willDeactivate = btn.classList.contains('active');
-      if (willDeactivate && active.length <= 1) {
-        document.getElementById('side-error').style.display = '';
-        setTimeout(() => { document.getElementById('side-error').style.display = 'none'; }, 2000);
-        return;
-      }
-      btn.classList.toggle('active');
+      document.querySelectorAll('#side-selector .side-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
     });
   });
 }
@@ -413,14 +403,13 @@ function getShoppableParams() {
   const panel = document.getElementById('club-display-panel');
   if (!panel || panel.style.display === 'none') return null;
 
-  const sides = [...document.querySelectorAll('#side-selector .side-btn.active')]
-    .map(btn => btn.dataset.side);
-  if (sides.length === 0) return null;
+  const activeBtn = document.querySelector('#side-selector .side-btn.active');
+  const sides = activeBtn ? parseInt(activeBtn.dataset.sides) : 4;
+  if (sides === 0) return null;
 
   return {
     sides,
     max_empty_pct: (parseFloat(document.getElementById('club-max-empty').value) || 15) / 100,
-    rounding_gaps: document.getElementById('club-rounding-gaps').checked,
     min_footprint: [
       parseFloat(document.getElementById('club-fp-w').value) || 37,
       parseFloat(document.getElementById('club-fp-l').value) || 45,
@@ -441,14 +430,8 @@ function renderShoppableResults(s) {
 
   banner.style.display = 'none';
 
-  const MODE_LABELS = { pure_facing: 'PURE FACING', filled: 'FILLED', partial: 'PARTIAL', standard: 'STANDARD' };
-  const MODE_COLORS = { pure_facing: '#4ade80', filled: '#7dd3fc', partial: '#fb923c', standard: '#a78bfa' };
-
   document.getElementById('val-shoppable-ti').textContent = s.ti;
   document.getElementById('val-shoppable-void').textContent = pct(s.void_pct);
-  const modeEl = document.getElementById('val-shoppable-mode');
-  modeEl.textContent = MODE_LABELS[s.mode] || s.mode;
-  modeEl.style.color = MODE_COLORS[s.mode] || '#9ca3af';
 
   row.style.display = '';
 }
@@ -587,23 +570,18 @@ function setMetric(valId, value, cardId) {
 
 // ── SVG Diagram ──────────────────────────────────────────────
 function drawDiagram(d) {
-  const box  = document.getElementById('diagram-box');
-  const hint = document.getElementById('diagram-hint');
+  const box = document.getElementById('diagram-box');
   if (!d) return;
 
   if (d.shoppable && d.shoppable.arrangement && d.shoppable.arrangement.length > 0) {
     drawShoppableView(d, box);
-    const s = d.shoppable;
-    hint.textContent = `top-down · spiral layout · Shoppable Ti = ${s.ti} · ${s.mode.replace(/_/g, ' ')}`;
     return;
   }
 
   if (diagramView === 'hi') {
     drawStackedView(d, box);
-    hint.textContent = `isometric · ${d.hi} layer${d.hi !== 1 ? 's' : ''} · ${d.pod_height}" pod height`;
   } else {
     drawTiView(d, box);
-    hint.textContent = `top-down · 1 layer · Ti = ${d.ti}`;
   }
 }
 
@@ -848,10 +826,11 @@ function drawShoppableView(d, box) {
   const PAD = 32;
   const LEGEND_H = 22;
 
-  // Positions use x in [0,PW] (front face=40") and y in [0,PL] (depth=48")
-  const scale = Math.min((VW - PAD * 2) / PW, (VH - PAD * 2 - LEGEND_H) / PL);
-  const dW = PW * scale;
-  const dH = PL * scale;
+  // Rotated 90°: PL (depth) runs horizontally, PW (front face) runs vertically.
+  // Case coords transform: rx = PL - c.y - c.h,  ry = c.x,  rw = c.h,  rh = c.w
+  const scale = Math.min((VW - PAD * 2) / PL, (VH - PAD * 2 - LEGEND_H) / PW);
+  const dW = PL * scale;
+  const dH = PW * scale;
   const ox = (VW - dW) / 2;
   const oy = PAD + ((VH - PAD * 2 - LEGEND_H) - dH) / 2;
 
@@ -874,10 +853,10 @@ function drawShoppableView(d, box) {
   svg += `<rect x="${ox}" y="${oy}" width="${dW}" height="${dH}" fill="url(#g)"/>`;
 
   positions.forEach(c => {
-    const cx = ox + c.x * scale;
-    const cy = oy + c.y * scale;
-    const cw = c.w * scale;
-    const ch = c.h * scale;
+    const cx = ox + (PL - c.y - c.h) * scale;
+    const cy = oy + c.x * scale;
+    const cw = c.h * scale;
+    const ch = c.w * scale;
     svg += `<rect x="${(cx + .8).toFixed(1)}" y="${(cy + .8).toFixed(1)}" `
          + `width="${Math.max(0, cw - 1.6).toFixed(1)}" height="${Math.max(0, ch - 1.6).toFixed(1)}" `
          + `fill="${fill(c.side)}" stroke="${stroke(c.side)}" stroke-width="0.7" clip-path="url(#pal-clip)"/>`;
@@ -887,8 +866,8 @@ function drawShoppableView(d, box) {
 
   const af = 'font-family="JetBrains Mono,monospace"';
   const ac = '#3d5068';
-  svg += `<text x="${(ox + dW / 2).toFixed(1)}" y="${(oy - 7).toFixed(1)}" text-anchor="middle" ${af} font-size="9" fill="${ac}">${PW}" (front face)</text>`;
-  svg += `<text x="${(ox - 9).toFixed(1)}" y="${(oy + dH / 2).toFixed(1)}" text-anchor="middle" ${af} font-size="9" fill="${ac}" transform="rotate(-90,${(ox - 9).toFixed(1)},${(oy + dH / 2).toFixed(1)})">${PL}" (depth)</text>`;
+  svg += `<text x="${(ox + dW / 2).toFixed(1)}" y="${(oy - 7).toFixed(1)}" text-anchor="middle" ${af} font-size="9" fill="${ac}">${PL}" (depth)</text>`;
+  svg += `<text x="${(ox - 9).toFixed(1)}" y="${(oy + dH / 2).toFixed(1)}" text-anchor="middle" ${af} font-size="9" fill="${ac}" transform="rotate(-90,${(ox - 9).toFixed(1)},${(oy + dH / 2).toFixed(1)})">${PW}" (front face)</text>`;
 
   const ly = (oy + dH + 12).toFixed(1);
   let lx = ox;
