@@ -620,13 +620,14 @@ function drawTiView(d, box) {
     return;
   }
 
-  const VW = 580, VH = 480;
+  const DIAGRAM_W = 580, LEGEND_W = 80, VH = 480;
+  const VW = DIAGRAM_W + LEGEND_W;
   const PAD = 32;
 
-  const scale = Math.min((VW - PAD * 2) / PL, (VH - PAD * 2) / PW);
+  const scale = Math.min((DIAGRAM_W - PAD * 2) / PL, (VH - PAD * 2) / PW);
   const dW    = PL * scale;
   const dH    = PW * scale;
-  const ox    = (VW - dW) / 2;
+  const ox    = (DIAGRAM_W - dW) / 2;
   const oy    = PAD + ((VH - PAD * 2) - dH) / 2;
 
   const gPitch = Math.max(4, Math.round(20 / scale)) * scale;
@@ -671,6 +672,19 @@ function drawTiView(d, box) {
   svg += `<text x="${(ox+dW/2).toFixed(1)}" y="${(oy-7).toFixed(1)}" text-anchor="middle" ${af} font-size="9" fill="${annotColor}">${PL}" length</text>`;
   svg += `<text x="${(ox-9).toFixed(1)}" y="${(oy+dH/2).toFixed(1)}" text-anchor="middle" ${af} font-size="9" fill="${annotColor}" `
        + `transform="rotate(-90,${(ox-9).toFixed(1)},${(oy+dH/2).toFixed(1)})">${PW}" width</text>`;
+
+  const legendItems = [
+    { fill: 'rgba(255,212,184,.13)', stroke: '#FFD4B8', label: 'Standard'    },
+    { fill: 'rgba(200,240,160,.13)', stroke: '#C8F0A0', label: 'Rotated 90°' },
+  ];
+  const itemH  = 20;
+  const legendX = DIAGRAM_W + 12;
+  let lY = oy + (dH - legendItems.length * itemH) / 2;
+  legendItems.forEach(({ fill: lFill, stroke: lStroke, label }) => {
+    svg += `<rect x="${legendX}" y="${lY.toFixed(1)}" width="9" height="9" fill="${lFill}" stroke="${lStroke}" stroke-width="0.7"/>`;
+    svg += `<text x="${legendX + 13}" y="${(lY + 8).toFixed(1)}" ${af} font-size="9" fill="#7a95b0">${label}</text>`;
+    lY += itemH;
+  });
 
   svg += '</svg>';
   box.innerHTML = svg;
@@ -833,14 +847,16 @@ function drawShoppableView(d, box) {
     return;
   }
 
-  const VW = 580, VH = 480;
+  const DIAGRAM_W = 580, VH = 480;
+  const LEGEND_W = 80;
+  const VW = DIAGRAM_W + LEGEND_W;
   const PAD = 32;
 
   // c.x spans [0, PL=48"] (top/bottom = long side), c.y spans [0, PW=40"] (left/right = short side).
-  const scale = Math.min((VW - PAD * 2) / PL, (VH - PAD * 2) / PW);
+  const scale = Math.min((DIAGRAM_W - PAD * 2) / PL, (VH - PAD * 2) / PW);
   const dW = PL * scale;
   const dH = PW * scale;
-  const ox = (VW - dW) / 2;
+  const ox = (DIAGRAM_W - dW) / 2;
   const oy = PAD + ((VH - PAD * 2) - dH) / 2;
 
   const SIDE_STROKE = { top: '#a78bfa', right: '#67e8f9', bottom: '#86efac', left: '#fbbf24' };
@@ -877,6 +893,18 @@ function drawShoppableView(d, box) {
   const ac = '#3d5068';
   svg += `<text x="${(ox + dW / 2).toFixed(1)}" y="${(oy - 7).toFixed(1)}" text-anchor="middle" ${af} font-size="9" fill="${ac}">${PL}" length</text>`;
   svg += `<text x="${(ox - 9).toFixed(1)}" y="${(oy + dH / 2).toFixed(1)}" text-anchor="middle" ${af} font-size="9" fill="${ac}" transform="rotate(-90,${(ox - 9).toFixed(1)},${(oy + dH / 2).toFixed(1)})">${PW}" width</text>`;
+
+  const SIDE_LABELS = { top: 'TOP', right: 'RIGHT', bottom: 'BOTTOM', left: 'LEFT' };
+  const SIDE_ORDER  = ['top', 'right', 'bottom', 'left'];
+  const presentSides = SIDE_ORDER.filter(s => positions.some(p => p.side === s));
+  const itemH = 20;
+  const legendX = DIAGRAM_W + 12;
+  let lY = oy + (dH - presentSides.length * itemH) / 2;
+  presentSides.forEach(side => {
+    svg += `<rect x="${legendX}" y="${lY.toFixed(1)}" width="9" height="9" fill="${fill(side)}" stroke="${stroke(side)}" stroke-width="0.7"/>`;
+    svg += `<text x="${legendX + 13}" y="${(lY + 8).toFixed(1)}" ${af} font-size="9" fill="#7a95b0">${SIDE_LABELS[side]}</text>`;
+    lY += itemH;
+  });
 
   svg += '</svg>';
   box.innerHTML = svg;
