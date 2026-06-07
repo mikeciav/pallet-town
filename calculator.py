@@ -272,6 +272,16 @@ def generate_positions(config: Dict) -> List[Dict]:
     return positions
 
 
+def center_positions(positions: List[Dict], pallet_l: float, pallet_w: float) -> List[Dict]:
+    """Shift positions so the arrangement is centred on the pallet."""
+    if not positions:
+        return positions
+    p_len, p_wid = pod_dimensions(positions)
+    x_off = (pallet_l - p_len) / 2
+    y_off = (pallet_w - p_wid) / 2
+    return [{**c, "x": c["x"] + x_off, "y": c["y"] + y_off} for c in positions]
+
+
 def pod_dimensions(positions: List[Dict]) -> tuple:
     """Bounding box of all carton footprints (excludes pallet itself)."""
     if not positions:
@@ -329,6 +339,7 @@ def calculate(
     efficiency = (ti * case_footprint) / pallet_area if pallet_area > 0 else _D('0')
 
     positions = generate_positions(config) if config else []
+    positions = center_positions(positions, float(pallet_l), float(pallet_w))
     desc = arrangement_description(config, ti)
     p_len, p_wid = pod_dimensions(positions)
 
