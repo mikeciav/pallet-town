@@ -551,7 +551,7 @@ async function doCalculate() {
 
 function renderResults(d) {
   lastResult = d;
-  window._lastResult = d;  // exposed for view-3d.js module
+  window._lastResult = d;
 
   setMetric('val-ti',    d.shoppable ? d.shoppable.ti : d.ti,    'mc-ti');
   setMetric('val-hi',    d.hi,    'mc-hi');
