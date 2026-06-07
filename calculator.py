@@ -13,14 +13,20 @@ uniform, and most mixed patterns used in practice.
 """
 
 from __future__ import annotations
+from decimal import Decimal
 from typing import Dict, List, Optional, Tuple
 
 
+def _D(x) -> Decimal:
+    """Convert a number to Decimal via string to avoid inheriting float imprecision."""
+    return Decimal(str(x))
+
+
 def find_optimal_arrangement(
-    case_l: float,
-    case_w: float,
-    pallet_l: float,
-    pallet_w: float,
+    case_l: Decimal,
+    case_w: Decimal,
+    pallet_l: Decimal,
+    pallet_w: Decimal,
 ) -> Tuple[int, Optional[Dict]]:
     """
     Find maximum Ti and the arrangement config that achieves it.
@@ -53,10 +59,10 @@ def find_optimal_arrangement(
             if ti > best_ti:
                 best_ti = ti
                 best_config = _make_config(
-                    "row", pallet_l, pallet_w,
-                    n_a, per_a, a_l, a_w,
-                    n_b, per_b, b_l, b_w,
-                    case_l, case_w,
+                    "row", float(pallet_l), float(pallet_w),
+                    n_a, per_a, float(a_l), float(a_w),
+                    n_b, per_b, float(b_l), float(b_w),
+                    float(case_l), float(case_w),
                 )
 
         # --- Column stripes: split along pallet LENGTH ---
@@ -72,10 +78,10 @@ def find_optimal_arrangement(
             if ti > best_ti:
                 best_ti = ti
                 best_config = _make_config(
-                    "col", pallet_l, pallet_w,
-                    n_a, per_a, a_l, a_w,
-                    n_b, per_b, b_l, b_w,
-                    case_l, case_w,
+                    "col", float(pallet_l), float(pallet_w),
+                    n_a, per_a, float(a_l), float(a_w),
+                    n_b, per_b, float(b_l), float(b_w),
+                    float(case_l), float(case_w),
                 )
 
     return best_ti, best_config
@@ -98,6 +104,134 @@ def _make_config(
         "a": {"count": n_a, "per_stripe": per_a, "l": a_l, "w": a_w, "rotated": rot_a},
         "b": {"count": n_b, "per_stripe": per_b, "l": b_l, "w": b_w, "rotated": rot_b},
     }
+
+
+
+
+def generate_shoppable_v2_positions(
+    case_l: Decimal,
+    case_w: Decimal,
+    pallet_l: Decimal,
+    pallet_w: Decimal,
+    sides: int,
+) -> List[Dict]:
+    """
+    Corner-spiral shoppable arrangement.
+
+    Clockwise from top-left corner, 4 sides per loop:
+      TOP    (→): n regular cases (case_w × case_l deep) + corner case (case_l × case_w deep)
+      RIGHT  (↑): n regular cases (case_l × case_w)      + corner case (case_w × case_l deep)
+      BOTTOM (←): n regular cases (case_w × case_l deep) + corner case (case_l × case_w deep)
+      LEFT   (↓): n regular cases (case_l × case_w)      — no trailing corner
+
+    Each regular case has its label face (case_l) perpendicular to the nearest wall.
+    Corner cases bridge to the next side: case_l runs parallel, case_w is the depth.
+    Bounding box shrinks by case_l after each full loop.
+
+    Coordinates: x = W direction (0→pallet_w), y = L direction (0→pallet_l).
+    """
+    positions: List[Dict] = []
+
+    # The bounding box shrinks inward by case_l on each side after every completed spiral pass.
+    left_x   = _D('0')
+    top_y    = _D('0')
+    right_x  = pallet_w
+    bottom_y = pallet_l
+
+    # Primary algorithm to place cases in a spiral pattern
+    while True:
+        if 2 * case_l > right_x - left_x or 2 * case_l > bottom_y - top_y:
+            # Not enough room for another full spiral loop with corners.
+            # Move on to filling the chimney.
+            break
+
+        # ── TOP side (traveling in the +x direction) ──────────────────────
+        # Regular top cases stand case_l deep (into the pallet) and case_w wide (along the wall).
+        # They pack from the left wall rightward, reserving space for one corner case at the end.
+        num_top_cases = max(0, int((right_x - left_x - case_l) / case_w))
+        for i in range(num_top_cases):
+            positions.append({
+                "x": float(left_x + i * case_w),
+                "y": float(top_y),
+                "w": float(case_w), "h": float(case_l), "side": "top",
+            })
+
+        old_right_x = right_x
+        right_x = left_x + num_top_cases * case_w + case_l  # right edge of the last regular top case + case_l for the corner
+
+        # ── RIGHT side (traveling in the +y direction) ──────────────────────
+        # Regular right cases stand case_l deep (into the pallet) and case_w tall (along the wall).
+        # The column starts above the top corner and leaves room for one corner case at the bottom.
+        if sides > 2:
+            num_right_cases = max(0, int((bottom_y - top_y - case_l) / case_w))
+        else:
+            num_right_cases = max(0, int((bottom_y - top_y) / case_w))
+        for i in range(num_right_cases):
+            positions.append({
+                "x": float(right_x - case_l),
+                "y": float(top_y + i * case_w),
+                "w": float(case_l), "h": float(case_w), "side": "right",
+            })
+
+        if sides > 2:
+            bottom_y = top_y + num_right_cases * case_w + case_l  # bottom edge of the last regular right case + case_l for the corner
+
+            # ── BOTTOM side (traveling in the -x direction) ───────────────────────
+            # Regular bottom cases stand case_l deep and case_w wide, packed right-to-left.
+            # The row's right edge is the inner face of the right corner (right_x - case_w).
+            if sides > 3:
+                num_bottom_cases = num_top_cases
+            else:
+                num_bottom_cases = max(0, int((old_right_x - left_x) / case_w))
+            for i in range(num_bottom_cases):
+                positions.append({
+                    "x": float(right_x - (i + 1) * case_w),
+                    "y": float(bottom_y - case_l),
+                    "w": float(case_w), "h": float(case_l), "side": "bottom",
+                })
+
+            if sides > 3:
+                # ── LEFT side (traveling in the -y direction) ───────────────────────
+                # Regular left cases stand case_l deep and case_w tall, packed bottom-to-top.
+                # No trailing corner — the left side terminates where the next loop's top row begins.
+                num_left_cases = num_right_cases
+                for i in range(num_left_cases):
+                    positions.append({
+                        "x": float(left_x),
+                        "y": float(bottom_y - (i + 1) * case_w),
+                        "w": float(case_l), "h": float(case_w), "side": "left",
+                    })
+
+        # Shrink the bounding box inward by case_l for the next loop.
+        if sides > 3:
+            left_x += case_l
+        top_y += case_l
+        right_x -= case_l
+        if sides > 2:
+            bottom_y -= case_l
+
+    # Chimney fill algorithm
+    if right_x - left_x > case_l:
+        num_right_cases = max(0, int((bottom_y - top_y) / case_w))
+        for i in range(num_right_cases):
+            positions.append({
+                "x": float(right_x - case_l),
+                "y": float(top_y + i * case_w),
+                "w": float(case_l), "h": float(case_w), "side": "right",
+            })
+        right_x -= case_l
+
+    num_top_cases = max(0, int((right_x - left_x) / case_w))
+    while top_y + case_l <= bottom_y:
+        for i in range(num_top_cases):
+            positions.append({
+                "x": float(right_x - (i+1) * case_w),
+                "y": float(top_y),
+                "w": float(case_w), "h": float(case_l), "side": "top",
+            })
+        top_y += case_l
+
+    return positions
 
 
 def generate_positions(config: Dict) -> List[Dict]:
@@ -154,8 +288,6 @@ def arrangement_description(config: Optional[Dict], ti: int) -> str:
     has_a = a["count"] > 0 and a["per_stripe"] > 0
     has_b = b["count"] > 0 and b["per_stripe"] > 0
     if has_a and has_b:
-        dir_a = "cols" if not a["rotated"] else "cols (rot.)"
-        dir_b = "cols (rot.)" if not b["rotated"] else "cols"
         return (f"Mixed: {a['count']}×{a['per_stripe']} + "
                 f"{b['count']}×{b['per_stripe']}")
     if has_a:
@@ -166,13 +298,13 @@ def arrangement_description(config: Optional[Dict], ti: int) -> str:
 
 
 def calculate(
-    case_l: float,
-    case_w: float,
-    case_h: float,
-    max_height: float,
-    pallet_l: float,
-    pallet_w: float,
-    pallet_h: float,
+    case_l: Decimal,
+    case_w: Decimal,
+    case_h: Decimal,
+    max_height: Decimal,
+    pallet_l: Decimal,
+    pallet_w: Decimal,
+    pallet_h: Decimal,
 ) -> dict:
     """
     Full pallet calculation.
@@ -183,7 +315,7 @@ def calculate(
     """
     ti, config = find_optimal_arrangement(case_l, case_w, pallet_l, pallet_w)
 
-    case_h_safe = max(case_h, 0.01)
+    case_h_safe = max(case_h, _D('0.01'))
     available_h = max_height - pallet_h
 
     hi = max(0, int(available_h / case_h_safe))
@@ -192,7 +324,7 @@ def calculate(
 
     pallet_area = pallet_l * pallet_w
     case_footprint = case_l * case_w
-    efficiency = (ti * case_footprint) / pallet_area if pallet_area > 0 else 0.0
+    efficiency = (ti * case_footprint) / pallet_area if pallet_area > 0 else _D('0')
 
     positions = generate_positions(config) if config else []
     desc = arrangement_description(config, ti)
@@ -202,14 +334,14 @@ def calculate(
         "ti": ti,
         "hi": hi,
         "total": total,
-        "case_h": round(case_h, 2),
-        "pod_height": round(pod_height, 2),
-        "efficiency": round(efficiency, 4),
-        "pallet_length": pallet_l,
-        "pallet_width": pallet_w,
+        "case_h": round(float(case_h), 2),
+        "pod_height": round(float(pod_height), 2),
+        "efficiency": round(float(efficiency), 4),
+        "pallet_length": float(pallet_l),
+        "pallet_width": float(pallet_w),
         "pod_length": p_len,
         "pod_width": p_wid,
         "arrangement": positions,
         "arrangement_desc": desc,
-        "available_height": round(available_h, 2),
+        "available_height": round(float(available_h), 2),
     }

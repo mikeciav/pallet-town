@@ -87,6 +87,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   setupCalculator();
   setupBulk();
   setupRetailersTab();
+  if (window.SHOW_DEMO_DEFAULTS) doCalculate();
 });
 
 // ── Sidebar collapse ─────────────────────────────────────────
@@ -244,9 +245,10 @@ async function loadRetailers() {
     retailers = await res.json();
     syncRetailerSelects();
     renderRetailersGrid();
-    // Temporary defaults: pre-select Walmart
+    // Temporary defaults: pre-select Costco
     const sel = document.getElementById('retailer-select');
-    if (!sel.value) { sel.value = '1'; updateInfoBar(); }
+    if (!sel.value) { sel.value = '3'; updateInfoBar(); }
+    updateClubPanel();
   } catch (e) {
     setStatus('Could not load retailers.', true);
   }
@@ -277,7 +279,10 @@ function retailerById(id) {
 
 // ── Single Calculator ────────────────────────────────────────
 function setupCalculator() {
-  document.getElementById('retailer-select').addEventListener('change', updateInfoBar);
+  document.getElementById('retailer-select').addEventListener('change', () => {
+    updateInfoBar();
+    updateClubPanel();
+  });
   document.getElementById('calc-btn').addEventListener('click', doCalculate);
   document.getElementById('clear-btn').addEventListener('click', () => {
     ['c-l', 'c-w', 'c-h', 'c-cw', 'c-cp'].forEach(id => {
@@ -333,6 +338,8 @@ function setupCalculator() {
     body.style.display = collapsed ? 'block' : 'none';
     toggle.textContent = collapsed ? '▲' : '▼';
   });
+
+  setupSideSelector();
 }
 
 
@@ -362,6 +369,92 @@ function updateInfoBar() {
   }
   editor.style.display = 'block';
   notesWrap.style.display = 'block';
+}
+
+function updateClubPanel() {
+  const rid = document.getElementById('retailer-select').value;
+  const r = rid === 'custom' ? null : retailerById(rid);
+  const isClub = r && r.is_club_store;
+  document.getElementById('club-display-panel').style.display = isClub ? '' : 'none';
+  if (!isClub) {
+    document.getElementById('shoppable-error-banner').style.display = 'none';
+    document.getElementById('shoppable-void-hint').textContent = '';
+    document.getElementById('shoppable-fp-hint').textContent = '';
+  }
+
+
+  if (isClub && r) {
+    const DEFAULTS = { "BJ's Wholesale": 2 };
+    const defaultSides = DEFAULTS[r.name] || 4;
+    document.querySelectorAll('#side-selector .side-btn').forEach(btn => {
+      btn.classList.toggle('active', parseInt(btn.dataset.sides) === defaultSides);
+    });
+  }
+}
+
+function setupSideSelector() {
+  document.querySelectorAll('#side-selector .side-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('#side-selector .side-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+    });
+  });
+}
+
+function getShoppableParams() {
+  const panel = document.getElementById('club-display-panel');
+  if (!panel || panel.style.display === 'none') return null;
+
+  const activeBtn = document.querySelector('#side-selector .side-btn.active');
+  const sides = activeBtn ? parseInt(activeBtn.dataset.sides) : 4;
+  if (sides === 0) return null;
+
+  return {
+    sides,
+    max_empty_pct: (parseFloat(document.getElementById('club-max-empty').value) || 15) / 100,
+    min_footprint: [
+      parseFloat(document.getElementById('club-fp-w').value) || 37,
+      parseFloat(document.getElementById('club-fp-l').value) || 45,
+    ],
+  };
+}
+
+function renderShoppableResults(s) {
+  const banner   = document.getElementById('shoppable-error-banner');
+  const voidHint = document.getElementById('shoppable-void-hint');
+  const fpHint   = document.getElementById('shoppable-fp-hint');
+
+  if (!s) {
+    banner.style.display = 'none';
+    voidHint.textContent = '';
+    voidHint.style.cssText = '';
+    fpHint.textContent = '';
+    fpHint.style.cssText = '';
+    return;
+  }
+
+  banner.style.display = 'none';
+
+  // ── Max empty % check ────────────────────────────────────────
+  const maxEmptyPct = (parseFloat(document.getElementById('club-max-empty').value) || 15) / 100;
+  const voidFail = s.void_pct > maxEmptyPct;
+  voidHint.textContent = `${pct(s.void_pct)} empty`;
+  voidHint.style.fontWeight = voidFail ? 'bold' : '';
+  voidHint.style.color      = voidFail ? '#ef4444' : '';
+
+  // ── Min footprint check ──────────────────────────────────────
+  // Arrangement coords: c.x/c.w in the length (48") direction, c.y/c.h in the width (40") direction.
+  const minFpW = parseFloat(document.getElementById('club-fp-w').value) || 37;
+  const minFpL = parseFloat(document.getElementById('club-fp-l').value) || 45;
+  const arr = s.arrangement || [];
+  const bboxL = arr.length ? Math.max(...arr.map(c => c.x + c.w)) : 0;
+  const bboxW = arr.length ? Math.max(...arr.map(c => c.y + c.h)) : 0;
+  const fpFail = bboxL < minFpL || bboxW < minFpW;
+  fpHint.textContent = fpFail
+    ? `footprint ${bboxL.toFixed(1)}"×${bboxW.toFixed(1)}" (min ${minFpL}"×${minFpW}")`
+    : '';
+  fpHint.style.fontWeight = fpFail ? 'bold' : '';
+  fpHint.style.color      = fpFail ? '#ef4444' : '';
 }
 
 function refreshBulkRetailerInfo() {
@@ -431,6 +524,8 @@ async function doCalculate() {
   try {
     const body = { length: l, width: w, height: h, retailer_id: rid, case_pack_qty: cp };
     if (rid === 'custom') Object.assign(body, customRetailer);
+    const shoppable = getShoppableParams();
+    if (shoppable) body.shoppable = shoppable;
     const res  = await fetch(API.calculate, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -451,7 +546,7 @@ async function doCalculate() {
 function renderResults(d) {
   lastResult = d;
 
-  setMetric('val-ti',    d.ti,    'mc-ti');
+  setMetric('val-ti',    d.shoppable ? d.shoppable.ti : d.ti,    'mc-ti');
   setMetric('val-hi',    d.hi,    'mc-hi');
   setMetric('val-total', d.total, 'mc-total');
   setMetric('val-upp',   d.case_pack_qty * d.total, 'mc-upp');
@@ -479,13 +574,16 @@ function updateDetailStrip(d) {
   const palletWeight    = caseWeight * d.total;
   const truckloadWeight = caseWeight * d.total * d.max_pallets_per_floor * d.stack_multiplier;
 
-  document.getElementById('detail-strip').style.display = 'grid';
-  document.getElementById('d-pallet-wt').textContent  = fmtResultWt(palletWeight);
-  document.getElementById('d-efficiency').textContent = pct(d.efficiency);
+  document.getElementById('detail-strip').style.display = 'flex';
+  document.getElementById('d-pallet-wt').textContent   = fmtResultWt(palletWeight);
+  document.getElementById('d-efficiency').textContent  = pct(d.efficiency);
   document.getElementById('d-height').textContent = fmtResultLen(d.pod_height) + (r?.no_pallet ? ' · no pallet' : '');
   document.getElementById('d-pod-l').textContent  = fmtResultLen(d.pod_length);
   document.getElementById('d-pod-w').textContent  = fmtResultLen(d.pod_width);
   document.getElementById('d-tl-wt').textContent  = fmtResultWt(truckloadWeight);
+
+  drawDiagram(d);
+  renderShoppableResults(d.shoppable || null);
 }
 
 function setMetric(valId, value, cardId) {
@@ -499,18 +597,18 @@ function setMetric(valId, value, cardId) {
 
 // ── SVG Diagram ──────────────────────────────────────────────
 function drawDiagram(d) {
-  if (diagramView === 'hi') {
-    drawStackedView(d, document.getElementById('diagram-box'));
-  } else {
-    drawTiView(d, document.getElementById('diagram-box'));
-  }
-  // Update hint text
-  const hint = document.getElementById('diagram-hint');
+  const box = document.getElementById('diagram-box');
   if (!d) return;
+
+  if (d.shoppable && d.shoppable.arrangement && d.shoppable.arrangement.length > 0) {
+    drawShoppableView(d, box);
+    return;
+  }
+
   if (diagramView === 'hi') {
-    hint.textContent = `isometric · ${d.hi} layer${d.hi !== 1 ? 's' : ''} · ${fmtResultLen(d.pod_height)} pod height`;
+    drawStackedView(d, box);
   } else {
-    hint.textContent = `top-down · 1 layer · Ti = ${d.ti}`;
+    drawTiView(d, box);
   }
 }
 
@@ -524,13 +622,12 @@ function drawTiView(d, box) {
 
   const VW = 580, VH = 480;
   const PAD = 32;
-  const LEGEND_H = 22;
 
-  const scale = Math.min((VW - PAD * 2) / PL, (VH - PAD * 2 - LEGEND_H) / PW);
+  const scale = Math.min((VW - PAD * 2) / PL, (VH - PAD * 2) / PW);
   const dW    = PL * scale;
   const dH    = PW * scale;
   const ox    = (VW - dW) / 2;
-  const oy    = PAD + ((VH - PAD * 2 - LEGEND_H) - dH) / 2;
+  const oy    = PAD + ((VH - PAD * 2) - dH) / 2;
 
   const gPitch = Math.max(4, Math.round(20 / scale)) * scale;
 
@@ -571,15 +668,9 @@ function drawTiView(d, box) {
 
   const annotColor = '#3d5068';
   const af = 'font-family="JetBrains Mono,monospace"';
-  svg += `<text x="${(ox+dW/2).toFixed(1)}" y="${(oy-7).toFixed(1)}" text-anchor="middle" ${af} font-size="9" fill="${annotColor}">${PL}"</text>`;
+  svg += `<text x="${(ox+dW/2).toFixed(1)}" y="${(oy-7).toFixed(1)}" text-anchor="middle" ${af} font-size="9" fill="${annotColor}">${PL}" length</text>`;
   svg += `<text x="${(ox-9).toFixed(1)}" y="${(oy+dH/2).toFixed(1)}" text-anchor="middle" ${af} font-size="9" fill="${annotColor}" `
-       + `transform="rotate(-90,${(ox-9).toFixed(1)},${(oy+dH/2).toFixed(1)})">${PW}"</text>`;
-
-  const ly = (oy + dH + 12).toFixed(1);
-  svg += `<rect x="${ox}" y="${ly}" width="8" height="8" fill="rgba(255,212,184,.13)" stroke="#f5c4be" stroke-width="0.7"/>`;
-  svg += `<text x="${(ox+12).toFixed(1)}" y="${(parseFloat(ly)+7).toFixed(1)}" ${af} font-size="8" fill="#7a8faa">Standard</text>`;
-  svg += `<rect x="${(ox+76).toFixed(1)}" y="${ly}" width="8" height="8" fill="rgba(200,240,160,.13)" stroke="#d2eca4" stroke-width="0.7"/>`;
-  svg += `<text x="${(ox+88).toFixed(1)}" y="${(parseFloat(ly)+7).toFixed(1)}" ${af} font-size="8" fill="#7a8faa">Rotated 90°</text>`;
+       + `transform="rotate(-90,${(ox-9).toFixed(1)},${(oy+dH/2).toFixed(1)})">${PW}" width</text>`;
 
   svg += '</svg>';
   box.innerHTML = svg;
@@ -596,7 +687,6 @@ function drawStackedView(d, box) {
 
   const VW = 290, VH = 460;
   const PAD = 18;
-  const LEGEND_H = 18;
   const EXTRA_TOP = 10;
 
   const COS30 = Math.cos(Math.PI / 6);
@@ -610,7 +700,7 @@ function drawStackedView(d, box) {
 
   // Scale height so stack fits vertically; cap to keep boxes looking natural
   const stackWorldH = hi * CH;
-  const availForStack = VH - 2 * PAD - EXTRA_TOP - LEGEND_H - floorH_screen;
+  const availForStack = VH - 2 * PAD - EXTRA_TOP - floorH_screen;
   const rawVScale = availForStack > 0 ? availForStack / stackWorldH : hScale;
   const vScale = Math.min(rawVScale, hScale * 3.5);
 
@@ -682,12 +772,12 @@ function drawStackedView(d, box) {
   arrangement.forEach(c => { if (!visited.has(cKey(c))) bfsOrder.push(c); });
 
   // For each case column in BFS order: paint right wall → front wall →
-  // layer dividers → top cap. Near columns drawn later overwrite far ones.
+  // layer dividers → bottom cap. Near columns drawn later overwrite far ones.
   bfsOrder.forEach(c => {
     const { x: cx, y: cy, w: cw, h: cdp, rotated } = c;
     const base = rotated ? [200, 240, 160] : [255, 212, 184];
 
-    const topFill   = `rgb(${base.map(v => Math.round(v * 0.88)).join(',')})`;
+    const bottomFill   = `rgb(${base.map(v => Math.round(v * 0.88)).join(',')})`;
     const rightFill = `rgb(${base.map(v => Math.round(v * 0.52)).join(',')})`;
     const frontFill = `rgb(${base.map(v => Math.round(v * 0.38)).join(',')})`;
     const edge      = 'rgba(0,0,0,0.55)';
@@ -717,26 +807,76 @@ function drawStackedView(d, box) {
     // 4. Top face (drawn last = caps the prism and overwrites any side-face artifacts)
     svg += poly(
       [iso(cx,cy,zFull), iso(cx+cw,cy,zFull), iso(cx+cw,cy+cdp,zFull), iso(cx,cy+cdp,zFull)],
-      topFill, edge, 0.7
+      bottomFill, edge, 0.7
     );
   });
 
   // Pallet border re-draw over everything
   svg += poly(f, 'none', '#334060', 1.5);
 
-  // Layer count badge (top of stack, front-left corner)
+  // Layer count badge (bottom of stack, front-left corner)
   if (hi > 0) {
-    const topPt = iso(0, 0, hi * CH);
-    svg += `<text x="${topPt.x.toFixed(1)}" y="${(topPt.y - 5).toFixed(1)}" font-family="JetBrains Mono,monospace" font-size="9" fill="#7a95b0" text-anchor="middle">Hi=${hi}</text>`;
+    const bottomPt = iso(0, 0, hi * CH);
+    svg += `<text x="${bottomPt.x.toFixed(1)}" y="${(bottomPt.y - 5).toFixed(1)}" font-family="JetBrains Mono,monospace" font-size="9" fill="#7a95b0" text-anchor="middle">Hi=${hi}</text>`;
   }
 
-  // Legend
+  svg += '</svg>';
+  box.innerHTML = svg;
+}
+
+function drawShoppableView(d, box) {
+  const { pallet_length: PL, pallet_width: PW } = d;
+  const positions = d.shoppable.arrangement;
+
+  if (!positions || !positions.length) {
+    box.innerHTML = '<div class="diagram-empty"><svg viewBox="0 0 200 300" fill="none"><text x="100" y="150" text-anchor="middle" font-family="JetBrains Mono,monospace" font-size="9" fill="#3d5068">no arrangement data</text></svg></div>';
+    return;
+  }
+
+  const VW = 580, VH = 480;
+  const PAD = 32;
+
+  // c.x spans [0, PL=48"] (top/bottom = long side), c.y spans [0, PW=40"] (left/right = short side).
+  const scale = Math.min((VW - PAD * 2) / PL, (VH - PAD * 2) / PW);
+  const dW = PL * scale;
+  const dH = PW * scale;
+  const ox = (VW - dW) / 2;
+  const oy = PAD + ((VH - PAD * 2) - dH) / 2;
+
+  const SIDE_STROKE = { top: '#a78bfa', right: '#67e8f9', bottom: '#86efac', left: '#fbbf24' };
+  const SIDE_FILL   = { top: 'rgba(167,139,250,.20)', right: 'rgba(103,232,249,.20)', bottom: 'rgba(134,239,172,.20)', left: 'rgba(251,191,36,.20)' };
+
+  const stroke = (side) => SIDE_STROKE[side] || '#a78bfa';
+  const fill   = (side) => SIDE_FILL[side]   || 'rgba(167,139,250,.20)';
+
+  const gPitch = Math.max(4, Math.round(20 / scale)) * scale;
+  let svg = `<svg viewBox="0 0 ${VW} ${VH}" xmlns="http://www.w3.org/2000/svg" style="width:100%;height:100%;display:block">
+<defs>
+  <pattern id="g" x="${ox}" y="${oy}" width="${gPitch}" height="${gPitch}" patternUnits="userSpaceOnUse">
+    <path d="M ${gPitch} 0 L 0 0 0 ${gPitch}" fill="none" stroke="#253047" stroke-width="0.5"/>
+  </pattern>
+  <clipPath id="pal-clip"><rect x="${ox}" y="${oy}" width="${dW}" height="${dH}"/></clipPath>
+</defs>`;
+
+  svg += `<rect x="${ox}" y="${oy}" width="${dW}" height="${dH}" fill="#0d1119"/>`;
+  svg += `<rect x="${ox}" y="${oy}" width="${dW}" height="${dH}" fill="url(#g)"/>`;
+
+  positions.forEach(c => {
+    const cx = ox + c.x * scale;
+    const cy = oy + c.y * scale;
+    const cw = c.w * scale;
+    const ch = c.h * scale;
+    svg += `<rect x="${(cx + .8).toFixed(1)}" y="${(cy + .8).toFixed(1)}" `
+         + `width="${Math.max(0, cw - 1.6).toFixed(1)}" height="${Math.max(0, ch - 1.6).toFixed(1)}" `
+         + `fill="${fill(c.side)}" stroke="${stroke(c.side)}" stroke-width="0.7" clip-path="url(#pal-clip)"/>`;
+  });
+
+  svg += `<rect x="${ox}" y="${oy}" width="${dW}" height="${dH}" fill="none" stroke="#334060" stroke-width="1.5"/>`;
+
   const af = 'font-family="JetBrains Mono,monospace"';
-  const ly = (VH - LEGEND_H + 2).toFixed(1);
-  svg += `<rect x="10" y="${ly}" width="8" height="8" fill="rgba(255,212,184,0.3)" stroke="#f5c4be" stroke-width="0.7"/>`;
-  svg += `<text x="22" y="${(parseFloat(ly)+7).toFixed(1)}" ${af} font-size="8" fill="#7a8faa">Standard</text>`;
-  svg += `<rect x="82" y="${ly}" width="8" height="8" fill="rgba(200,240,160,0.3)" stroke="#d2eca4" stroke-width="0.7"/>`;
-  svg += `<text x="94" y="${(parseFloat(ly)+7).toFixed(1)}" ${af} font-size="8" fill="#7a8faa">Rotated</text>`;
+  const ac = '#3d5068';
+  svg += `<text x="${(ox + dW / 2).toFixed(1)}" y="${(oy - 7).toFixed(1)}" text-anchor="middle" ${af} font-size="9" fill="${ac}">${PL}" length</text>`;
+  svg += `<text x="${(ox - 9).toFixed(1)}" y="${(oy + dH / 2).toFixed(1)}" text-anchor="middle" ${af} font-size="9" fill="${ac}" transform="rotate(-90,${(ox - 9).toFixed(1)},${(oy + dH / 2).toFixed(1)})">${PW}" width</text>`;
 
   svg += '</svg>';
   box.innerHTML = svg;

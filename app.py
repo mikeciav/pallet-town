@@ -2,11 +2,12 @@
 
 import json
 import os
+from decimal import Decimal, InvalidOperation
 from functools import wraps
 from dotenv import load_dotenv
 from flask import Flask, jsonify, render_template, request, session
 from werkzeug.security import check_password_hash
-from calculator import calculate
+from calculator import _D, calculate, generate_shoppable_v2_positions
 
 load_dotenv()
 
@@ -27,9 +28,9 @@ _data_dir = os.environ.get("DATA_DIR", os.path.dirname(os.path.abspath(__file__)
 RETAILERS_FILE = os.path.join(_data_dir, "retailers.json")
 
 # Fixed pallet dimensions — not configurable per retailer
-PALLET_L = 48.0
-PALLET_W = 40.0
-PALLET_H = 5.5
+PALLET_L = Decimal('48')
+PALLET_W = Decimal('40')
+PALLET_H = Decimal('5.5')
 
 # Feature flags
 SHOW_DIAGRAM = True   # diagram panel (Ti top-down view)
@@ -37,21 +38,21 @@ SHOW_HI_VIEW = False  # Hi isometric toggle button inside the diagram panel
 SHOW_DEMO_DEFAULTS = os.environ.get("SHOW_DEMO_DEFAULTS", "false").lower() == "true"
 
 DEFAULT_RETAILERS = [
-    {"id": 4,  "name": "Amazon",         "max_height": 50, "double_stack_allowed": True,  "max_pallets_per_floor": 26, "no_pallet": False, "notes": ""},
-    {"id": 13, "name": "Best Buy",       "max_height": 60, "double_stack_allowed": False, "max_pallets_per_floor": 26, "no_pallet": False, "notes": ""},
-    {"id": 15, "name": "BJ's Wholesale", "max_height": 60, "double_stack_allowed": True,  "max_pallets_per_floor": 26, "no_pallet": False, "notes": ""},
-    {"id": 3,  "name": "Costco",         "max_height": 58, "double_stack_allowed": True,  "max_pallets_per_floor": 26, "no_pallet": False, "notes": ""},
-    {"id": 12, "name": "CVS",            "max_height": 60, "double_stack_allowed": False, "max_pallets_per_floor": 26, "no_pallet": False, "notes": ""},
-    {"id": 9,  "name": "Dollar General", "max_height": 57, "double_stack_allowed": False, "max_pallets_per_floor": 26, "no_pallet": False, "notes": ""},
-    {"id": 10, "name": "Dollar Tree",    "max_height": 57, "double_stack_allowed": False, "max_pallets_per_floor": 26, "no_pallet": False, "notes": ""},
-    {"id": 5,  "name": "Home Depot",     "max_height": 60, "double_stack_allowed": False, "max_pallets_per_floor": 26, "no_pallet": False, "notes": ""},
-    {"id": 7,  "name": "Kroger",         "max_height": 60, "double_stack_allowed": False, "max_pallets_per_floor": 26, "no_pallet": False, "notes": ""},
-    {"id": 6,  "name": "Lowe's",         "max_height": 60, "double_stack_allowed": False, "max_pallets_per_floor": 26, "no_pallet": False, "notes": ""},
-    {"id": 8,  "name": "Sam's Club",     "max_height": 60, "double_stack_allowed": True,  "max_pallets_per_floor": 26, "no_pallet": False, "notes": ""},
-    {"id": 2,  "name": "Target",         "max_height": 60, "double_stack_allowed": False, "max_pallets_per_floor": 26, "no_pallet": False, "notes": ""},
-    {"id": 11, "name": "Walgreens",      "max_height": 60, "double_stack_allowed": False, "max_pallets_per_floor": 26, "no_pallet": False, "notes": ""},
-    {"id": 1,  "name": "Walmart",        "max_height": 60, "double_stack_allowed": False, "max_pallets_per_floor": 26, "no_pallet": False, "notes": ""},
-    {"id": 14, "name": "Whole Foods",    "max_height": 60, "double_stack_allowed": False, "max_pallets_per_floor": 26, "no_pallet": False, "notes": ""},
+    {"id": 4,  "name": "Amazon",         "max_height": 50,   "double_stack_allowed": True,  "max_pallets_per_floor": 26, "no_pallet": False, "notes": "", "is_club_store": False, "chimney_allowed": False},
+    {"id": 13, "name": "Best Buy",       "max_height": 60,   "double_stack_allowed": False, "max_pallets_per_floor": 26, "no_pallet": False, "notes": "", "is_club_store": False, "chimney_allowed": False},
+    {"id": 15, "name": "BJ's Wholesale", "max_height": 60,   "double_stack_allowed": True,  "max_pallets_per_floor": 26, "no_pallet": False, "notes": "", "is_club_store": True,  "chimney_allowed": False},
+    {"id": 3,  "name": "Costco",         "max_height": 58.0, "double_stack_allowed": True,  "max_pallets_per_floor": 26, "no_pallet": False, "notes": "", "is_club_store": True,  "chimney_allowed": True},
+    {"id": 12, "name": "CVS",            "max_height": 60,   "double_stack_allowed": False, "max_pallets_per_floor": 26, "no_pallet": False, "notes": "", "is_club_store": False, "chimney_allowed": False},
+    {"id": 9,  "name": "Dollar General", "max_height": 57,   "double_stack_allowed": False, "max_pallets_per_floor": 26, "no_pallet": False, "notes": "", "is_club_store": False, "chimney_allowed": False},
+    {"id": 10, "name": "Dollar Tree",    "max_height": 57,   "double_stack_allowed": False, "max_pallets_per_floor": 26, "no_pallet": False, "notes": "", "is_club_store": False, "chimney_allowed": False},
+    {"id": 5,  "name": "Home Depot",     "max_height": 60,   "double_stack_allowed": False, "max_pallets_per_floor": 26, "no_pallet": False, "notes": "", "is_club_store": False, "chimney_allowed": False},
+    {"id": 7,  "name": "Kroger",         "max_height": 60,   "double_stack_allowed": False, "max_pallets_per_floor": 26, "no_pallet": False, "notes": "", "is_club_store": False, "chimney_allowed": False},
+    {"id": 6,  "name": "Lowe's",         "max_height": 60,   "double_stack_allowed": False, "max_pallets_per_floor": 26, "no_pallet": False, "notes": "", "is_club_store": False, "chimney_allowed": False},
+    {"id": 8,  "name": "Sam's Club",     "max_height": 60,   "double_stack_allowed": True,  "max_pallets_per_floor": 26, "no_pallet": False, "notes": "", "is_club_store": True,  "chimney_allowed": True},
+    {"id": 2,  "name": "Target",         "max_height": 60,   "double_stack_allowed": False, "max_pallets_per_floor": 26, "no_pallet": False, "notes": "", "is_club_store": False, "chimney_allowed": False},
+    {"id": 11, "name": "Walgreens",      "max_height": 60,   "double_stack_allowed": False, "max_pallets_per_floor": 26, "no_pallet": False, "notes": "", "is_club_store": False, "chimney_allowed": False},
+    {"id": 1,  "name": "Walmart",        "max_height": 60,   "double_stack_allowed": False, "max_pallets_per_floor": 26, "no_pallet": False, "notes": "", "is_club_store": False, "chimney_allowed": False},
+    {"id": 14, "name": "Whole Foods",    "max_height": 60,   "double_stack_allowed": False, "max_pallets_per_floor": 26, "no_pallet": False, "notes": "", "is_club_store": False, "chimney_allowed": False},
 ]
 
 
@@ -62,6 +63,8 @@ def load_retailers():
         # Backfill any fields added after initial schema
         for r in data:
             r.setdefault("notes", "")
+            r.setdefault("is_club_store", False)
+            r.setdefault("chimney_allowed", False)
     else:
         data = [dict(r) for r in DEFAULT_RETAILERS]
     data.sort(key=lambda r: r["name"].casefold())
@@ -84,6 +87,8 @@ def _parse_retailer_body(data: dict, base=None) -> dict:
                                               base.get("max_pallets_per_floor", 26))),
         "no_pallet":             bool(data.get("no_pallet", base.get("no_pallet", False))),
         "notes":                 str(data.get("notes", base.get("notes", ""))),
+        "is_club_store":         bool(data.get("is_club_store", base.get("is_club_store", False))),
+        "chimney_allowed":       bool(data.get("chimney_allowed", base.get("chimney_allowed", False))),
     }
 
 
@@ -169,14 +174,44 @@ def api_retailers_delete(rid: int):
     return "", 204
 
 
+def _parse_shoppable_block(data: dict, retailer: dict):
+    """
+    Parse and validate the 'shoppable' key from an /api/calculate request body.
+    Returns (params_dict, error_str). If error_str is not None, reject with 400.
+    """
+    shoppable = data.get("shoppable")
+    if shoppable is None:
+        return None, None
+
+    if not retailer.get("is_club_store", False):
+        return None, "shoppable display calculations are only available for club store retailers"
+
+    sides = shoppable.get("sides")
+    if sides is None or not isinstance(sides, int) or sides not in (2, 3, 4):
+        return None, "shoppable.sides must be 2, 3, or 4"
+
+    try:
+        max_empty_pct = float(shoppable.get("max_empty_pct", 0.15))
+        raw_fp = shoppable.get("min_footprint", [37.0, 45.0])
+        min_footprint = (float(raw_fp[0]), float(raw_fp[1]))
+    except (TypeError, ValueError, IndexError):
+        return None, "invalid shoppable parameter values"
+
+    return {
+        "sides": sides,
+        "max_empty_pct": max_empty_pct,
+        "min_footprint": min_footprint,
+    }, None
+
+
 @app.route("/api/calculate", methods=["POST"])
 def api_calculate():
     data = request.get_json(force=True) or {}
     try:
-        case_l = float(data["length"])
-        case_w = float(data["width"])
-        case_h = float(data["height"])
-    except (KeyError, TypeError, ValueError):
+        case_l = _D(data["length"])
+        case_w = _D(data["width"])
+        case_h = _D(data["height"])
+    except (KeyError, TypeError, ValueError, InvalidOperation):
         return jsonify({"error": "length, width, height are required numbers"}), 400
 
     if case_l <= 0 or case_w <= 0 or case_h <= 0:
@@ -190,6 +225,8 @@ def api_calculate():
                 "double_stack_allowed":  bool(data.get("double_stack_allowed", False)),
                 "max_pallets_per_floor": int(data.get("max_pallets_per_floor", 26)),
                 "no_pallet":             bool(data.get("no_pallet", False)),
+                "is_club_store":         False,
+                "chimney_allowed":       False,
             }
         except (TypeError, ValueError):
             return jsonify({"error": "Invalid custom retailer params"}), 400
@@ -198,15 +235,19 @@ def api_calculate():
         if not retailer:
             return jsonify({"error": "Retailer not found"}), 404
 
+    shoppable_params, shoppable_error = _parse_shoppable_block(data, retailer)
+    if shoppable_error:
+        return jsonify({"error": shoppable_error}), 400
+
     case_pack_qty = max(1, int(data.get("case_pack_qty", 1)))
     result = calculate(
         case_l=case_l,
         case_w=case_w,
         case_h=case_h,
-        max_height=retailer["max_height"],
+        max_height=_D(retailer["max_height"]),
         pallet_l=PALLET_L,
         pallet_w=PALLET_W,
-        pallet_h=0.0 if retailer.get("no_pallet", False) else PALLET_H,
+        pallet_h=Decimal('0') if retailer.get("no_pallet", False) else PALLET_H,
     )
     stack_mult = 2 if retailer["double_stack_allowed"] else 1
     result["truckload_qty"] = (
@@ -215,6 +256,24 @@ def api_calculate():
     result["case_pack_qty"]        = case_pack_qty
     result["max_pallets_per_floor"] = retailer["max_pallets_per_floor"]
     result["stack_multiplier"]      = stack_mult
+    if shoppable_params is not None:
+        arrangement = generate_shoppable_v2_positions(
+            case_l=case_l,
+            case_w=case_w,
+            pallet_l=PALLET_W,
+            pallet_w=PALLET_L,
+            sides=shoppable_params["sides"],
+        )
+        pallet_area = PALLET_L * PALLET_W
+        case_area = case_l * case_w
+        void_pct = max(Decimal('0'), (pallet_area - len(arrangement) * case_area) / pallet_area)
+        result["shoppable"] = {
+            "ti": len(arrangement),
+            "mode": "shoppable_spiral",
+            "void_pct": round(float(void_pct), 4),
+            "error": None,
+            "arrangement": arrangement,
+        }
     return jsonify(result)
 
 
@@ -247,10 +306,10 @@ def api_calculate_bulk():
     results = []
     for case in cases:
         try:
-            l = float(case["length"])
-            w = float(case["width"])
-            h = float(case["height"])
-        except (KeyError, TypeError, ValueError):
+            l = _D(case["length"])
+            w = _D(case["width"])
+            h = _D(case["height"])
+        except (KeyError, TypeError, ValueError, InvalidOperation):
             continue
         if l <= 0 or w <= 0 or h <= 0:
             continue
@@ -258,10 +317,10 @@ def api_calculate_bulk():
         case_pack_qty = max(1, int(case.get("case_pack_qty", data.get("case_pack_qty", 1))))
         r = calculate(
             case_l=l, case_w=w, case_h=h,
-            max_height=retailer["max_height"],
+            max_height=_D(retailer["max_height"]),
             pallet_l=PALLET_L,
             pallet_w=PALLET_W,
-            pallet_h=0.0 if retailer.get("no_pallet", False) else PALLET_H,
+            pallet_h=Decimal('0') if retailer.get("no_pallet", False) else PALLET_H,
         )
         r["truckload_qty"]        = case_pack_qty * r["total"] * max_pallets * stack_mult
         r["case_pack_qty"]        = case_pack_qty
@@ -269,7 +328,7 @@ def api_calculate_bulk():
         r["stack_multiplier"]      = stack_mult
         results.append({
             "sku": str(case.get("sku", "")),
-            "length": l, "width": w, "height": h,
+            "length": float(l), "width": float(w), "height": float(h),
             **r,
         })
 
