@@ -295,7 +295,6 @@ function setupCalculator() {
       diagramView = btn.dataset.view;
       document.querySelectorAll('#view-toggle .vt-btn').forEach(b => b.classList.remove('active'));
       btn.classList.add('active');
-      // Sync view URL param with the 2D/3D toggle
       const u = new URL(location.href);
       if (diagramView === 'hi') {
         if (!u.searchParams.get('view')) u.searchParams.set('view', 'A');
