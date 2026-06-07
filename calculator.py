@@ -276,9 +276,11 @@ def pod_dimensions(positions: List[Dict]) -> tuple:
     """Bounding box of all carton footprints (excludes pallet itself)."""
     if not positions:
         return 0.0, 0.0
+    min_x = min(c["x"] for c in positions)
+    min_y = min(c["y"] for c in positions)
     max_x = max(c["x"] + c["w"] for c in positions)
     max_y = max(c["y"] + c["h"] for c in positions)
-    return round(max_x, 3), round(max_y, 3)
+    return round(max_x - min_x, 3), round(max_y - min_y, 3)
 
 
 def arrangement_description(config: Optional[Dict], ti: int) -> str:
