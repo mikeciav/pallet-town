@@ -9,6 +9,14 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@300;400;500;600;700&family=JetBrains+Mono:wght@300;400;500;700&family=DM+Sans:opsz,wght@9..40,300;9..40,400;9..40,500&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="/static/css/style.css">
+  <script type="importmap">
+  {
+    "imports": {
+      "three":          "https://cdn.jsdelivr.net/npm/three@0.167.1/build/three.module.js",
+      "three/addons/":  "https://cdn.jsdelivr.net/npm/three@0.167.1/examples/jsm/"
+    }
+  }
+  </script>
 </head>
 <body>
 
@@ -316,34 +324,34 @@
             </div>
           </div>
 
-          <!-- Diagram sub-header -->
-          <div class="diagram-header">
-            <span class="panel-label">LAYER DIAGRAM</span>
-            <span class="panel-hint" id="shoppable-void-hint" style="margin-left:8px"></span>
-            <span class="panel-hint" id="shoppable-fp-hint" style="margin-left:8px"></span>
-            <div style="margin-left:auto;display:flex;align-items:center;gap:8px">
-              {% if show_hi_view %}
-              <div class="view-toggle" id="view-toggle">
-                <button class="vt-btn active" data-view="ti">TI</button>
-                <button class="vt-btn" data-view="hi">HI</button>
-              </div>
-              {% endif %}
-              <div class="view-toggle" id="unit-toggle">
-                <button class="vt-btn active" data-unit="imperial">in / lbs</button>
-                <button class="vt-btn" data-unit="metric">cm / kg</button>
-              </div>
-              <span class="results-meta" id="results-meta"></span>
-            </div>
-          </div>
-
           <!-- Diagram + sidebar -->
           <div class="diagram-area">
-            <div class="diagram-box" id="diagram-box">
-              <div class="diagram-empty">
-                <svg viewBox="0 0 200 160" fill="none">
-                  <rect x="20" y="10" width="160" height="130" stroke="#2a3347" stroke-width="1" stroke-dasharray="4 3"/>
-                  <text x="100" y="82" text-anchor="middle" font-family="JetBrains Mono,monospace" font-size="10" fill="#2a3347">awaiting calculation</text>
-                </svg>
+            <div class="diagram-col">
+              <div class="diagram-header">
+                <span class="panel-label">LAYER DIAGRAM</span>
+                <span class="results-meta" id="results-meta" style="margin-left:8px"></span>
+                <span class="panel-hint" id="shoppable-void-hint" style="margin-left:8px"></span>
+                <span class="panel-hint" id="shoppable-fp-hint" style="margin-left:8px"></span>
+                <div style="margin-left:auto;display:flex;align-items:center;gap:8px">
+                  {% if show_hi_view %}
+                  <div class="view-toggle" id="view-toggle">
+                    <button class="vt-btn active" data-view="hi">3D</button>
+                    <button class="vt-btn" data-view="ti">2D</button>
+                  </div>
+                  {% endif %}
+                  <div class="view-toggle" id="unit-toggle">
+                    <button class="vt-btn active" data-unit="imperial">in / lbs</button>
+                    <button class="vt-btn" data-unit="metric">cm / kg</button>
+                  </div>
+                </div>
+              </div>
+              <div class="diagram-box" id="diagram-box">
+                <div class="diagram-empty">
+                  <svg viewBox="0 0 200 160" fill="none">
+                    <rect x="20" y="10" width="160" height="130" stroke="#2a3347" stroke-width="1" stroke-dasharray="4 3"/>
+                    <text x="100" y="82" text-anchor="middle" font-family="JetBrains Mono,monospace" font-size="10" fill="#2a3347">awaiting calculation</text>
+                  </svg>
+                </div>
               </div>
             </div>
 
@@ -580,5 +588,6 @@ ITEM-002,10,10,8,12.0,1</code>
 
   <script>window.SHOW_DEMO_DEFAULTS = {{ 'true' if show_demo_defaults else 'false' }};</script>
   <script src="/static/js/app.js"></script>
+  <script type="module" src="/static/js/view-3d.js"></script>
 </body>
 </html>
