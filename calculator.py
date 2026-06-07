@@ -23,10 +23,10 @@ def _D(x) -> Decimal:
 
 
 def find_optimal_arrangement(
-    case_l: float,
-    case_w: float,
-    pallet_l: float,
-    pallet_w: float,
+    case_l: Decimal,
+    case_w: Decimal,
+    pallet_l: Decimal,
+    pallet_w: Decimal,
 ) -> Tuple[int, Optional[Dict]]:
     """
     Find maximum Ti and the arrangement config that achieves it.
@@ -34,8 +34,6 @@ def find_optimal_arrangement(
     Tries all stripe patterns over both pallet dimensions with both carton
     orientations: n stripes of A + remaining space filled with B stripes.
     """
-    case_l, case_w, pallet_l, pallet_w = _D(case_l), _D(case_w), _D(pallet_l), _D(pallet_w)
-
     if case_l <= 0 or case_w <= 0 or pallet_l <= 0 or pallet_w <= 0:
         return 0, None
 
@@ -110,14 +108,12 @@ def _make_config(
 
 
 def find_shoppable_v2(
-    case_l: float,
-    case_w: float,
-    pallet_l: float,
-    pallet_w: float,
+    case_l: Decimal,
+    case_w: Decimal,
+    pallet_l: Decimal,
+    pallet_w: Decimal,
     sides: int,
 ) -> Dict:
-
-    case_l, case_w, pallet_l, pallet_w = _D(case_l), _D(case_w), _D(pallet_l), _D(pallet_w)
 
     if case_l > case_w:
         case_l, case_w = case_w, case_l  # Ensure case_l is the smaller dimension for consistent orientation
@@ -149,10 +145,10 @@ def find_shoppable_v2(
 
 
 def generate_shoppable_v2_positions(
-    case_l: float,
-    case_w: float,
-    pallet_l: float,
-    pallet_w: float,
+    case_l: Decimal,
+    case_w: Decimal,
+    pallet_l: Decimal,
+    pallet_w: Decimal,
     sides: int,
 ) -> List[Dict]:
     """
@@ -170,8 +166,6 @@ def generate_shoppable_v2_positions(
 
     Coordinates: x = W direction (0→pallet_w), y = L direction (0→pallet_l).
     """
-    case_l, case_w, pallet_l, pallet_w = _D(case_l), _D(case_w), _D(pallet_l), _D(pallet_w)
-
     positions: List[Dict] = []
 
     # The bounding box shrinks inward by case_l on each side after every completed spiral pass.
@@ -342,13 +336,13 @@ def arrangement_description(config: Optional[Dict], ti: int) -> str:
 
 
 def calculate(
-    case_l: float,
-    case_w: float,
-    case_h: float,
-    max_height: float,
-    pallet_l: float,
-    pallet_w: float,
-    pallet_h: float,
+    case_l: Decimal,
+    case_w: Decimal,
+    case_h: Decimal,
+    max_height: Decimal,
+    pallet_l: Decimal,
+    pallet_w: Decimal,
+    pallet_h: Decimal,
 ) -> dict:
     """
     Full pallet calculation.
@@ -357,9 +351,6 @@ def calculate(
     pallet board itself. Hi is always based on one pallet — stacking is a
     truckload-level concern handled outside this function.
     """
-    case_l, case_w, case_h = _D(case_l), _D(case_w), _D(case_h)
-    pallet_l, pallet_w, pallet_h, max_height = _D(pallet_l), _D(pallet_w), _D(pallet_h), _D(max_height)
-
     ti, config = find_optimal_arrangement(case_l, case_w, pallet_l, pallet_w)
 
     case_h_safe = max(case_h, _D('0.01'))

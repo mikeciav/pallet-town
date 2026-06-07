@@ -5,10 +5,11 @@ Run with:  python3 -m pytest test_calculator.py -v
 """
 
 import pytest
-from calculator import calculate, find_optimal_arrangement, pod_dimensions, generate_positions
+from decimal import Decimal
+from calculator import _D, calculate, find_optimal_arrangement, pod_dimensions, generate_positions
 
 # Standard pallet constants used in app.py
-PL, PW, PH = 48.0, 40.0, 5.5
+PL, PW, PH = _D(48), _D(40), _D('5.5')
 
 
 # ── Ti (cartons per layer) ────────────────────────────────────
@@ -250,9 +251,9 @@ class TestPositions:
             for c in r['arrangement']:
                 assert c['x'] >= 0
                 assert c['y'] >= 0
-                assert c['x'] + c['w'] <= PL + 1e-9, \
+                assert c['x'] + c['w'] <= float(PL) + 1e-9, \
                     f"{cl}×{cw}: carton x+w={c['x']+c['w']} > pallet {PL}"
-                assert c['y'] + c['h'] <= PW + 1e-9, \
+                assert c['y'] + c['h'] <= float(PW) + 1e-9, \
                     f"{cl}×{cw}: carton y+h={c['y']+c['h']} > pallet {PW}"
 
     def test_no_positions_when_ti_zero(self):
@@ -328,13 +329,13 @@ class TestShoppableV2:
     """
     ALL4 = 4
 
-    def _v2(self, cl, cw, pl=48, pw=40, sides=None):
+    def _v2(self, cl, cw, pl=_D(48), pw=_D(40), sides=None):
         from calculator import find_shoppable_v2
-        return find_shoppable_v2(cl, cw, pl, pw, sides if sides is not None else self.ALL4)
+        return find_shoppable_v2(_D(cl), _D(cw), pl, pw, sides if sides is not None else self.ALL4)
 
-    def _pos(self, cl, cw, pl=48, pw=40, sides=None):
+    def _pos(self, cl, cw, pl=_D(48), pw=_D(40), sides=None):
         from calculator import generate_shoppable_v2_positions
-        return generate_shoppable_v2_positions(cl, cw, pl, pw, sides if sides is not None else self.ALL4)
+        return generate_shoppable_v2_positions(_D(cl), _D(cw), pl, pw, sides if sides is not None else self.ALL4)
 
     @staticmethod
     def _overlaps(a, b):
@@ -365,12 +366,12 @@ class TestShoppableV2:
     # ── generate_shoppable_v2_positions — 10×5 on 26×30 (user example) ──
 
     def test_10x5_on_26x30_count(self):
-        pos = self._pos(10, 5, pl=30, pw=26)
+        pos = self._pos(10, 5, pl=_D(30), pw=_D(26))
         assert len(pos) == 15
 
     def test_10x5_top_wall_cases(self):
         # 3 top-wall cases (w=5, h=10) at y=0, x=0/5/10, plus 1 chimney case at y=10
-        pos = self._pos(10, 5, pl=30, pw=26)
+        pos = self._pos(10, 5, pl=_D(30), pw=_D(26))
         top_wall = [p for p in pos if p['side'] == 'top' and p['y'] == pytest.approx(0.0)]
         assert len(top_wall) == 3
         xs = sorted(p['x'] for p in top_wall)
@@ -381,7 +382,7 @@ class TestShoppableV2:
 
     def test_10x5_right_regular_cases(self):
         # 4 right cases: case_l=10" wide, case_w=5" tall, x=15, y=0/5/10/15
-        pos = self._pos(10, 5, pl=30, pw=26)
+        pos = self._pos(10, 5, pl=_D(30), pw=_D(26))
         right_reg = [p for p in pos if p['side'] == 'right']
         assert len(right_reg) == 4
         ys = sorted(p['y'] for p in right_reg)
@@ -400,15 +401,15 @@ class TestShoppableV2:
         from calculator import generate_shoppable_v2_positions
         for cl, cw in [(10, 8), (12, 7), (8, 6)]:
             r = self._v2(cl, cw)
-            p1 = generate_shoppable_v2_positions(cl, cw, 48, 40, 4)
-            p2 = generate_shoppable_v2_positions(cw, cl, 40, 48, 4)
+            p1 = generate_shoppable_v2_positions(_D(cl), _D(cw), _D(48), _D(40), 4)
+            p2 = generate_shoppable_v2_positions(_D(cw), _D(cl), _D(40), _D(48), 4)
             best = max(len(p1), len(p2))
             assert r['ti'] == best, \
                 f"{cl}×{cw}: ti={r['ti']} != best orientation count={best}"
 
     def test_no_overlapping_cases(self):
         for cl, cw in [(10, 8), (10, 5)]:
-            pl, pw = (48, 40) if cw == 8 else (30, 26)
+            pl, pw = (_D(48), _D(40)) if cw == 8 else (_D(30), _D(26))
             positions = self._pos(cl, cw, pl=pl, pw=pw)
             for i, a in enumerate(positions):
                 for j, b in enumerate(positions):

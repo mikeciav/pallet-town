@@ -329,41 +329,42 @@
             <span class="results-meta" id="results-meta" style="margin-left:auto"></span>
           </div>
 
-          <!-- Diagram — fills all remaining vertical space -->
-          <div class="diagram-box" id="diagram-box">
-            <div class="diagram-empty">
-              <svg viewBox="0 0 200 160" fill="none">
-                <rect x="20" y="10" width="160" height="130" stroke="#2a3347" stroke-width="1" stroke-dasharray="4 3"/>
-                <text x="100" y="82" text-anchor="middle" font-family="JetBrains Mono,monospace" font-size="10" fill="#2a3347">awaiting calculation</text>
-              </svg>
+          <!-- Diagram + sidebar -->
+          <div class="diagram-area">
+            <div class="diagram-box" id="diagram-box">
+              <div class="diagram-empty">
+                <svg viewBox="0 0 200 160" fill="none">
+                  <rect x="20" y="10" width="160" height="130" stroke="#2a3347" stroke-width="1" stroke-dasharray="4 3"/>
+                  <text x="100" y="82" text-anchor="middle" font-family="JetBrains Mono,monospace" font-size="10" fill="#2a3347">awaiting calculation</text>
+                </svg>
+              </div>
             </div>
-          </div>
 
-          <!-- Detail strip: 5 fields in a compact row below the diagram -->
-          <div class="detail-strip" id="detail-strip" style="display:none">
-            <div class="detail-item">
-              <span class="detail-label">Pallet Weight</span>
-              <span class="detail-val" id="d-pallet-wt">—</span>
-            </div>
-            <div class="detail-item">
-              <span class="detail-label">Floor Efficiency</span>
-              <span class="detail-val" id="d-efficiency">—</span>
-            </div>
-            <div class="detail-item">
-              <span class="detail-label">Pod Height</span>
-              <span class="detail-val" id="d-height">—</span>
-            </div>
-            <div class="detail-item">
-              <span class="detail-label">Pod Length</span>
-              <span class="detail-val" id="d-pod-l">—</span>
-            </div>
-            <div class="detail-item">
-              <span class="detail-label">Pod Width</span>
-              <span class="detail-val" id="d-pod-w">—</span>
-            </div>
-            <div class="detail-item">
-              <span class="detail-label">Truckload Weight</span>
-              <span class="detail-val" id="d-tl-wt">—</span>
+            <div class="detail-sidebar" id="detail-strip" style="display:none">
+              <div class="detail-item">
+                <span class="detail-label">Pod Length</span>
+                <span class="detail-val" id="d-pod-l">—</span>
+              </div>
+              <div class="detail-item">
+                <span class="detail-label">Pod Width</span>
+                <span class="detail-val" id="d-pod-w">—</span>
+              </div>
+              <div class="detail-item">
+                <span class="detail-label">Pod Height</span>
+                <span class="detail-val" id="d-height">—</span>
+              </div>
+              <div class="detail-item">
+                <span class="detail-label">Floor Efficiency</span>
+                <span class="detail-val" id="d-efficiency">—</span>
+              </div>
+              <div class="detail-item">
+                <span class="detail-label">Pallet Weight</span>
+                <span class="detail-val" id="d-pallet-wt">—</span>
+              </div>
+              <div class="detail-item">
+                <span class="detail-label">Truckload Weight</span>
+                <span class="detail-val" id="d-tl-wt">—</span>
+              </div>
             </div>
           </div>
 

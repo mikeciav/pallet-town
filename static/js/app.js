@@ -554,7 +554,7 @@ function renderResults(d) {
   const palletWeight    = caseWeight * d.total;
   const truckloadWeight = caseWeight * d.total * d.max_pallets_per_floor * d.stack_multiplier;
 
-  document.getElementById('detail-strip').style.display = 'grid';
+  document.getElementById('detail-strip').style.display = 'flex';
   document.getElementById('d-pallet-wt').textContent   = formatWeight(palletWeight);
   document.getElementById('d-efficiency').textContent  = pct(d.efficiency);
   document.getElementById('d-height').textContent =
@@ -603,13 +603,12 @@ function drawTiView(d, box) {
 
   const VW = 580, VH = 480;
   const PAD = 32;
-  const LEGEND_H = 22;
 
-  const scale = Math.min((VW - PAD * 2) / PL, (VH - PAD * 2 - LEGEND_H) / PW);
+  const scale = Math.min((VW - PAD * 2) / PL, (VH - PAD * 2) / PW);
   const dW    = PL * scale;
   const dH    = PW * scale;
   const ox    = (VW - dW) / 2;
-  const oy    = PAD + ((VH - PAD * 2 - LEGEND_H) - dH) / 2;
+  const oy    = PAD + ((VH - PAD * 2) - dH) / 2;
 
   const gPitch = Math.max(4, Math.round(20 / scale)) * scale;
 
@@ -650,15 +649,9 @@ function drawTiView(d, box) {
 
   const annotColor = '#3d5068';
   const af = 'font-family="JetBrains Mono,monospace"';
-  svg += `<text x="${(ox+dW/2).toFixed(1)}" y="${(oy-7).toFixed(1)}" text-anchor="middle" ${af} font-size="9" fill="${annotColor}">${PL}"</text>`;
+  svg += `<text x="${(ox+dW/2).toFixed(1)}" y="${(oy-7).toFixed(1)}" text-anchor="middle" ${af} font-size="9" fill="${annotColor}">${PL}" length</text>`;
   svg += `<text x="${(ox-9).toFixed(1)}" y="${(oy+dH/2).toFixed(1)}" text-anchor="middle" ${af} font-size="9" fill="${annotColor}" `
-       + `transform="rotate(-90,${(ox-9).toFixed(1)},${(oy+dH/2).toFixed(1)})">${PW}"</text>`;
-
-  const ly = (oy + dH + 12).toFixed(1);
-  svg += `<rect x="${ox}" y="${ly}" width="8" height="8" fill="rgba(255,212,184,.13)" stroke="#f5c4be" stroke-width="0.7"/>`;
-  svg += `<text x="${(ox+12).toFixed(1)}" y="${(parseFloat(ly)+7).toFixed(1)}" ${af} font-size="8" fill="#7a8faa">Standard</text>`;
-  svg += `<rect x="${(ox+76).toFixed(1)}" y="${ly}" width="8" height="8" fill="rgba(200,240,160,.13)" stroke="#d2eca4" stroke-width="0.7"/>`;
-  svg += `<text x="${(ox+88).toFixed(1)}" y="${(parseFloat(ly)+7).toFixed(1)}" ${af} font-size="8" fill="#7a8faa">Rotated 90°</text>`;
+       + `transform="rotate(-90,${(ox-9).toFixed(1)},${(oy+dH/2).toFixed(1)})">${PW}" width</text>`;
 
   svg += '</svg>';
   box.innerHTML = svg;
@@ -675,7 +668,6 @@ function drawStackedView(d, box) {
 
   const VW = 290, VH = 460;
   const PAD = 18;
-  const LEGEND_H = 18;
   const EXTRA_TOP = 10;
 
   const COS30 = Math.cos(Math.PI / 6);
@@ -689,7 +681,7 @@ function drawStackedView(d, box) {
 
   // Scale height so stack fits vertically; cap to keep boxes looking natural
   const stackWorldH = hi * CH;
-  const availForStack = VH - 2 * PAD - EXTRA_TOP - LEGEND_H - floorH_screen;
+  const availForStack = VH - 2 * PAD - EXTRA_TOP - floorH_screen;
   const rawVScale = availForStack > 0 ? availForStack / stackWorldH : hScale;
   const vScale = Math.min(rawVScale, hScale * 3.5);
 
@@ -809,14 +801,6 @@ function drawStackedView(d, box) {
     svg += `<text x="${bottomPt.x.toFixed(1)}" y="${(bottomPt.y - 5).toFixed(1)}" font-family="JetBrains Mono,monospace" font-size="9" fill="#7a95b0" text-anchor="middle">Hi=${hi}</text>`;
   }
 
-  // Legend
-  const af = 'font-family="JetBrains Mono,monospace"';
-  const ly = (VH - LEGEND_H + 2).toFixed(1);
-  svg += `<rect x="10" y="${ly}" width="8" height="8" fill="rgba(255,212,184,0.3)" stroke="#f5c4be" stroke-width="0.7"/>`;
-  svg += `<text x="22" y="${(parseFloat(ly)+7).toFixed(1)}" ${af} font-size="8" fill="#7a8faa">Standard</text>`;
-  svg += `<rect x="82" y="${ly}" width="8" height="8" fill="rgba(200,240,160,0.3)" stroke="#d2eca4" stroke-width="0.7"/>`;
-  svg += `<text x="94" y="${(parseFloat(ly)+7).toFixed(1)}" ${af} font-size="8" fill="#7a8faa">Rotated</text>`;
-
   svg += '</svg>';
   box.innerHTML = svg;
 }
@@ -832,14 +816,13 @@ function drawShoppableView(d, box) {
 
   const VW = 580, VH = 480;
   const PAD = 32;
-  const LEGEND_H = 22;
 
   // c.x spans [0, PL=48"] (top/bottom = long side), c.y spans [0, PW=40"] (left/right = short side).
-  const scale = Math.min((VW - PAD * 2) / PL, (VH - PAD * 2 - LEGEND_H) / PW);
+  const scale = Math.min((VW - PAD * 2) / PL, (VH - PAD * 2) / PW);
   const dW = PL * scale;
   const dH = PW * scale;
   const ox = (VW - dW) / 2;
-  const oy = PAD + ((VH - PAD * 2 - LEGEND_H) - dH) / 2;
+  const oy = PAD + ((VH - PAD * 2) - dH) / 2;
 
   const SIDE_STROKE = { top: '#a78bfa', right: '#67e8f9', bottom: '#86efac', left: '#fbbf24' };
   const SIDE_FILL   = { top: 'rgba(167,139,250,.20)', right: 'rgba(103,232,249,.20)', bottom: 'rgba(134,239,172,.20)', left: 'rgba(251,191,36,.20)' };
@@ -873,17 +856,8 @@ function drawShoppableView(d, box) {
 
   const af = 'font-family="JetBrains Mono,monospace"';
   const ac = '#3d5068';
-  svg += `<text x="${(ox + dW / 2).toFixed(1)}" y="${(oy - 7).toFixed(1)}" text-anchor="middle" ${af} font-size="9" fill="${ac}">${PL}" (length)</text>`;
-  svg += `<text x="${(ox - 9).toFixed(1)}" y="${(oy + dH / 2).toFixed(1)}" text-anchor="middle" ${af} font-size="9" fill="${ac}" transform="rotate(-90,${(ox - 9).toFixed(1)},${(oy + dH / 2).toFixed(1)})">${PW}" (width)</text>`;
-
-  const ly = (oy + dH + 12).toFixed(1);
-  let lx = ox;
-  const presentSides = [...new Set(positions.map(p => p.side))].filter(s => SIDE_STROKE[s]);
-  presentSides.forEach(side => {
-    svg += `<rect x="${lx.toFixed(1)}" y="${ly}" width="8" height="8" fill="${fill(side)}" stroke="${stroke(side)}" stroke-width="0.7"/>`;
-    svg += `<text x="${(lx + 12).toFixed(1)}" y="${(parseFloat(ly) + 7).toFixed(1)}" ${af} font-size="8" fill="#7a8faa">${side}</text>`;
-    lx += 52;
-  });
+  svg += `<text x="${(ox + dW / 2).toFixed(1)}" y="${(oy - 7).toFixed(1)}" text-anchor="middle" ${af} font-size="9" fill="${ac}">${PL}" length</text>`;
+  svg += `<text x="${(ox - 9).toFixed(1)}" y="${(oy + dH / 2).toFixed(1)}" text-anchor="middle" ${af} font-size="9" fill="${ac}" transform="rotate(-90,${(ox - 9).toFixed(1)},${(oy + dH / 2).toFixed(1)})">${PW}" width</text>`;
 
   svg += '</svg>';
   box.innerHTML = svg;
