@@ -7,7 +7,7 @@ from functools import wraps
 from dotenv import load_dotenv
 from flask import Flask, jsonify, render_template, request, session
 from werkzeug.security import check_password_hash
-from calculator import _D, calculate, generate_shoppable_v2_positions
+from calculator import _D, calculate, generate_shoppable_v2_positions, center_positions
 
 load_dotenv()
 
@@ -264,6 +264,7 @@ def api_calculate():
             pallet_w=PALLET_L,
             sides=shoppable_params["sides"],
         )
+        arrangement = center_positions(arrangement, float(PALLET_L), float(PALLET_W))
         pallet_area = PALLET_L * PALLET_W
         case_area = case_l * case_w
         void_pct = max(Decimal('0'), (pallet_area - len(arrangement) * case_area) / pallet_area)
