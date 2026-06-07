@@ -15,6 +15,7 @@ let bulkData    = [];
 let bulkResults = [];
 let lastResult  = null;
 let diagramView = 'ti';
+let resultUnit  = 'imperial'; // 'imperial' | 'metric'
 let isAdmin     = false;
 let customRetailer = { max_height: 60, double_stack_allowed: false, max_pallets_per_floor: 26, no_pallet: false };
 
@@ -289,12 +290,24 @@ function setupCalculator() {
     });
   });
 
-  document.querySelectorAll('.vt-btn').forEach(btn => {
+  document.querySelectorAll('#view-toggle .vt-btn').forEach(btn => {
     btn.addEventListener('click', () => {
       diagramView = btn.dataset.view;
-      document.querySelectorAll('.vt-btn').forEach(b => b.classList.remove('active'));
+      document.querySelectorAll('#view-toggle .vt-btn').forEach(b => b.classList.remove('active'));
       btn.classList.add('active');
       if (lastResult) drawDiagram(lastResult);
+    });
+  });
+
+  document.querySelectorAll('#unit-toggle .vt-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      resultUnit = btn.dataset.unit;
+      syncUnitToggleUI();
+      if (lastResult) {
+        updateDetailStrip(lastResult);
+        drawDiagram(lastResult);
+      }
+      if (bulkResults.length) renderBulkTable(bulkResults);
     });
   });
   ['c-l', 'c-w', 'c-h'].forEach(id => {
@@ -550,18 +563,24 @@ function renderResults(d) {
   document.getElementById('results-meta').textContent =
     r ? `${r.max_pallets_per_floor} pallets · ${r.name}` : '';
 
-  const caseWeight = parseFloat(document.getElementById('c-cw').value) || 0;
+  updateDetailStrip(d);
+  drawDiagram(d);
+}
+
+function updateDetailStrip(d) {
+  const _rid = document.getElementById('retailer-select').value;
+  const r = _rid === 'custom' ? { ...customRetailer, name: 'Custom' } : retailerById(_rid);
+  const caseWeight      = parseFloat(document.getElementById('c-cw').value) || 0;
   const palletWeight    = caseWeight * d.total;
   const truckloadWeight = caseWeight * d.total * d.max_pallets_per_floor * d.stack_multiplier;
 
   document.getElementById('detail-strip').style.display = 'flex';
-  document.getElementById('d-pallet-wt').textContent   = formatWeight(palletWeight);
+  document.getElementById('d-pallet-wt').textContent   = fmtResultWt(palletWeight);
   document.getElementById('d-efficiency').textContent  = pct(d.efficiency);
-  document.getElementById('d-height').textContent =
-    `${d.pod_height}"${r?.no_pallet ? ' · no pallet' : ''}`;
-  document.getElementById('d-pod-l').textContent  = d.pod_length ? `${d.pod_length}"` : '—';
-  document.getElementById('d-pod-w').textContent  = d.pod_width  ? `${d.pod_width}"` : '—';
-  document.getElementById('d-tl-wt').textContent  = formatWeight(truckloadWeight);
+  document.getElementById('d-height').textContent = fmtResultLen(d.pod_height) + (r?.no_pallet ? ' · no pallet' : '');
+  document.getElementById('d-pod-l').textContent  = fmtResultLen(d.pod_length);
+  document.getElementById('d-pod-w').textContent  = fmtResultLen(d.pod_width);
+  document.getElementById('d-tl-wt').textContent  = fmtResultWt(truckloadWeight);
 
   drawDiagram(d);
   renderShoppableResults(d.shoppable || null);
@@ -918,6 +937,18 @@ function setupBulk() {
     if (e.target === e.currentTarget) closeBulkDiagram();
   });
 
+  document.querySelectorAll('#bulk-unit-toggle .vt-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      resultUnit = btn.dataset.unit;
+      syncUnitToggleUI();
+      if (bulkResults.length) renderBulkTable(bulkResults);
+      if (lastResult) {
+        updateDetailStrip(lastResult);
+        drawDiagram(lastResult);
+      }
+    });
+  });
+
   document.getElementById('dl-template').addEventListener('click', e => {
     e.preventDefault();
     const csv = 'sku,length,width,height,case_weight,case_pack_qty\nITEM-001,12,8,6,18.5,4\nITEM-002,10,10,8,12.0,1\nITEM-003,14,6,5,9.75,2\n';
@@ -975,7 +1006,6 @@ function parseCSV(text, filename) {
 
 async function doBulkCalc() {
   const rid = document.getElementById('bulk-retailer').value;
-  const cp  = Math.max(1, parseInt(document.getElementById('bulk-cp').value, 10) || 1);
 
   if (!rid)              { setBulkStatus('Select a retailer.', true); return; }
   if (!bulkData.length)  { setBulkStatus('Upload a CSV first.', true); return; }
@@ -984,7 +1014,7 @@ async function doBulkCalc() {
   setBulkStatus(`Processing ${bulkData.length} cases…`);
 
   try {
-    const body = { cases: bulkData, retailer_id: rid, case_pack_qty: cp };
+    const body = { cases: bulkData, retailer_id: rid };
     if (rid === 'custom') Object.assign(body, customRetailer);
     const res  = await fetch(API.bulkCalc, {
       method: 'POST',
@@ -993,12 +1023,20 @@ async function doBulkCalc() {
     });
     bulkResults = await res.json();
     if (!res.ok) { setBulkStatus(bulkResults.error || 'Error', true); return; }
-    const defaultCaseWeight = parseFloat(document.getElementById('bulk-cw').value) || 0;
     bulkResults.forEach((r, i) => {
-      const cw = (bulkData[i] && bulkData[i].case_weight) || defaultCaseWeight;
-      r.case_weight      = cw;
-      r.pallet_weight    = cw * r.total;
-      r.truckload_weight = cw * r.total * r.max_pallets_per_floor * r.stack_multiplier;
+      const row   = bulkData[i];
+      const hasCW = row && row.case_weight  != null;
+      const hasCP = row && row.case_pack_qty != null;
+
+      if (hasCW) {
+        r.case_weight      = row.case_weight;
+        r.pallet_weight    = row.case_weight * r.total;
+        r.truckload_weight = row.case_weight * r.total * r.max_pallets_per_floor * r.stack_multiplier;
+      } else {
+        r.case_weight = r.pallet_weight = r.truckload_weight = null;
+      }
+
+      if (!hasCP) r.case_pack_qty = r.truckload_qty = null;
     });
     renderBulkTable(bulkResults);
     setBulkStatus(`${bulkResults.length} cases calculated.`);
@@ -1019,17 +1057,17 @@ function renderBulkTable(rows) {
     const cls = e >= 80 ? 'hi' : e >= 60 ? 'mid' : 'lo';
     return `<tr>
       <td>${esc(r.sku)}</td>
-      <td>${r.length}" × ${r.width}" × ${r.height}"</td>
-      <td>${formatWeight(r.case_weight)}</td>
-      <td>${r.case_pack_qty}</td>
+      <td>${fmtResultLen(r.length)} × ${fmtResultLen(r.width)} × ${fmtResultLen(r.height)}</td>
+      <td>${fmtResultWt(r.case_weight)}</td>
+      <td>${r.case_pack_qty ?? '—'}</td>
       <td class="td-ti">${r.ti}</td>
       <td class="td-hi">${r.hi}</td>
       <td class="td-total">${r.total}</td>
-      <td>${r.case_pack_qty * r.total}</td>
-      <td>${formatWeight(r.pallet_weight)}</td>
-      <td class="td-tl">${r.truckload_qty.toLocaleString()}</td>
-      <td>${formatWeight(r.truckload_weight)}</td>
-      <td>${r.pod_length}" × ${r.pod_width}" × ${r.pod_height}"</td>
+      <td>${r.case_pack_qty != null ? r.case_pack_qty * r.total : '—'}</td>
+      <td>${fmtResultWt(r.pallet_weight)}</td>
+      <td class="td-tl">${r.truckload_qty != null ? r.truckload_qty.toLocaleString() : '—'}</td>
+      <td>${fmtResultWt(r.truckload_weight)}</td>
+      <td>${fmtResultLen(r.pod_length)} × ${fmtResultLen(r.pod_width)} × ${fmtResultLen(r.pod_height)}</td>
       <td><span class="eff-badge ${cls}">${e}%</span></td>
       <td><button class="view-btn" data-idx="${i}">VIEW</button></td>
     </tr>`;
@@ -1044,7 +1082,7 @@ function exportResults() {
   if (!bulkResults.length) return;
   const head = 'SKU,Length,Width,Height,Case Weight (lbs),Case Pack Qty,Ti,Hi,Cases Per Pallet,Units Per Pallet,Pallet Wt (lbs),Units Per Truckload,Truckload Weight (lbs),Pod Length,Pod Width,Pod Height,Efficiency\n';
   const body = bulkResults.map(r =>
-    `${r.sku},${r.length},${r.width},${r.height},${r.case_weight || 0},${r.case_pack_qty},${r.ti},${r.hi},${r.total},${r.case_pack_qty * r.total},${r.pallet_weight || 0},${r.truckload_qty},${r.truckload_weight || 0},${r.pod_length},${r.pod_width},${r.pod_height},${Math.round(r.efficiency * 100)}%`
+    `${r.sku},${r.length},${r.width},${r.height},${r.case_weight ?? ''},${r.case_pack_qty ?? ''},${r.ti},${r.hi},${r.total},${r.case_pack_qty != null ? r.case_pack_qty * r.total : ''},${r.pallet_weight ?? ''},${r.truckload_qty ?? ''},${r.truckload_weight ?? ''},${r.pod_length},${r.pod_width},${r.pod_height},${Math.round(r.efficiency * 100)}%`
   ).join('\n');
   dlString(head + body, 'pallet-results.csv', 'text/csv');
 }
@@ -1200,6 +1238,28 @@ function pct(fraction) {
 function formatWeight(lbs) {
   if (!lbs) return '—';
   return lbs.toLocaleString(undefined, { maximumFractionDigits: 0 }) + ' lbs';
+}
+
+function syncUnitToggleUI() {
+  ['#unit-toggle .vt-btn', '#bulk-unit-toggle .vt-btn'].forEach(sel => {
+    document.querySelectorAll(sel).forEach(b =>
+      b.classList.toggle('active', b.dataset.unit === resultUnit)
+    );
+  });
+}
+
+function fmtResultLen(inches) {
+  if (!inches) return '—';
+  return resultUnit === 'metric'
+    ? `${(inches * 2.54).toFixed(1)} cm`
+    : `${inches}"`;
+}
+
+function fmtResultWt(lbs) {
+  if (!lbs) return '—';
+  return resultUnit === 'metric'
+    ? `${(lbs * 0.453592).toLocaleString(undefined, { maximumFractionDigits: 1 })} kg`
+    : `${lbs.toLocaleString(undefined, { maximumFractionDigits: 0 })} lbs`;
 }
 
 function esc(s) {
