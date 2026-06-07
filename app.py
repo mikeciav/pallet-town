@@ -34,7 +34,7 @@ PALLET_H = Decimal('5.5')
 
 # Feature flags
 SHOW_DIAGRAM = True   # diagram panel (Ti top-down view)
-SHOW_HI_VIEW = False  # Hi isometric toggle button inside the diagram panel
+SHOW_HI_VIEW = True   # Hi isometric toggle button — enabled for proto-3d prototype
 SHOW_DEMO_DEFAULTS = os.environ.get("SHOW_DEMO_DEFAULTS", "false").lower() == "true"
 
 DEFAULT_RETAILERS = [
