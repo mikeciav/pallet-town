@@ -14,7 +14,7 @@ let retailers   = [];
 let bulkData    = [];
 let bulkResults = [];
 let lastResult  = null;
-let diagramView = 'ti';
+let diagramView = 'hi';
 let resultUnit  = 'imperial'; // 'imperial' | 'metric'
 let isAdmin     = false;
 let customRetailer = { max_height: 60, double_stack_allowed: false, max_pallets_per_floor: 26, no_pallet: false };
@@ -295,6 +295,14 @@ function setupCalculator() {
       diagramView = btn.dataset.view;
       document.querySelectorAll('#view-toggle .vt-btn').forEach(b => b.classList.remove('active'));
       btn.classList.add('active');
+      // Sync view URL param with the 2D/3D toggle
+      const u = new URL(location.href);
+      if (diagramView === 'hi') {
+        if (!u.searchParams.get('view')) u.searchParams.set('view', 'A');
+      } else {
+        u.searchParams.delete('view');
+      }
+      history.replaceState(null, '', u);
       if (lastResult) drawDiagram(lastResult);
     });
   });
@@ -450,9 +458,7 @@ function renderShoppableResults(s) {
   const bboxL = arr.length ? Math.max(...arr.map(c => c.x + c.w)) : 0;
   const bboxW = arr.length ? Math.max(...arr.map(c => c.y + c.h)) : 0;
   const fpFail = bboxL < minFpL || bboxW < minFpW;
-  fpHint.textContent = fpFail
-    ? `footprint ${bboxL.toFixed(1)}"×${bboxW.toFixed(1)}" (min ${minFpL}"×${minFpW}")`
-    : '';
+  fpHint.textContent = arr.length ? `${bboxL.toFixed(1)}"×${bboxW.toFixed(1)}"` : '';
   fpHint.style.fontWeight = fpFail ? 'bold' : '';
   fpHint.style.color      = fpFail ? '#ef4444' : '';
 }
@@ -545,6 +551,7 @@ async function doCalculate() {
 
 function renderResults(d) {
   lastResult = d;
+  window._lastResult = d;
 
   setMetric('val-ti',    d.shoppable ? d.shoppable.ti : d.ti,    'mc-ti');
   setMetric('val-hi',    d.hi,    'mc-hi');
@@ -560,8 +567,7 @@ function renderResults(d) {
 
   const _rid = document.getElementById('retailer-select').value;
   const r = _rid === 'custom' ? { ...customRetailer, name: 'Custom' } : retailerById(_rid);
-  document.getElementById('results-meta').textContent =
-    r ? `${r.max_pallets_per_floor} pallets · ${r.name}` : '';
+  document.getElementById('results-meta').textContent = r ? r.name : '';
 
   updateDetailStrip(d);
   drawDiagram(d);
@@ -600,7 +606,15 @@ function drawDiagram(d) {
   const box = document.getElementById('diagram-box');
   if (!d) return;
 
+  // Ensure view URL param is set whenever 3D view is active
+  if (diagramView === 'hi' && !new URLSearchParams(location.search).get('view')) {
+    const u = new URL(location.href);
+    u.searchParams.set('view', 'A');
+    history.replaceState(null, '', u);
+  }
+
   if (d.shoppable && d.shoppable.arrangement && d.shoppable.arrangement.length > 0) {
+    if (window._draw3d?.(d, box)) return;
     drawShoppableView(d, box);
     return;
   }
@@ -691,6 +705,7 @@ function drawTiView(d, box) {
 }
 
 function drawStackedView(d, box) {
+  if (window._draw3d?.(d, box)) return;
   const { pallet_length: PL, pallet_width: PW, arrangement, hi, case_h: CH } = d;
 
   if (!arrangement || !arrangement.length || !hi || !CH) {
