@@ -161,6 +161,11 @@
               </div>
             </div>
           </div>
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
+            <span class="field-label">CASE VOLUME</span>
+            <span class="panel-hint" id="c-cuft">—</span>
+          </div>
+
           <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px">
             <div class="field-group">
               <label class="field-label">CASE WEIGHT</label>
@@ -369,6 +374,10 @@
                 <span class="detail-val" id="d-height">—</span>
               </div>
               <div class="detail-item">
+                <span class="detail-label">Pod Volume</span>
+                <span class="detail-val" id="d-pod-cuft">—</span>
+              </div>
+              <div class="detail-item">
                 <span class="detail-label">Floor Efficiency</span>
                 <span class="detail-val" id="d-efficiency">—</span>
               </div>
@@ -507,7 +516,9 @@ ITEM-002,10,10,8,12.0,1</code>
                   <th>Pallet Wt</th>
                   <th>Units / Truckload</th>
                   <th>Truckload Weight</th>
+                  <th>Case Cu ft</th>
                   <th>Pod L × W × H</th>
+                  <th>Pod Cu ft</th>
                   <th>Efficiency</th>
                   <th></th>
                 </tr>

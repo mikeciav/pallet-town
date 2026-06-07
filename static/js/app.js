@@ -322,6 +322,7 @@ function setupCalculator() {
     document.getElementById(id).addEventListener('keydown', e => {
       if (e.key === 'Enter') doCalculate();
     });
+    document.getElementById(id).addEventListener('input', updateCaseCuFt);
   });
 
   // Retailer notes (editable for all users, all retailers)
@@ -586,6 +587,7 @@ function updateDetailStrip(d) {
   document.getElementById('d-height').textContent = fmtResultLen(d.pod_height) + (r?.no_pallet ? ' · no pallet' : '');
   document.getElementById('d-pod-l').textContent  = fmtResultLen(d.pod_length);
   document.getElementById('d-pod-w').textContent  = fmtResultLen(d.pod_width);
+  document.getElementById('d-pod-cuft').textContent = fmtCuFt(d.pod_length * d.pod_width * d.pod_height / 1728);
   document.getElementById('d-tl-wt').textContent  = fmtResultWt(truckloadWeight);
 
   drawDiagram(d);
@@ -1110,7 +1112,9 @@ function renderBulkTable(rows) {
       <td>${fmtResultWt(r.pallet_weight)}</td>
       <td class="td-tl">${r.truckload_qty != null ? r.truckload_qty.toLocaleString() : '—'}</td>
       <td>${fmtResultWt(r.truckload_weight)}</td>
+      <td>${fmtCuFt(r.length * r.width * r.height / 1728)}</td>
       <td>${fmtResultLen(r.pod_length)} × ${fmtResultLen(r.pod_width)} × ${fmtResultLen(r.pod_height)}</td>
+      <td>${fmtCuFt(r.pod_length * r.pod_width * r.pod_height / 1728)}</td>
       <td><span class="eff-badge ${cls}">${e}%</span></td>
       <td><button class="view-btn" data-idx="${i}">VIEW</button></td>
     </tr>`;
@@ -1123,9 +1127,9 @@ function renderBulkTable(rows) {
 
 function exportResults() {
   if (!bulkResults.length) return;
-  const head = 'SKU,Length,Width,Height,Case Weight (lbs),Case Pack Qty,Ti,Hi,Cases Per Pallet,Units Per Pallet,Pallet Wt (lbs),Units Per Truckload,Truckload Weight (lbs),Pod Length,Pod Width,Pod Height,Efficiency\n';
+  const head = 'SKU,Length,Width,Height,Case Weight (lbs),Case Pack Qty,Ti,Hi,Cases Per Pallet,Units Per Pallet,Pallet Wt (lbs),Units Per Truckload,Truckload Weight (lbs),Case Cu ft,Pod Length,Pod Width,Pod Height,Pod Cu ft,Efficiency\n';
   const body = bulkResults.map(r =>
-    `${r.sku},${r.length},${r.width},${r.height},${r.case_weight ?? ''},${r.case_pack_qty ?? ''},${r.ti},${r.hi},${r.total},${r.case_pack_qty != null ? r.case_pack_qty * r.total : ''},${r.pallet_weight ?? ''},${r.truckload_qty ?? ''},${r.truckload_weight ?? ''},${r.pod_length},${r.pod_width},${r.pod_height},${Math.round(r.efficiency * 100)}%`
+    `${r.sku},${r.length},${r.width},${r.height},${r.case_weight ?? ''},${r.case_pack_qty ?? ''},${r.ti},${r.hi},${r.total},${r.case_pack_qty != null ? r.case_pack_qty * r.total : ''},${r.pallet_weight ?? ''},${r.truckload_qty ?? ''},${r.truckload_weight ?? ''},${(r.length * r.width * r.height / 1728).toFixed(3)},${r.pod_length},${r.pod_width},${r.pod_height},${(r.pod_length * r.pod_width * r.pod_height / 1728).toFixed(3)},${Math.round(r.efficiency * 100)}%`
   ).join('\n');
   dlString(head + body, 'pallet-results.csv', 'text/csv');
 }
@@ -1291,6 +1295,19 @@ function syncUnitToggleUI() {
       b.classList.toggle('active', b.dataset.unit === resultUnit)
     );
   });
+}
+
+function fmtCuFt(cuft) {
+  if (!isFinite(cuft) || cuft <= 0) return '—';
+  return cuft.toFixed(3) + ' cu ft';
+}
+
+function updateCaseCuFt() {
+  const l = parseFloat(document.getElementById('c-l').value);
+  const w = parseFloat(document.getElementById('c-w').value);
+  const h = parseFloat(document.getElementById('c-h').value);
+  const el = document.getElementById('c-cuft');
+  if (el) el.textContent = fmtCuFt(l * w * h / 1728);
 }
 
 function fmtResultLen(inches) {
