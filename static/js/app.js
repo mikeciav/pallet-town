@@ -227,7 +227,7 @@ function updateAuthUI() {
 
   // Lock / unlock retailer detail panel
   const locked = !isAdmin;
-  ['rd-name', 'rd-maxh', 'rd-pallets', 'rd-ds', 'rd-np', 'rd-notes'].forEach(id => {
+  ['rd-name', 'rd-maxh', 'rd-pallets', 'rd-ds', 'rd-np', 'rd-club', 'rd-notes'].forEach(id => {
     const el = document.getElementById(id);
     if (el) el.disabled = locked;
   });
@@ -1102,7 +1102,7 @@ function setupRetailersTab() {
     document.getElementById(id).addEventListener('input', debouncedSave);
     document.getElementById(id).addEventListener('blur', save);
   });
-  ['rd-ds', 'rd-np'].forEach(id => {
+  ['rd-ds', 'rd-np', 'rd-club'].forEach(id => {
     document.getElementById(id).addEventListener('change', save);
   });
 }
@@ -1140,6 +1140,7 @@ function renderRetailerDetail(r) {
   document.getElementById('rd-pallets').value = r.max_pallets_per_floor ?? 26;
   document.getElementById('rd-ds').checked    = r.double_stack_allowed;
   document.getElementById('rd-np').checked    = r.no_pallet ?? false;
+  document.getElementById('rd-club').checked  = r.is_club_store ?? false;
   document.getElementById('rd-notes').value   = r.notes ?? '';
   updateAuthUI();
 }
@@ -1157,6 +1158,7 @@ async function saveDetailRetailer() {
     max_pallets_per_floor: parseInt(document.getElementById('rd-pallets').value, 10),
     double_stack_allowed:  document.getElementById('rd-ds').checked,
     no_pallet:             document.getElementById('rd-np').checked,
+    is_club_store:         document.getElementById('rd-club').checked,
     notes:                 document.getElementById('rd-notes').value,
   };
   if (!payload.name || isNaN(payload.max_height) || isNaN(payload.max_pallets_per_floor)) return;
