@@ -1307,7 +1307,8 @@ function updateCaseCuFt() {
   const w = parseFloat(document.getElementById('c-w').value);
   const h = parseFloat(document.getElementById('c-h').value);
   const el = document.getElementById('c-cuft');
-  if (el) el.textContent = fmtCuFt(l * w * h / 1728);
+  const val = fmtCuFt(l * w * h / 1728);
+  if (el) el.textContent = val === '—' ? '—' : `= ${val}`;
 }
 
 function fmtResultLen(inches) {
