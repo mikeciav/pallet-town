@@ -67,6 +67,18 @@
         </span>
         <span>Retailers</span>
       </button>
+      <button class="nav-item" data-tab="invoice">
+        <span class="nav-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+            <polyline points="14,2 14,8 20,8"/>
+            <line x1="9" y1="12" x2="15" y2="12"/>
+            <line x1="9" y1="16" x2="13" y2="16"/>
+          </svg>
+        </span>
+        <span>CI Generator</span>
+        <span class="beta-badge" style="margin-left:auto">BETA</span>
+      </button>
     </nav>
 
     <div class="sidebar-footer">
@@ -121,6 +133,9 @@
 
     <header class="topbar">
       <span class="topbar-title" id="page-title">PALLET BUILDER</span>
+      <span class="beta-badge" id="topbar-beta" style="display:none;margin-left:10px">BETA
+        <span class="beta-tooltip">CI Generator is in beta. Export formatting and row sizing may need occasional manual adjustment.</span>
+      </span>
       <div class="status-pill">
         <span class="status-dot"></span>
         <span id="status-text">Ready</span>
@@ -591,6 +606,1234 @@ ITEM-002,10,10,8,12.0,1</code>
         </div>
 
       </div>
+    </section>
+
+    <!-- ── Tab: CI Generator ───────────────────────────────────── -->
+    <section class="tab-content" id="tab-invoice" style="padding:0;overflow:hidden">
+
+    <style>
+    #tab-invoice { padding: 0; overflow: hidden; }
+    .ci-panel { display: flex; flex: 1; min-height: 0; overflow: hidden; font-family: Arial, sans-serif; color: #222; }
+    .ci-sidebar { width: 320px; min-width: 320px; background: #1a2340; color: #fff; display: flex; flex-direction: column; overflow-y: auto; }
+    .ci-sidebar-header { padding: 14px 16px; background: #111827; border-bottom: 1px solid #2d3748; }
+    .ci-sidebar-header h2 { font-size: 14px; font-weight: 700; color: #93c5fd; }
+    .ci-sidebar-header p { font-size: 11px; color: #94a3b8; margin-top: 2px; }
+    .ci-panel .ci-section { padding: 12px 14px; border-bottom: 1px solid #2d3748; }
+    .ci-panel .ci-section-title { font-size: 10px; font-weight: 700; color: #60a5fa; letter-spacing: 1px; text-transform: uppercase; margin-bottom: 8px; }
+    .ci-panel label { display: block; font-size: 11px; color: #94a3b8; margin-bottom: 2px; margin-top: 6px; }
+    .ci-panel label:first-of-type { margin-top: 0; }
+    .ci-panel input, .ci-panel textarea, .ci-panel select { width: 100%; background: #0f172a; border: 1px solid #334155; color: #e2e8f0; border-radius: 4px; padding: 5px 7px; font-size: 11px; outline: none; resize: vertical; box-sizing: border-box; }
+    .ci-panel input:focus, .ci-panel textarea:focus { border-color: #60a5fa; }
+    .ci-panel .ci-btn { display: inline-flex; align-items: center; justify-content: center; gap: 6px; padding: 7px 12px; border-radius: 5px; font-size: 11px; font-weight: 600; cursor: pointer; border: none; transition: .15s; box-sizing: border-box; }
+    .ci-panel .ci-btn-primary { background: #2563eb; color: #fff; width: 100%; margin-top: 8px; }
+    .ci-panel .ci-btn-primary:hover { background: #1d4ed8; }
+    .ci-panel .ci-btn-success { background: #16a34a; color: #fff; }
+    .ci-panel .ci-btn-success:hover { background: #15803d; }
+    .ci-panel .ci-btn-orange { background: #ea580c; color: #fff; }
+    .ci-panel .ci-btn-orange:hover { background: #c2410c; }
+    .ci-panel .ci-btn-teal { background: #0891b2; color: #fff; width: 100%; margin-top: 6px; }
+    .ci-panel .ci-btn-teal:hover { background: #0e7490; }
+    .ci-panel .ci-btn-danger { background: transparent; color: #f87171; border: 1px solid #f87171; padding: 3px 7px; font-size: 10px; }
+    .ci-panel .ci-btn-danger:hover { background: #f87171; color: #fff; }
+    .ci-panel .ci-btn-sm { padding: 4px 8px; font-size: 10px; }
+    .ci-panel .ci-btn-gray { width: 100%; background: #374151; color: #fff; }
+    .ci-panel .ci-export-row { display: flex; gap: 8px; padding: 12px 14px; }
+    .ci-panel .ci-export-row .ci-btn { flex: 1; }
+    .ci-panel .ci-import-zone { border: 2px dashed #334155; border-radius: 6px; padding: 12px; text-align: center; cursor: pointer; transition: .15s; }
+    .ci-panel .ci-import-zone:hover { border-color: #60a5fa; background: #0f172a; }
+    .ci-panel .ci-import-zone input { display: none; }
+    .ci-panel .ci-import-zone p { font-size: 10px; color: #64748b; margin-top: 3px; }
+    .ci-panel .ci-items-list { max-height: 180px; overflow-y: auto; }
+    .ci-panel .ci-item-row { display: flex; align-items: center; justify-content: space-between; background: #0f172a; border-radius: 4px; padding: 5px 7px; margin-bottom: 3px; font-size: 10px; }
+    .ci-panel .ci-item-row span { flex: 1; color: #cbd5e1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .ci-panel .ci-two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; margin-top: 6px; }
+    .ci-preview { flex: 1; overflow-y: auto; background: #d1d5db; padding: 20px; }
+    .ci-preview h3 { font-size: 11px; color: #6b7280; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; margin-bottom: 12px; }
+    #ci-invoice { background: #fff; width: 960px; min-width: 960px; padding: 18px 24px 24px; box-shadow: 0 4px 24px rgba(0,0,0,.15); font-family: Arial, sans-serif; font-size: 9.5px; color: #111; }
+    .ci-inv-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 10px; }
+    .ci-inv-contact-block { font-size: 9px; line-height: 1.65; color: #333; border-left: 2px solid #1e3a6e; padding-left: 8px; margin-top: 7px; }
+    .ci-inv-contact-block .ci-addr-line { font-weight: 700; color: #111; }
+    .ci-inv-right { text-align: right; min-width: 280px; }
+    .ci-inv-title { font-size: 19px; font-weight: 900; color: #1e3a6e; letter-spacing: 2.5px; text-transform: uppercase; border-bottom: 2px solid #1e3a6e; padding-bottom: 4px; margin-bottom: 8px; }
+    .ci-inv-meta-table { margin-left: auto; border-collapse: collapse; }
+    .ci-inv-meta-table td { font-size: 9.5px; padding: 2px 5px; }
+    .ci-inv-meta-table .ci-lbl { color: #555; font-weight: 700; text-align: right; white-space: nowrap; }
+    .ci-inv-meta-table .ci-val { border: 1px solid #bbb; min-width: 140px; text-align: left; background: #f8fafc; padding: 2px 8px; }
+    .ci-inv-meta-table .ci-val.hi { background: #eff6ff; border-color: #93c5fd; }
+    .ci-inv-divider { border: none; border-top: 2px solid #1e3a6e; margin: 0 0 10px; }
+    .ci-inv-addresses { display: flex; gap: 12px; margin-bottom: 10px; }
+    .ci-addr-block { flex: 1; border: 1px solid #d1d5db; border-radius: 3px; overflow: hidden; }
+    .ci-addr-hdr { background: #1e3a6e; color: #fff; font-weight: 700; font-size: 9.5px; padding: 4px 8px; }
+    .ci-addr-body { font-size: 9px; line-height: 1.65; color: #222; padding: 6px 8px; min-height: 70px; }
+    .ci-inv-terms-bar { display: flex; margin-bottom: 10px; border: 1px solid #d1d5db; border-radius: 3px; overflow: hidden; }
+    .ci-inv-terms-cell { flex: 1; padding: 4px 8px; font-size: 9px; border-right: 1px solid #d1d5db; }
+    .ci-inv-terms-cell:last-child { border-right: none; }
+    .ci-inv-terms-cell .ci-lbl { font-weight: 700; color: #1e3a6e; display: block; font-size: 8px; letter-spacing: .5px; text-transform: uppercase; }
+    .ci-inv-terms-cell .ci-val { color: #111; font-weight: 600; }
+    .ci-inv-table { width: 100%; border-collapse: collapse; font-size: 9px; }
+    .ci-inv-table th { background: #1e3a6e; color: #fff; font-size: 8.5px; font-weight: 700; padding: 5px 6px; text-align: left; border: 1px solid #1e3a6e; }
+    .ci-inv-table th.r { text-align: right; }
+    .ci-inv-table td { border: 1px solid #dde1e7; padding: 5px 6px; vertical-align: top; color: #222; }
+    .ci-inv-table td.r { text-align: right; vertical-align: middle; }
+    .ci-inv-table tbody tr:nth-child(odd) td { background: #fff; }
+    .ci-inv-table tbody tr:nth-child(even) td { background: #f7f9fc; }
+    .ci-inv-table .ci-empty-row td { height: 16px; background: #fff !important; border-color: #eee; }
+    .ci-item-desc-name { font-weight: 700; font-size: 9px; margin-bottom: 3px; }
+    .ci-item-tags { display: flex; flex-wrap: wrap; gap: 3px; }
+    .ci-item-tag { display: inline-block; font-size: 8px; background: #f1f5f9; border: 0.5px solid #cbd5e1; border-radius: 3px; padding: 1px 5px; color: #334155; line-height: 1.5; }
+    .ci-item-tag b { color: #111; font-weight: 700; }
+    .ci-inv-footer { display: flex; border-top: 2px solid #1e3a6e; }
+    .ci-inv-footer-left { flex: 1; border-right: 1px solid #d1d5db; }
+    .ci-customs-bar { background: #111; color: #fff; font-weight: 700; font-size: 9px; text-align: center; padding: 4px 8px; letter-spacing: 1px; }
+    .ci-customs-notes { font-size: 8.5px; color: #222; line-height: 1.7; padding: 6px 8px; }
+    .ci-inv-totals { width: 230px; min-width: 230px; }
+    .ci-totals-table { width: 100%; border-collapse: collapse; }
+    .ci-totals-table td { padding: 3px 7px; font-size: 9.5px; border: 1px solid #dde1e7; }
+    .ci-totals-table td:first-child { color: #444; font-weight: 600; background: #f7f9fc; }
+    .ci-totals-table td:last-child { text-align: right; min-width: 110px; }
+    .ci-totals-table .ci-total-row td { font-weight: 800; font-size: 11px; background: #1e3a6e !important; color: #fff !important; }
+    .ci-modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,10,.85); z-index: 999; align-items: center; justify-content: center; }
+    .ci-modal-overlay.open { display: flex; }
+    .ci-modal { background: #1a2340; border-radius: 8px; padding: 18px; width: 560px; max-height: 85vh; overflow-y: auto; }
+    .ci-modal h3 { color: #93c5fd; font-size: 13px; margin-bottom: 5px; }
+    .ci-modal .ci-sub { font-size: 10px; color: #64748b; margin-bottom: 12px; }
+    .ci-panel .ci-modal-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 7px; }
+    .ci-panel .ci-modal-grid .full { grid-column: 1/-1; }
+    .ci-panel .ci-modal-actions { display: flex; gap: 8px; margin-top: 12px; justify-content: flex-end; }
+    .ci-panel .ci-map-row { display: flex; align-items: center; gap: 8px; background: #0f172a; border-radius: 4px; padding: 7px 9px; margin-bottom: 5px; }
+    .ci-panel .ci-map-row .ci-fn { font-size: 10px; color: #60a5fa; font-weight: 700; width: 110px; flex-shrink: 0; }
+    .ci-map-badge { display: inline-block; padding: 1px 5px; border-radius: 3px; font-size: 9px; font-weight: 700; }
+    .ci-map-badge.ok { background: #14532d; color: #86efac; }
+    .ci-map-badge.warn { background: #78350f; color: #fcd34d; }
+    .ci-val-warning { background: #7f1d1d; color: #fca5a5; font-size: 10px; padding: 8px; border-radius: 4px; margin-bottom: 10px; }
+    .ci-val-table { width: 100%; border-collapse: collapse; font-size: 11px; }
+    .ci-val-table th, .ci-val-table td { border: 1px solid #334155; padding: 6px 8px; text-align: left; color: #e2e8f0; }
+    .ci-val-table th { background: #0f172a; color: #60a5fa; font-size: 10px; }
+    .ci-val-table .ci-row-num { color: #64748b; text-align: center; width: 30px; }
+    .ci-val-table .ci-missing-fields { color: #f87171; }
+    .ci-val-actions { display: flex; gap: 8px; margin-top: 12px; justify-content: flex-end; }
+    .ci-toast { position: fixed; bottom: 20px; right: 20px; background: #16a34a; color: #fff; padding: 9px 16px; border-radius: 6px; font-size: 12px; font-weight: 600; z-index: 9999; opacity: 0; transition: opacity .3s; pointer-events: none; }
+    .ci-toast.show { opacity: 1; }
+    .ci-toast.error { background: #dc2626; }
+    </style>
+
+    <div class="ci-panel">
+      <div class="ci-sidebar">
+        <div class="ci-sidebar-header">
+          <h2>🧾 CI Generator</h2>
+          <p>StoreBound LLC · Internal Logistics Tool</p>
+        </div>
+        <div class="ci-section">
+          <div class="ci-section-title">Import</div>
+          <div class="ci-import-zone" onclick="document.getElementById('ci-xlsxInput').click()">
+            <div style="font-size:12px">📂 Click to import Excel / CSV</div>
+            <p>Columns auto-mapped. Any header naming works.</p>
+            <input type="file" id="ci-xlsxInput" accept=".xlsx,.xls,.csv" onchange="CI.handleImport(event)">
+          </div>
+          <button class="ci-btn ci-btn-teal" onclick="CI.downloadTemplate()">⬇ Download Import Template</button>
+          <button class="ci-btn ci-btn-primary" onclick="CI.openAddModal()">＋ Add Line Item Manually</button>
+        </div>
+        <div class="ci-section">
+          <div class="ci-section-title">Invoice Header</div>
+          <label>Date</label><input type="date" id="inv-date" oninput="CI.render()">
+          <label>Invoice #</label><input type="text" id="inv-num" placeholder="SO1986637" oninput="CI.render()">
+          <label>PO #</label><input type="text" id="inv-po" placeholder="AmazonMX260610" oninput="CI.render()">
+          <div class="ci-two-col">
+            <div>
+              <label style="margin-top:0">Incoterms</label>
+              <select id="inv-incoterms" onchange="CI.render()">
+                <option>EXW</option><option>FCA</option><option>CPT</option><option>CIP</option>
+                <option>DAP</option><option>DPU</option><option selected>DDP</option>
+                <option>FAS</option><option>FOB</option><option>CFR</option><option>CIF</option>
+              </select>
+            </div>
+            <div>
+              <label style="margin-top:0">Currency</label>
+              <select id="inv-currency" onchange="CI.render()">
+                <option value="USD" selected>USD</option><option value="EUR">EUR</option>
+                <option value="MXN">MXN</option><option value="CAD">CAD</option><option value="GBP">GBP</option>
+              </select>
+            </div>
+          </div>
+          <label>Reason for Export</label>
+          <select id="inv-reason-sel" onchange="CI.handleReasonSel()">
+            <option value="Sale of Goods">Sale of Goods</option>
+            <option value="Commercial Samples">Commercial Samples</option>
+            <option value="Gift">Gift</option>
+            <option value="__custom__">Custom…</option>
+          </select>
+          <input type="text" id="inv-reason-custom" placeholder="Enter custom reason…" oninput="CI.render()" style="display:none;margin-top:4px">
+        </div>
+        <div class="ci-section">
+          <div class="ci-section-title">Bill To</div>
+          <label>Company Name</label><input type="text" id="bill-company" oninput="CI.render()">
+          <label>Address</label><textarea id="bill-addr" rows="3" oninput="CI.render()"></textarea>
+          <label>Company Tax ID</label><input type="text" id="bill-taxid" oninput="CI.render()">
+        </div>
+        <div class="ci-section">
+          <div class="ci-section-title">Ship To</div>
+          <label>ATTN</label><input type="text" id="ship-attn" oninput="CI.render()">
+          <label>Company Name</label><input type="text" id="ship-company" oninput="CI.render()">
+          <label>Address</label><textarea id="ship-addr" rows="3" oninput="CI.render()"></textarea>
+          <label>Phone #</label><input type="text" id="ship-phone" oninput="CI.render()">
+          <label>Company Tax ID</label><input type="text" id="ship-taxid" oninput="CI.render()">
+        </div>
+        <div class="ci-section">
+          <div class="ci-section-title">Totals / Notes</div>
+          <label>Tax Rate (%)</label><input type="number" id="inv-tax-rate" value="0" min="0" step="0.1" oninput="CI.render()">
+          <label>Shipping</label><input type="number" id="inv-shipping" value="0" min="0" step="0.01" oninput="CI.render()">
+          <label>Additional Customs Notes</label><textarea id="customs-notes" rows="2" oninput="CI.render()"></textarea>
+        </div>
+        <div class="ci-section" style="flex:1">
+          <div class="ci-section-title">Line Items (<span id="ci-item-count">0</span>)</div>
+          <div class="ci-items-list" id="ci-items-list"></div>
+        </div>
+        <div style="padding: 0 14px 8px">
+          <button class="ci-btn ci-btn-gray" onclick="CI.clearAll()">✕ Clear All</button>
+        </div>
+        <div class="ci-export-row">
+          <button class="ci-btn ci-btn-success" onclick="CI.validateAndExport(CI.exportPDF)">⬇ PDF</button>
+          <button class="ci-btn ci-btn-orange" onclick="CI.validateAndExport(CI.exportExcel)">⬇ Excel</button>
+        </div>
+      </div>
+      <div class="ci-preview">
+        <h3>Live Preview</h3>
+        <div id="ci-invoice"></div>
+      </div>
+    </div>
+
+    <!-- CI: Add/Edit Item Modal -->
+    <div class="ci-modal-overlay" id="ci-modal-item">
+      <div class="ci-modal">
+        <h3 id="ci-modal-title">Add Line Item</h3>
+        <div class="ci-modal-grid">
+          <div><label>SKU</label><input type="text" id="m-sku"></div>
+          <div><label>UPC</label><input type="text" id="m-upc"></div>
+          <div><label>HTS Code</label><input type="text" id="m-hts"></div>
+          <div><label>COO</label><input type="text" id="m-coo"></div>
+          <div><label>Unit Price</label><input type="number" id="m-rate" min="0" step="0.01"></div>
+          <div><label>QTY</label><input type="number" id="m-qty" min="1" step="1"></div>
+          <div class="full"><label>Description</label><input type="text" id="m-desc"></div>
+          <div class="full"><label>Taxed?</label><select id="m-taxed"><option value="">No</option><option value="X">Yes</option></select></div>
+        </div>
+        <div class="ci-modal-actions">
+          <button class="ci-btn ci-btn-danger" onclick="CI.closeModal('ci-modal-item')">Cancel</button>
+          <button class="ci-btn ci-btn-primary" style="width:auto" onclick="CI.saveItem()">Save</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- CI: Column Mapping Modal -->
+    <div class="ci-modal-overlay" id="ci-modal-map">
+      <div class="ci-modal" style="width:600px">
+        <h3>📋 Column Mapping</h3>
+        <p class="ci-sub">Review the auto-detected mapping. Adjust anything off, then click Import.</p>
+        <div id="ci-map-rows"></div>
+        <div class="ci-modal-actions">
+          <button class="ci-btn ci-btn-danger" onclick="CI.closeModal('ci-modal-map')">Cancel</button>
+          <button class="ci-btn ci-btn-primary" style="width:auto" onclick="CI.confirmMap()">Import with This Mapping</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- CI: Validation Modal -->
+    <div class="ci-modal-overlay" id="ci-modal-val">
+      <div class="ci-modal">
+        <h3>⚠ Missing Required Fields</h3>
+        <p class="ci-sub">The following line items are incomplete. All fields are required for a valid commercial invoice.</p>
+        <div class="ci-val-warning">You may still export, but customs may reject an invoice with missing fields.</div>
+        <table class="ci-val-table">
+          <thead><tr><th>#</th><th>Item</th><th>Missing Fields</th></tr></thead>
+          <tbody id="ci-val-rows"></tbody>
+        </table>
+        <div class="ci-val-actions">
+          <button class="ci-btn ci-btn-danger" onclick="CI.closeModal('ci-modal-val')">Go Back &amp; Fix</button>
+          <button class="ci-btn ci-btn-primary" style="width:auto;background:#b45309" id="ci-val-proceed-btn">Export Anyway</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="ci-toast" id="ci-toast"></div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.3.0/exceljs.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <script>
+    (function() {
+      function eid(id) { return document.getElementById(id); }
+      function gv(id)  { var el = eid(id); if (!el) { return ""; } return el.value.trim(); }
+      function sv(id, val) { var el = eid(id); if (el && val !== "" && val !== undefined && val !== null) { el.value = val; } }
+      function fmt(n)  { return parseFloat(n || 0).toFixed(2); }
+
+      var STATIC = { addr1:"50 Broad Street", addr2:"12th Floor", city:"New York, NY  10004", website:"www.storebound.com", fax:"347-410-7628", taxId:"REDACTED_TAX_ID" };
+      var items = [];
+      var editIdx = null;
+      var pendingRows = [];
+      var pendingHeaders = [];
+      var curMap = {};
+      var pendingExportFn = null;
+
+      var REQUIRED_FIELDS = [
+        { key:"sku", label:"SKU" }, { key:"description", label:"Description" },
+        { key:"upc", label:"UPC" }, { key:"hts", label:"HTS Code" },
+        { key:"coo", label:"COO" }, { key:"rate", label:"Unit Price" }, { key:"qty", label:"QTY" }
+      ];
+
+      var FIELDS = {
+        sku:         { label:"SKU",         syn:["sku","style","style/sku","item#","item number","product sku","model","part number","product code","article"] },
+        description: { label:"Description", syn:["sku sales description","sku description","child description","child name","variant description","item description","item name","product description","commodity description","description","product name","name","desc","title"] },
+        upc:         { label:"UPC",         syn:["upc","upc code","barcode","ean","gtin"] },
+        hts:         { label:"HTS Code",    syn:["hts","hts code","harmonized","tariff","hs code","harmonized code","tariff code","schedule b"] },
+        coo:         { label:"COO",         syn:["coo","country of origin","origin","manufacturing country","made in","country of manufacture","mfg country"] },
+        rate:        { label:"Unit Price",  syn:["rate","unit price","price","unit cost","unit rate","value","selling price","declared value","fob price"] },
+        qty:         { label:"QTY",         syn:["qty","quantity","units","pcs","pieces","count","order qty","ship qty"] },
+        taxed:       { label:"Taxed",       syn:["taxed","taxable","is taxed","tax flag"] }
+      };
+
+      function showToast(msg, isErr) {
+        var t = eid("ci-toast");
+        t.textContent = msg;
+        t.className = "ci-toast show" + (isErr ? " error" : "");
+        setTimeout(function() { eid("ci-toast").className = "ci-toast"; }, 3500);
+      }
+
+      function validateAndExport(exportFn) {
+        if (items.length === 0) { showToast("No line items to export", true); return; }
+        var issues = [], i, it, missing, f;
+        for (i = 0; i < items.length; i++) {
+          it = items[i];
+          missing = [];
+          for (f = 0; f < REQUIRED_FIELDS.length; f++) {
+            var val = it[REQUIRED_FIELDS[f].key];
+            if (!val || String(val).trim() === "" || String(val).trim() === "0") {
+              missing.push(REQUIRED_FIELDS[f].label);
+            }
+          }
+          if (missing.length) { issues.push({ idx: i, item: it, missing: missing }); }
+        }
+        if (issues.length === 0) { exportFn(); return; }
+
+        var rowsHtml = "", issue, desc;
+        for (i = 0; i < issues.length; i++) {
+          issue = issues[i];
+          desc = issue.item.description || issue.item.sku || "(unnamed)";
+          rowsHtml += "<tr>"
+            + "<td class='ci-row-num'>" + (issue.idx + 1) + "</td>"
+            + "<td>" + desc + "</td>"
+            + "<td class='ci-missing-fields'>" + issue.missing.join(", ") + "</td>"
+            + "</tr>";
+        }
+        eid("ci-val-rows").innerHTML = rowsHtml;
+        pendingExportFn = exportFn;
+        eid("ci-val-proceed-btn").onclick = function() { closeModal("ci-modal-val"); pendingExportFn(); };
+        eid("ci-modal-val").classList.add("open");
+      }
+
+      function formatHTS(raw) {
+        if (!raw) { return ""; }
+        var s = String(raw).replace(/\./g, "").replace(/\D/g, "");
+        if (s.length >= 8) { return s.slice(0,4) + "." + s.slice(4,6) + "." + s.slice(6); }
+        return raw;
+      }
+
+      function formatPhone(raw) {
+        if (!raw) { return ""; }
+        var d = String(raw).replace(/\D/g, "");
+        if (d.length === 10) { return "(" + d.slice(0,3) + ") " + d.slice(3,6) + "-" + d.slice(6); }
+        if (d.length === 11 && d[0] === "1") { return "+1 (" + d.slice(1,4) + ") " + d.slice(4,7) + "-" + d.slice(7); }
+        return raw;
+      }
+
+      function makeTag(lbl, val) {
+        if (!val) { return ""; }
+        return '<span class="ci-item-tag"><b>' + lbl + '</b> ' + val + '</span>';
+      }
+
+      function handleReasonSel() {
+        var v = eid("inv-reason-sel").value;
+        eid("inv-reason-custom").style.display = (v === "__custom__") ? "block" : "none";
+        render();
+      }
+
+      function getReason() {
+        var v = eid("inv-reason-sel").value;
+        if (v === "__custom__") { return gv("inv-reason-custom"); }
+        return v;
+      }
+
+      function setReason(val) {
+        var opts = ["Sale of Goods","Commercial Samples","Gift"];
+        var i, found = false;
+        for (i = 0; i < opts.length; i++) { if (opts[i] === val) { found = true; break; } }
+        if (found) {
+          eid("inv-reason-sel").value = val;
+          eid("inv-reason-custom").style.display = "none";
+        } else {
+          eid("inv-reason-sel").value = "__custom__";
+          sv("inv-reason-custom", val);
+          eid("inv-reason-custom").style.display = "block";
+        }
+      }
+
+      function scoreCol(header, syn) {
+        var h = header.toLowerCase().trim();
+        var i, a, b;
+        if (h.indexOf("parent") >= 0) { return 0; }
+        for (i = 0; i < syn.length; i++) { if (h === syn[i]) { return 100; } }
+        for (i = 0; i < syn.length; i++) { if (h.indexOf(syn[i]) >= 0 || syn[i].indexOf(h) >= 0) { return 80; } }
+        var hw = h.split(/[\s_\-\/]+/);
+        var best = 0;
+        for (i = 0; i < syn.length; i++) {
+          var sw = syn[i].split(/[\s_\-\/]+/);
+          var ov = 0;
+          for (a = 0; a < hw.length; a++) {
+            for (b = 0; b < sw.length; b++) {
+              if (sw[b].indexOf(hw[a]) >= 0 || hw[a].indexOf(sw[b]) >= 0) { ov++; break; }
+            }
+          }
+          if (ov > 0 && (50 + ov * 10) > best) { best = 50 + ov * 10; }
+        }
+        return best;
+      }
+
+      function autoMap(headers) {
+        var mapping = {}, scores = {}, used = {}, pairs = [];
+        var ci, f, s, p, x;
+        for (ci = 0; ci < headers.length; ci++) {
+          for (f in FIELDS) {
+            s = scoreCol(headers[ci], FIELDS[f].syn);
+            if (s > 0) { pairs.push({ ci:ci, f:f, s:s }); }
+          }
+        }
+        pairs.sort(function(a, b) { return b.s - a.s; });
+        for (p = 0; p < pairs.length; p++) {
+          x = pairs[p];
+          if (mapping[x.f] === undefined && !used[x.ci]) {
+            mapping[x.f] = x.ci; scores[x.f] = x.s; used[x.ci] = true;
+          }
+        }
+        return { mapping:mapping, scores:scores };
+      }
+
+      function getCellVal(row, mapping, field) {
+        var idx = mapping[field];
+        if (idx === undefined) { return ""; }
+        return String(row[idx] || "").trim();
+      }
+
+      function handleImport(e) {
+        var file = e.target.files[0];
+        if (!file) { return; }
+        var reader = new FileReader();
+        reader.onload = onReaderLoad;
+        reader.readAsBinaryString(file);
+        e.target.value = "";
+      }
+
+      function onReaderLoad(evt) {
+        try {
+          var wb = XLSX.read(evt.target.result, { type:"binary" });
+          var i, r, k, v, si;
+
+          var hSheetName = null;
+          for (i = 0; i < wb.SheetNames.length; i++) {
+            if (wb.SheetNames[i].toLowerCase().replace(/\s/g,"").indexOf("header") >= 0) {
+              hSheetName = wb.SheetNames[i]; break;
+            }
+          }
+          if (hSheetName) {
+            var hRows = XLSX.utils.sheet_to_json(wb.Sheets[hSheetName], { header:1, defval:"" });
+            var hMap = {};
+            for (r = 0; r < hRows.length; r++) {
+              k = String(hRows[r][0] || "").toLowerCase().trim();
+              v = String(hRows[r][1] || "").trim();
+              if (k && v) { hMap[k] = v; }
+            }
+            applyHeaderMap(hMap);
+          }
+
+          var lSheetName = wb.SheetNames[0];
+          for (si = 0; si < wb.SheetNames.length; si++) {
+            if (wb.SheetNames[si].toLowerCase().replace(/\s/g,"").indexOf("header") < 0) {
+              lSheetName = wb.SheetNames[si]; break;
+            }
+          }
+          var ws   = wb.Sheets[lSheetName];
+          var rows = XLSX.utils.sheet_to_json(ws, { header:1, defval:"" });
+          if (rows.length < 2) { render(); showToast("No line items found", true); return; }
+
+          var hRowIdx = 0, bestSc = 0, rx, res, ff, tot;
+          for (rx = 0; rx < Math.min(6, rows.length); rx++) {
+            res = autoMap(rows[rx].map(String));
+            tot = 0;
+            for (ff in res.scores) { tot += res.scores[ff]; }
+            if (tot > bestSc) { bestSc = tot; hRowIdx = rx; }
+          }
+          var headers = rows[hRowIdx].map(String);
+          var result  = autoMap(headers);
+          var kf = ["sku","description","upc","hts","coo","rate","qty"];
+          var allOk = true, ki;
+          for (ki = 0; ki < kf.length; ki++) {
+            if (result.mapping[kf[ki]] === undefined || result.scores[kf[ki]] < 80) { allOk = false; break; }
+          }
+          pendingRows    = rows.slice(hRowIdx + 1);
+          pendingHeaders = headers;
+          if (allOk) { applyMap(result.mapping); }
+          else { showMapModal(headers, result.mapping, result.scores); }
+        } catch(err) { showToast("Error: " + err.message, true); }
+      }
+
+      function applyHeaderMap(hMap) {
+        var rawDate, d, iso, bParts, sParts, csz;
+        sv("inv-num",       hMap["invoice #"] || hMap["invoice#"] || "");
+        sv("inv-po",        hMap["po #"] || hMap["po#"] || "");
+        sv("inv-tax-rate",  hMap["tax rate"] || "");
+        sv("inv-shipping",  hMap["shipping"] || "");
+        sv("customs-notes", hMap["customs notes"] || hMap["additional customs notes"] || "");
+        if (hMap["incoterms"]) { sv("inv-incoterms", hMap["incoterms"]); }
+        if (hMap["currency"])  { sv("inv-currency",  hMap["currency"]); }
+        rawDate = hMap["date"] || "";
+        if (rawDate) {
+          d = new Date(rawDate);
+          if (!isNaN(d.getTime())) { iso = d.toISOString().split("T")[0]; sv("inv-date", iso); }
+          else { sv("inv-date", rawDate); }
+        }
+        var reasonVal = hMap["reason for export"] || hMap["reason"] || "";
+        if (reasonVal) { setReason(reasonVal); }
+        sv("bill-company", hMap["bill to company"] || hMap["bill to name"] || "");
+        sv("bill-taxid",   hMap["bill to tax id"] || hMap["bill to tax"] || "");
+        bParts = [];
+        if (hMap["bill to address 1"] || hMap["bill to address"]) { bParts.push(hMap["bill to address 1"] || hMap["bill to address"]); }
+        if (hMap["bill to address 2"]) { bParts.push(hMap["bill to address 2"]); }
+        csz = [hMap["bill to city"]||"", hMap["bill to state"]||"", hMap["bill to zip"]||""].filter(Boolean).join(", ");
+        if (csz) { bParts.push(csz); }
+        if (hMap["bill to country"]) { bParts.push(hMap["bill to country"]); }
+        if (bParts.length) { sv("bill-addr", bParts.join("\n")); }
+        sv("ship-attn",    hMap["ship to attn"] || hMap["ship to contact"] || "");
+        sv("ship-company", hMap["ship to company"] || hMap["ship to name"] || "");
+        sv("ship-phone",   hMap["ship to phone"] || "");
+        sv("ship-taxid",   hMap["ship to tax id"] || hMap["ship to tax"] || "");
+        sParts = [];
+        if (hMap["ship to address 1"] || hMap["ship to address"]) { sParts.push(hMap["ship to address 1"] || hMap["ship to address"]); }
+        if (hMap["ship to address 2"]) { sParts.push(hMap["ship to address 2"]); }
+        csz = [hMap["ship to city"]||"", hMap["ship to state"]||"", hMap["ship to zip"]||""].filter(Boolean).join(", ");
+        if (csz) { sParts.push(csz); }
+        if (hMap["ship to country"]) { sParts.push(hMap["ship to country"]); }
+        if (sParts.length) { sv("ship-addr", sParts.join("\n")); }
+        render();
+      }
+
+      function showMapModal(headers, mapping, scores) {
+        var field, ci, sc, conf, badge, opts, hi, html = "";
+        curMap = {};
+        for (field in mapping) { curMap[field] = mapping[field]; }
+        for (field in FIELDS) {
+          ci = mapping[field]; sc = scores[field] || 0; conf = sc >= 80;
+          badge = (ci !== undefined)
+            ? '<span class="ci-map-badge ' + (conf?"ok":"warn") + '">' + (conf?"✓ Auto":"? Review") + '</span>'
+            : '<span class="ci-map-badge warn">⚠ Not found</span>';
+          opts = '<option value="">— Not in file —</option>';
+          for (hi = 0; hi < headers.length; hi++) {
+            opts += '<option value="' + hi + '"' + (ci === hi ? " selected" : "") + '>' + headers[hi] + '</option>';
+          }
+          html += '<div class="ci-map-row"><span class="ci-fn">' + FIELDS[field].label + '</span>'
+            + '<span style="color:#475569">→</span>'
+            + '<select style="flex:1;margin:0" onchange="CI.updateCurMap(\'' + field + '\',this.value)">' + opts + '</select>'
+            + badge + '</div>';
+        }
+        eid("ci-map-rows").innerHTML = html;
+        eid("ci-modal-map").classList.add("open");
+      }
+
+      function updateCurMap(field, val) {
+        if (val === "") { curMap[field] = undefined; }
+        else { curMap[field] = parseInt(val, 10); }
+      }
+
+      function confirmMap() { closeModal("ci-modal-map"); applyMap(curMap); }
+
+      function applyMap(mapping) {
+        var newItems = [], i, row, sku, desc, upc, hts, coo, qty, rate, taxedRaw, tv;
+        for (i = 0; i < pendingRows.length; i++) {
+          row  = pendingRows[i];
+          sku  = getCellVal(row, mapping, "sku");
+          desc = getCellVal(row, mapping, "description");
+          upc  = getCellVal(row, mapping, "upc");
+          if (!sku && !desc && !upc) { continue; }
+          hts      = getCellVal(row, mapping, "hts");
+          coo      = getCellVal(row, mapping, "coo");
+          qty      = getCellVal(row, mapping, "qty") || "1";
+          rate     = getCellVal(row, mapping, "rate") || "0";
+          taxedRaw = getCellVal(row, mapping, "taxed").toLowerCase();
+          tv       = (taxedRaw === "x" || taxedRaw === "yes" || taxedRaw === "1") ? "X" : "";
+          newItems.push({ sku:sku, upc:upc, hts:hts, coo:coo, qty:qty, rate:rate, description:desc, taxed:tv });
+        }
+        items = newItems;
+        render();
+        showToast("✓ Imported " + newItems.length + " line items");
+      }
+
+      function downloadTemplate() {
+        var wb = XLSX.utils.book_new();
+        var ws1 = XLSX.utils.aoa_to_sheet([
+          ["SKU","Description","UPC","HTS","COO","Unit Price","QTY"],
+          ["DAPP150V2AQ04","Fresh Pop Popcorn Maker","850000706866","8516790000","China","1.00","2"],
+          ["DBBM450GBBK08","Deluxe Egg Bite Maker","850011521588","8516790000","Indonesia","1.00","2"]
+        ]);
+        ws1["!cols"] = [{wch:20},{wch:40},{wch:16},{wch:16},{wch:16},{wch:12},{wch:8}];
+        XLSX.utils.book_append_sheet(wb, ws1, "Line Items");
+        var ws2 = XLSX.utils.aoa_to_sheet([
+          ["FIELD","VALUE","Example"],
+          ["Invoice #","","SO1986637"],["Date","","6/14/2026"],["PO #","","AmazonMX260610"],
+          ["Incoterms","","DDP"],["Currency","","USD"],["Reason for Export","","Commercial Samples"],
+          ["Bill To Company","","SERVICIOS COMERCIALES AMAZON DE MEXICO, S. DE R. L. DE C. V."],
+          ["Bill To Address 1","","AV. Hipódromo No. EXT. 6-A, MZ 146 LT.57."],
+          ["Bill To Address 2","","San Miguel Xochimanga"],
+          ["Bill To City","","Atizapán de Zaragoza"],["Bill To State","","Estado de México"],
+          ["Bill To Zip","","52927"],["Bill To Country","","Mexico"],
+          ["Bill To Tax ID","","SERVICIOS COMERCIALES AMAZON DE MEXICO, S. DE R. L. DE C. V. ANE140618P37"],
+          ["Ship To ATTN","","Edgar Malagon //Boxlity//Amazon Servicios Comerciales"],
+          ["Ship To Company","","SERVICIOS COMERCIALES AMAZON DE MEXICO, S. DE R. L. DE C. V."],
+          ["Ship To Address 1","","AV. Hipódromo No. EXT. 6-A, MZ 146 LT.57"],
+          ["Ship To Address 2","","San Miguel Xochimanga"],
+          ["Ship To City","","Atizapán de Zaragoza"],["Ship To State","","Estado de México"],
+          ["Ship To Zip","","52927"],["Ship To Country","","México"],
+          ["Ship To Phone","","5530409034"],
+          ["Ship To Tax ID","","SERVICIOS COMERCIALES AMAZON DE MEXICO, S. DE R. L. DE C. V. ANE140618P37"],
+          ["Tax Rate","","0"],["Shipping","","10"],
+          ["Customs Notes","","ALL ITEMS SHIPPED FROM CALIFORNIA, USA"]
+        ]);
+        ws2["!cols"] = [{wch:22},{wch:40},{wch:60}];
+        XLSX.utils.book_append_sheet(wb, ws2, "Header Info");
+        XLSX.writeFile(wb, "StoreBound_CI_Import_Template.xlsx");
+        showToast("✓ Template downloaded");
+      }
+
+      function openAddModal(idx) {
+        editIdx = (idx !== undefined) ? idx : null;
+        var m = (editIdx !== null) ? items[editIdx] : {};
+        var fs = ["sku","upc","hts","coo","rate","qty","taxed"], i;
+        eid("ci-modal-title").textContent = (editIdx !== null) ? "Edit Line Item" : "Add Line Item";
+        for (i = 0; i < fs.length; i++) { sv("m-" + fs[i], m[fs[i]] || ""); }
+        sv("m-desc", m.description || "");
+        eid("ci-modal-item").classList.add("open");
+      }
+
+      function closeModal(id) { eid(id).classList.remove("open"); }
+
+      function saveItem() {
+        var item = { sku:gv("m-sku"), upc:gv("m-upc"), hts:gv("m-hts"), coo:gv("m-coo"),
+          qty:gv("m-qty"), rate:gv("m-rate"), description:gv("m-desc"), taxed:gv("m-taxed") };
+        if (editIdx !== null) { items[editIdx] = item; } else { items.push(item); }
+        closeModal("ci-modal-item");
+        render();
+      }
+
+      function removeItem(i) { items.splice(i, 1); render(); }
+
+      function render() {
+        var i, it, amt, listHtml = "";
+        eid("ci-item-count").textContent = items.length;
+        for (i = 0; i < items.length; i++) {
+          it = items[i];
+          listHtml += '<div class="ci-item-row">'
+            + '<span>' + (it.sku||"(no SKU)") + " · " + (it.description||"(no desc)") + '</span>'
+            + '<div style="display:flex;gap:3px;margin-left:5px">'
+            + '<button class="ci-btn ci-btn-danger ci-btn-sm" onclick="CI.openAddModal(' + i + ')">✎</button>'
+            + '<button class="ci-btn ci-btn-danger ci-btn-sm" onclick="CI.removeItem(' + i + ')">✕</button>'
+            + '</div></div>';
+        }
+        eid("ci-items-list").innerHTML = listHtml;
+
+        var date      = gv("inv-date");
+        var invNum    = gv("inv-num");
+        var po        = gv("inv-po");
+        var incoterms = eid("inv-incoterms").value;
+        var currency  = eid("inv-currency").value || "USD";
+        var reason    = getReason();
+        var billCo    = gv("bill-company");
+        var billAddr  = gv("bill-addr");
+        var billTax   = gv("bill-taxid");
+        var shipAttn  = gv("ship-attn");
+        var shipCo    = gv("ship-company");
+        var shipAddr  = gv("ship-addr");
+        var shipPh    = gv("ship-phone");
+        var shipTax   = gv("ship-taxid");
+        var taxRate   = parseFloat(gv("inv-tax-rate") || 0);
+        var shipping  = parseFloat(gv("inv-shipping") || 0);
+        var custNotes = gv("customs-notes");
+
+        var subtotal = 0, taxable = 0, totalUnits = 0;
+        for (i = 0; i < items.length; i++) {
+          amt = parseFloat(items[i].qty||0) * parseFloat(items[i].rate||0);
+          subtotal += amt;
+          if (items[i].taxed === "X") { taxable += amt; }
+          totalUnits += parseInt(items[i].qty||0);
+        }
+        var taxDue = taxable * taxRate / 100;
+        var total  = subtotal + taxDue + shipping;
+
+        var coos = [], coo, c, cc, found;
+        for (c = 0; c < items.length; c++) {
+          coo = (items[c].coo||"").toUpperCase().trim();
+          found = false;
+          for (cc = 0; cc < coos.length; cc++) { if (coos[cc] === coo) { found = true; break; } }
+          if (coo && !found) { coos.push(coo); }
+        }
+        var cooStr = coos.length
+          ? (coos.length === 1 ? "COUNTRY OF ORIGIN FOR THE ITEMS ON THIS INVOICE IS " : "COUNTRIES OF ORIGIN FOR THE ITEMS ON THIS INVOICE ARE ") + coos.join(" AND ")
+          : "";
+
+        var fmtDate = date ? new Date(date + "T00:00:00").toLocaleDateString("en-US") : "";
+        var rowsHtml = "", rowAmt;
+        for (i = 0; i < items.length; i++) {
+          it = items[i];
+          rowAmt = parseFloat(it.qty||0) * parseFloat(it.rate||0);
+          rowsHtml += "<tr>"
+            + "<td><div class='ci-item-desc-name'>" + (it.description||"") + "</div>"
+            + "<div class='ci-item-tags'>"
+            + makeTag("SKU", it.sku) + makeTag("UPC", it.upc)
+            + makeTag("HTS", formatHTS(it.hts)) + makeTag("COO", it.coo)
+            + "</div></td>"
+            + "<td class='r'>" + fmt(it.rate) + "</td>"
+            + "<td class='r'>" + (it.qty||"") + "</td>"
+            + "<td class='r'>" + (it.taxed === "X" ? "Y" : "") + "</td>"
+            + "<td class='r'>" + fmt(rowAmt) + "</td>"
+            + "</tr>";
+        }
+        var ei, minRows = 8;
+        for (ei = 0; ei < Math.max(0, minRows - items.length); ei++) {
+          rowsHtml += "<tr class='ci-empty-row'><td></td><td></td><td></td><td></td><td></td></tr>";
+        }
+
+        eid("ci-invoice").innerHTML =
+          '<div class="ci-inv-header">'
+          + '<div><div class="ci-inv-contact-block">'
+          + '<span class="ci-addr-line">StoreBound LLC</span><br>'
+          + '<span class="ci-addr-line">' + STATIC.addr1 + ', ' + STATIC.addr2 + '</span><br>'
+          + '<span class="ci-addr-line">' + STATIC.city + '</span><br>'
+          + 'Website: ' + STATIC.website + '<br>Fax #: ' + STATIC.fax + '<br>Tax ID #: ' + STATIC.taxId
+          + '</div></div>'
+          + '<div class="ci-inv-right">'
+          + '<div class="ci-inv-title">Commercial Invoice</div>'
+          + '<table class="ci-inv-meta-table">'
+          + '<tr><td class="ci-lbl">DATE</td><td class="ci-val hi">' + fmtDate + '</td></tr>'
+          + '<tr><td class="ci-lbl">INVOICE #</td><td class="ci-val">' + invNum + '</td></tr>'
+          + '<tr><td class="ci-lbl">FOR PO #</td><td class="ci-val">' + po + '</td></tr>'
+          + '</table></div></div>'
+          + '<hr class="ci-inv-divider">'
+          + '<div class="ci-inv-addresses">'
+          + '<div class="ci-addr-block"><div class="ci-addr-hdr">BILL TO:</div><div class="ci-addr-body">'
+          + (billCo ? billCo + '<br>' : '')
+          + billAddr.replace(/\n/g,"<br>")
+          + (billTax ? '<br><span style="font-size:8px">Company Tax ID: ' + billTax + '</span>' : '')
+          + '</div></div>'
+          + '<div class="ci-addr-block"><div class="ci-addr-hdr">SHIP TO:</div><div class="ci-addr-body">'
+          + (shipAttn ? '<span style="font-size:8px;color:#666">ATTN:</span> <strong>' + shipAttn + '</strong><br>' : '')
+          + (shipCo ? '<strong>' + shipCo + '</strong><br>' : '')
+          + shipAddr.replace(/\n/g,"<br>")
+          + (shipPh ? '<br><span style="font-size:8px">Phone: ' + formatPhone(shipPh) + '</span>' : '')
+          + (shipTax ? '<br><span style="font-size:8px">Company Tax ID: ' + shipTax + '</span>' : '')
+          + '</div></div></div>'
+          + '<div class="ci-inv-terms-bar">'
+          + '<div class="ci-inv-terms-cell"><span class="ci-lbl">Incoterms</span><span class="ci-val">' + (incoterms||"—") + '</span></div>'
+          + '<div class="ci-inv-terms-cell"><span class="ci-lbl">Currency</span><span class="ci-val">' + currency + '</span></div>'
+          + '<div class="ci-inv-terms-cell"><span class="ci-lbl">Reason for Export</span><span class="ci-val">' + (reason||"—") + '</span></div>'
+          + '<div class="ci-inv-terms-cell"><span class="ci-lbl">Total Units</span><span class="ci-val">' + totalUnits + '</span></div>'
+          + '</div>'
+          + '<table class="ci-inv-table"><thead><tr>'
+          + '<th>Description</th>'
+          + '<th class="r" style="width:90px">Unit Price (' + currency + ')</th>'
+          + '<th class="r" style="width:40px">QTY</th>'
+          + '<th class="r" style="width:44px">Taxed</th>'
+          + '<th class="r" style="width:90px">Amount (' + currency + ')</th>'
+          + '</tr></thead><tbody>' + rowsHtml + '</tbody></table>'
+          + '<table style="width:100%;border-collapse:collapse;border-top:2px solid #1e3a6e;table-layout:fixed">'
+          + '<tr>'
+          + '<td style="vertical-align:top;border-right:1px solid #d1d5db">'
+          + '<div class="ci-customs-bar">FOR CUSTOMS PURPOSES ONLY</div>'
+          + '<div class="ci-customs-notes">'
+          + (cooStr ? '<strong>' + cooStr + '</strong>' : '')
+          + (cooStr && custNotes ? '<br>' : '')
+          + custNotes.replace(/\n/g,"<br>")
+          + '</div>'
+          + '</td>'
+          + '<td style="width:230px;vertical-align:top">'
+          + '<table class="ci-totals-table">'
+          + '<tr><td>Subtotal</td><td>' + currency + ' ' + fmt(subtotal) + '</td></tr>'
+          + '<tr><td>Taxable</td><td>' + currency + ' ' + fmt(taxable) + '</td></tr>'
+          + '<tr><td>Tax Rate</td><td>' + (taxRate > 0 ? taxRate + "%" : "0%") + '</td></tr>'
+          + '<tr><td>Tax Due</td><td>' + currency + ' ' + fmt(taxDue) + '</td></tr>'
+          + '<tr><td>Shipping</td><td>' + currency + ' ' + fmt(shipping) + '</td></tr>'
+          + '<tr class="ci-total-row"><td>TOTAL</td><td>' + currency + ' ' + fmt(total) + '</td></tr>'
+          + '</table>'
+          + '</td>'
+          + '</tr>'
+          + '</table>';
+      }
+
+      function clearAll() {
+        if (!confirm("Clear all line items and form data?")) { return; }
+        items = [];
+        var ids = ["inv-num","inv-po","inv-reason-custom","bill-company","bill-addr","bill-taxid",
+                   "ship-attn","ship-company","ship-addr","ship-phone","ship-taxid","customs-notes"], i;
+        for (i = 0; i < ids.length; i++) { eid(ids[i]).value = ""; }
+        eid("inv-date").value = new Date().toISOString().split("T")[0];
+        eid("inv-incoterms").value = "DDP";
+        eid("inv-currency").value = "USD";
+        eid("inv-reason-sel").value = "Sale of Goods";
+        eid("inv-reason-custom").style.display = "none";
+        eid("inv-tax-rate").value = "0";
+        eid("inv-shipping").value = "0";
+        render();
+      }
+
+      function exportPDF() {
+        showToast("Generating PDF…");
+        var el = eid("ci-invoice");
+        var opts = { scale: 2, useCORS: true, allowTaint: true, backgroundColor: "#ffffff",
+          logging: false, width: el.offsetWidth, height: el.offsetHeight };
+        html2canvas(el, opts).then(function(canvas) {
+          var imgData = canvas.toDataURL("image/png");
+          // Scale to fit US Letter portrait (8.5×11 in) with 10mm margins
+          var pageW = 215.9, pageH = 279.4, margin = 10;
+          var usableW = pageW - margin * 2, usableH = pageH - margin * 2;
+          var imgMmW = (canvas.width  / 2) * 25.4 / 96;
+          var imgMmH = (canvas.height / 2) * 25.4 / 96;
+          var scale  = Math.min(usableW / imgMmW, usableH / imgMmH, 1);
+          var finalW = imgMmW * scale, finalH = imgMmH * scale;
+          var pdf = new window.jspdf.jsPDF({ orientation: "portrait", unit: "mm", format: "letter" });
+          pdf.addImage(imgData, "PNG", margin, margin, finalW, finalH);
+          pdf.save("CI_" + (gv("inv-num") || "invoice") + ".pdf");
+          showToast("✓ PDF saved");
+        }).catch(function(err) { showToast("PDF error: " + err.message, true); });
+      }
+
+      function exportExcel() {
+        var invNum    = gv("inv-num") || "invoice";
+        var currency  = eid("inv-currency").value || "USD";
+        var taxRate   = parseFloat(gv("inv-tax-rate") || 0);
+        var shipAmt   = parseFloat(gv("inv-shipping") || 0);
+        var invDate   = gv("inv-date");
+        var po        = gv("inv-po");
+        var incoterms = eid("inv-incoterms").value;
+        var reason    = getReason();
+        var billCo    = gv("bill-company");
+        var billAddr  = gv("bill-addr");
+        var billTax   = gv("bill-taxid");
+        var shipAttn  = gv("ship-attn");
+        var shipCo    = gv("ship-company");
+        var shipAddr  = gv("ship-addr");
+        var shipPh    = gv("ship-phone");
+        var shipTax   = gv("ship-taxid");
+        var custNotes = gv("customs-notes");
+        var i, amt, it, cl;
+
+        var subtotal = 0, taxable = 0, totalUnits = 0;
+        for (i = 0; i < items.length; i++) {
+          amt = parseFloat(items[i].qty||0) * parseFloat(items[i].rate||0);
+          subtotal += amt;
+          if (items[i].taxed === "X") taxable += amt;
+          totalUnits += parseInt(items[i].qty||0);
+        }
+        var taxDue = taxable * taxRate / 100;
+        var total  = subtotal + taxDue + shipAmt;
+
+        var coos = [], coo, ci, cc, found;
+        for (ci = 0; ci < items.length; ci++) {
+          coo = (items[ci].coo||"").toUpperCase().trim();
+          found = false;
+          for (cc = 0; cc < coos.length; cc++) { if (coos[cc] === coo) { found = true; break; } }
+          if (coo && !found) coos.push(coo);
+        }
+        var cooStr = coos.length
+          ? (coos.length === 1 ? "COUNTRY OF ORIGIN FOR THE ITEMS ON THIS INVOICE IS " : "COUNTRIES OF ORIGIN FOR THE ITEMS ON THIS INVOICE ARE ") + coos.join(" AND ")
+          : "";
+        var fmtDate  = invDate ? new Date(invDate + "T00:00:00").toLocaleDateString("en-US") : "";
+        var moneyFmt = '"' + currency + ' "#,##0.00';
+
+        var NAVY    = 'FF1e3a6e', WHITE   = 'FFFFFFFF', LT_BLUE = 'FFeff6ff';
+        var BD_BLUE = 'FF93c5fd', STRIPE  = 'FFf7f9fc', BD_CLR  = 'FFdde1e7';
+        var META_BG = 'FFf8fafc', META_FG = 'FF555555';
+
+        function thin(clr) {
+          var s = { style:'thin', color:{ argb: clr || BD_CLR } };
+          return { top:s, left:s, bottom:s, right:s };
+        }
+
+        // Row height (pts) for a wrapText cell.
+        // Uses 20 pt per visual line — empirically reliable across Excel versions.
+        // colW = merged width in Excel char-units; ptSize = font pt size.
+        function rowHt(text, colW, ptSize) {
+          var sz  = ptSize || 8.5;
+          // Approx chars per line: Excel char-unit ≈ 7 px; Arial char ≈ sz × 0.6 px
+          var cpl = Math.max(8, Math.floor(colW * 7 / (sz * 0.6)));
+          var lines = 0;
+          String(text || ' ').split('\n').forEach(function(seg) {
+            lines += Math.max(1, Math.ceil((seg.length || 1) / cpl));
+          });
+          return Math.max(lines * 20 + 8, 20);
+        }
+
+        var wb = new ExcelJS.Workbook();
+        wb.creator = 'StoreBound CI Generator';
+        var ws = wb.addWorksheet('Commercial Invoice', {
+          pageSetup: { paperSize:1, orientation:'portrait', fitToPage:true, fitToWidth:1, fitToHeight:0, margins:{ left:0.5, right:0.5, top:0.75, bottom:0.75, header:0.3, footer:0.3 } }
+        });
+        // A=description/left-addr, B=price/bill-to-right, C=qty/ship-to-left, D=taxed/ship-mid, E=amount/ship-right
+        // fitToPage:true keeps printing on one page even with wider columns
+        ws.columns = [{ width:55 },{ width:22 },{ width:12 },{ width:10 },{ width:22 }];
+
+        function G(ref)     { return ws.getCell(ref); }
+        function M(r1, r2)  { ws.mergeCells(r1 + ':' + r2); }
+
+        // ── Row 1: Company name + Invoice title ────────────────
+        ws.getRow(1).height = 32;
+        M('A1','C1');
+        cl = G('A1');
+        cl.value = 'StoreBound LLC';
+        cl.font  = { name:'Arial', bold:true, size:14, color:{ argb:NAVY } };
+        cl.alignment = { vertical:'middle' };
+
+        M('D1','E1');
+        cl = G('D1');
+        cl.value = 'COMMERCIAL INVOICE';
+        cl.font  = { name:'Arial', bold:true, size:12, color:{ argb:WHITE } };
+        cl.fill  = { type:'pattern', pattern:'solid', fgColor:{ argb:NAVY } };
+        cl.alignment = { horizontal:'center', vertical:'middle' };
+
+        // ── Row 2: Address + Date ──────────────────────────────
+        ws.getRow(2).height = 18;
+        M('A2','C2');
+        cl = G('A2');
+        cl.value = '50 Broad Street, 12th Floor';
+        cl.font  = { name:'Arial', size:8.5, color:{ argb:'FF333333' } };
+        cl.alignment = { vertical:'middle' };
+
+        cl = G('D2');
+        cl.value = 'DATE';
+        cl.font  = { name:'Arial', bold:true, size:7.5, color:{ argb:META_FG } };
+        cl.fill  = { type:'pattern', pattern:'solid', fgColor:{ argb:LT_BLUE } };
+        cl.alignment = { horizontal:'right', vertical:'middle' };
+        cl.border = { top:{ style:'thin', color:{ argb:BD_BLUE } }, left:{ style:'thin', color:{ argb:BD_BLUE } }, bottom:{ style:'thin', color:{ argb:BD_BLUE } } };
+
+        cl = G('E2');
+        cl.value = fmtDate;
+        cl.font  = { name:'Arial', bold:true, size:8.5 };
+        cl.fill  = { type:'pattern', pattern:'solid', fgColor:{ argb:LT_BLUE } };
+        cl.alignment = { vertical:'middle', indent:1 };
+        cl.border = { top:{ style:'thin', color:{ argb:BD_BLUE } }, right:{ style:'thin', color:{ argb:BD_BLUE } }, bottom:{ style:'thin', color:{ argb:BD_BLUE } } };
+
+        // ── Row 3: City + Invoice # ────────────────────────────
+        ws.getRow(3).height = 18;
+        M('A3','C3');
+        cl = G('A3');
+        cl.value = 'New York, NY  10004';
+        cl.font  = { name:'Arial', size:8.5, color:{ argb:'FF333333' } };
+        cl.alignment = { vertical:'middle' };
+
+        cl = G('D3');
+        cl.value = 'INVOICE #';
+        cl.font  = { name:'Arial', bold:true, size:7.5, color:{ argb:META_FG } };
+        cl.fill  = { type:'pattern', pattern:'solid', fgColor:{ argb:META_BG } };
+        cl.alignment = { horizontal:'right', vertical:'middle' };
+        cl.border = { top:{ style:'thin', color:{ argb:BD_CLR } }, left:{ style:'thin', color:{ argb:BD_CLR } }, bottom:{ style:'thin', color:{ argb:BD_CLR } } };
+
+        cl = G('E3');
+        cl.value = invNum;
+        cl.font  = { name:'Arial', size:8.5 };
+        cl.fill  = { type:'pattern', pattern:'solid', fgColor:{ argb:META_BG } };
+        cl.alignment = { vertical:'middle', indent:1 };
+        cl.border = { top:{ style:'thin', color:{ argb:BD_CLR } }, right:{ style:'thin', color:{ argb:BD_CLR } }, bottom:{ style:'thin', color:{ argb:BD_CLR } } };
+
+        // ── Row 4: Contact + PO # ──────────────────────────────
+        ws.getRow(4).height = 18;
+        M('A4','C4');
+        cl = G('A4');
+        cl.value = 'www.storebound.com  |  Fax: 347-410-7628  |  Tax ID: REDACTED_TAX_ID';
+        cl.font  = { name:'Arial', size:7.5, color:{ argb:'FF666666' } };
+        cl.alignment = { vertical:'middle' };
+
+        cl = G('D4');
+        cl.value = 'PO #';
+        cl.font  = { name:'Arial', bold:true, size:7.5, color:{ argb:META_FG } };
+        cl.fill  = { type:'pattern', pattern:'solid', fgColor:{ argb:META_BG } };
+        cl.alignment = { horizontal:'right', vertical:'middle' };
+        cl.border = { top:{ style:'thin', color:{ argb:BD_CLR } }, left:{ style:'thin', color:{ argb:BD_CLR } }, bottom:{ style:'thin', color:{ argb:BD_CLR } } };
+
+        cl = G('E4');
+        cl.value = po;
+        cl.font  = { name:'Arial', size:8.5 };
+        cl.fill  = { type:'pattern', pattern:'solid', fgColor:{ argb:META_BG } };
+        cl.alignment = { vertical:'middle', indent:1 };
+        cl.border = { top:{ style:'thin', color:{ argb:BD_CLR } }, right:{ style:'thin', color:{ argb:BD_CLR } }, bottom:{ style:'thin', color:{ argb:BD_CLR } } };
+
+        // ── Row 5: Divider ─────────────────────────────────────
+        ws.getRow(5).height = 6;
+        ['A5','B5','C5','D5','E5'].forEach(function(r) {
+          G(r).border = { bottom:{ style:'medium', color:{ argb:NAVY } } };
+        });
+
+        // ── Row 6: Bill To / Ship To headers ───────────────────
+        ws.getRow(6).height = 22;
+        M('A6','B6');
+        cl = G('A6');
+        cl.value = 'BILL TO:';
+        cl.font  = { name:'Arial', bold:true, size:8.5, color:{ argb:WHITE } };
+        cl.fill  = { type:'pattern', pattern:'solid', fgColor:{ argb:NAVY } };
+        cl.alignment = { vertical:'middle', indent:1 };
+
+        M('C6','E6');
+        cl = G('C6');
+        cl.value = 'SHIP TO:';
+        cl.font  = { name:'Arial', bold:true, size:8.5, color:{ argb:WHITE } };
+        cl.fill  = { type:'pattern', pattern:'solid', fgColor:{ argb:NAVY } };
+        cl.alignment = { vertical:'middle', indent:1 };
+
+        // Build address line arrays with formatting metadata
+        var billLines = [], shipLines = [];
+        if (billCo)   billLines.push({ text:billCo,                     bold:true  });
+        billAddr.split('\n').forEach(function(l) { if (l.trim()) billLines.push({ text:l.trim() }); });
+        if (billTax)  billLines.push({ text:'Tax ID: ' + billTax,       small:true });
+        if (shipAttn) shipLines.push({ text:'ATTN: ' + shipAttn,        small:true });
+        if (shipCo)   shipLines.push({ text:shipCo,                     bold:true  });
+        shipAddr.split('\n').forEach(function(l) { if (l.trim()) shipLines.push({ text:l.trim() }); });
+        if (shipPh)   shipLines.push({ text:'Phone: ' + formatPhone(shipPh), small:true });
+        if (shipTax)  shipLines.push({ text:'Tax ID: ' + shipTax,       small:true });
+
+        // Collapse each block into ONE multi-line cell with wrapText
+        function buildAddrRichText(lines) {
+          var rt = [];
+          lines.forEach(function(ln, idx) {
+            if (idx > 0) rt.push({ font:{ name:'Arial', size:8.5 }, text:'\n' });
+            rt.push({ font:{ name:'Arial', bold:!!ln.bold, size:ln.small?8:8.5 }, text:ln.text });
+          });
+          return rt.length ? rt : [{ font:{ name:'Arial', size:8.5 }, text:'' }];
+        }
+
+        var billText = billLines.map(function(l){ return l.text; }).join('\n');
+        var shipText = shipLines.map(function(l){ return l.text; }).join('\n');
+        // Bill To: A+B = 55+22 = 77 char-units; Ship To: C+D+E = 12+10+22 = 44
+        var addrRowH = Math.max(rowHt(billText, 77, 8.5), rowHt(shipText, 44, 8.5), 80);
+        ws.getRow(7).height = addrRowH;
+
+        M('A7','B7');
+        cl = G('A7');
+        cl.value     = { richText: buildAddrRichText(billLines) };
+        cl.alignment = { vertical:'top', wrapText:true, indent:1 };
+        cl.border    = thin();
+
+        M('C7','E7');
+        cl = G('C7');
+        cl.value     = { richText: buildAddrRichText(shipLines) };
+        cl.alignment = { vertical:'top', wrapText:true, indent:1 };
+        cl.border    = thin();
+
+        var row = 8;
+
+        // ── Terms bar ──────────────────────────────────────────
+        // Height = tallest cell; each cell has a 7-pt label line + 9-pt value line
+        var termsRowH = Math.max(
+          rowHt('INCOTERMS\n'        + (incoterms   || '—'), 55, 8),
+          rowHt('CURRENCY\n'         + currency,              22, 8),
+          rowHt('REASON FOR EXPORT\n'+ (reason      || '—'), 22, 8),
+          rowHt('TOTAL UNITS\n'      + totalUnits,            22, 8),
+          48
+        );
+        ws.getRow(row).height = termsRowH;
+        function termsCell(ref, label, val) {
+          var tc = G(ref);
+          tc.value = { richText: [
+            { font:{ name:'Arial', bold:true, size:7, color:{ argb:NAVY } }, text:label + '\n' },
+            { font:{ name:'Arial', bold:true, size:9, color:{ argb:'FF111111' } }, text:String(val||'—') }
+          ]};
+          tc.alignment = { vertical:'middle', wrapText:true, indent:1 };
+          tc.border = thin();
+        }
+        termsCell('A' + row, 'INCOTERMS', incoterms);
+        termsCell('B' + row, 'CURRENCY', currency);
+        M('C' + row, 'D' + row);
+        termsCell('C' + row, 'REASON FOR EXPORT', reason);
+        termsCell('E' + row, 'TOTAL UNITS', totalUnits);
+        row++;
+
+        // ── Line items header ──────────────────────────────────
+        ws.getRow(row).height = 22;
+        [
+          { col:'A', label:'Description',              align:'left'   },
+          { col:'B', label:'Unit Price (' + currency + ')', align:'right'  },
+          { col:'C', label:'QTY',                      align:'right'  },
+          { col:'D', label:'Taxed',                    align:'center' },
+          { col:'E', label:'Amount (' + currency + ')', align:'right'  },
+        ].forEach(function(h) {
+          cl = G(h.col + row);
+          cl.value = h.label;
+          cl.font  = { name:'Arial', bold:true, size:8.5, color:{ argb:WHITE } };
+          cl.fill  = { type:'pattern', pattern:'solid', fgColor:{ argb:NAVY } };
+          cl.alignment = { horizontal:h.align, vertical:'middle', indent:h.col==='A'?1:0 };
+          cl.border = thin(NAVY);
+        });
+        row++;
+
+        // ── Line items ─────────────────────────────────────────
+        var displayRows = Math.max(items.length, 8);
+        for (i = 0; i < displayRows; i++) {
+          it = items[i];
+          ws.getRow(row).height = 18;
+          var bg   = i % 2 === 0 ? WHITE : STRIPE;
+          var fill = { type:'pattern', pattern:'solid', fgColor:{ argb:bg } };
+          var rowAmt = it ? parseFloat(it.qty||0) * parseFloat(it.rate||0) : null;
+
+          cl = G('A' + row);
+          if (it) {
+            var tags = [];
+            if (it.sku) tags.push('SKU: ' + it.sku);
+            if (it.upc) tags.push('UPC: ' + it.upc);
+            if (it.hts) tags.push('HTS: ' + formatHTS(it.hts));
+            if (it.coo) tags.push('COO: ' + it.coo);
+            if (tags.length) {
+              var tagStr = tags.join('  ·  ');
+              cl.value = { richText: [
+                { font:{ name:'Arial', bold:true, size:8.5 }, text:(it.description||'') + '\n' },
+                { font:{ name:'Arial', size:7.5, color:{ argb:'FF64748b' } }, text:tagStr }
+              ]};
+              // colW=55; height = description lines + tags lines
+              ws.getRow(row).height = Math.max(
+                rowHt(it.description || '', 55, 8.5) + rowHt(tagStr, 55, 7.5), 48);
+              cl.alignment = { vertical:'middle', wrapText:true, indent:1 };
+            } else {
+              cl.value = it.description || '';
+              cl.font  = { name:'Arial', size:8.5 };
+              // wrapText so long descriptions don't get clipped by adjacent cells
+              ws.getRow(row).height = Math.max(rowHt(it.description || '', 55, 8.5), 28);
+              cl.alignment = { vertical:'middle', wrapText:true, indent:1 };
+            }
+          }
+          cl.fill   = fill;
+          cl.border = thin();
+
+          cl = G('B' + row);
+          cl.value  = it ? parseFloat(it.rate||0) : null;
+          cl.numFmt = moneyFmt;
+          cl.font   = { name:'Arial', size:8.5 };
+          cl.fill   = fill;
+          cl.alignment = { horizontal:'right', vertical:'middle' };
+          cl.border = thin();
+
+          cl = G('C' + row);
+          cl.value  = it ? parseInt(it.qty||0) : null;
+          cl.font   = { name:'Arial', size:8.5 };
+          cl.fill   = fill;
+          cl.alignment = { horizontal:'right', vertical:'middle' };
+          cl.border = thin();
+
+          cl = G('D' + row);
+          cl.value  = it ? (it.taxed === 'X' ? 'Y' : '') : '';
+          cl.font   = { name:'Arial', size:8.5 };
+          cl.fill   = fill;
+          cl.alignment = { horizontal:'center', vertical:'middle' };
+          cl.border = thin();
+
+          cl = G('E' + row);
+          cl.value  = rowAmt;
+          cl.numFmt = moneyFmt;
+          cl.font   = { name:'Arial', size:8.5 };
+          cl.fill   = fill;
+          cl.alignment = { horizontal:'right', vertical:'middle' };
+          cl.border = thin();
+
+          row++;
+        }
+
+        // ── Customs / COO notes ────────────────────────────────
+        if (cooStr || custNotes) {
+          row++;
+          ws.getRow(row).height = 20;
+          M('A' + row, 'E' + row);
+          cl = G('A' + row);
+          cl.value = 'FOR CUSTOMS PURPOSES ONLY';
+          cl.font  = { name:'Arial', bold:true, size:8.5, color:{ argb:WHITE } };
+          cl.fill  = { type:'pattern', pattern:'solid', fgColor:{ argb:'FF111111' } };
+          cl.alignment = { horizontal:'center', vertical:'middle' };
+          row++;
+          if (cooStr) {
+            ws.getRow(row).height = 18;
+            M('A' + row, 'E' + row);
+            cl = G('A' + row);
+            cl.value = cooStr;
+            cl.font  = { name:'Arial', bold:true, size:8 };
+            cl.alignment = { vertical:'middle', indent:1 };
+            row++;
+          }
+          if (custNotes) {
+            custNotes.split('\n').forEach(function(line) {
+              if (!line.trim()) return;
+              ws.getRow(row).height = 16;
+              M('A' + row, 'E' + row);
+              cl = G('A' + row);
+              cl.value = line.trim();
+              cl.font  = { name:'Arial', size:8 };
+              cl.alignment = { vertical:'middle', indent:1 };
+              row++;
+            });
+          }
+        }
+
+        // ── Totals ─────────────────────────────────────────────
+        row++;
+        function addTotRow(label, value, isBold, isDark) {
+          ws.getRow(row).height = isBold ? 24 : 18;
+          var bg = isDark ? NAVY : META_BG, fg = isDark ? WHITE : META_FG;
+          M('A' + row, 'D' + row);
+          cl = G('A' + row);
+          cl.value = label;
+          cl.font  = { name:'Arial', bold:!!isBold, size:isBold?10:8.5, color:{ argb:fg } };
+          cl.fill  = { type:'pattern', pattern:'solid', fgColor:{ argb:bg } };
+          cl.alignment = { horizontal:'right', vertical:'middle' };
+          cl.border = { top:{ style:'thin', color:{ argb:BD_CLR } }, left:{ style:'thin', color:{ argb:BD_CLR } }, bottom:{ style:'thin', color:{ argb:BD_CLR } } };
+          cl = G('E' + row);
+          if (typeof value === 'number') { cl.value = value; cl.numFmt = moneyFmt; }
+          else { cl.value = value; }
+          cl.font  = { name:'Arial', bold:!!isBold, size:isBold?11:8.5, color:{ argb:fg } };
+          cl.fill  = { type:'pattern', pattern:'solid', fgColor:{ argb:bg } };
+          cl.alignment = { horizontal:'right', vertical:'middle' };
+          cl.border = { top:{ style:'thin', color:{ argb:BD_CLR } }, right:{ style:'thin', color:{ argb:BD_CLR } }, bottom:{ style:'thin', color:{ argb:BD_CLR } } };
+          row++;
+        }
+
+        addTotRow('Subtotal', subtotal);
+        if (taxable > 0) addTotRow('Taxable Amount', taxable);
+        if (taxRate  > 0) { addTotRow('Tax Rate', taxRate + '%'); addTotRow('Tax Due', taxDue); }
+        if (shipAmt  > 0) addTotRow('Shipping', shipAmt);
+        addTotRow('TOTAL', total, true, true);
+
+        // Download
+        wb.xlsx.writeBuffer().then(function(buffer) {
+          var blob = new Blob([buffer], { type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+          var url  = URL.createObjectURL(blob);
+          var a    = document.createElement('a');
+          a.href = url; a.download = 'CI_' + invNum + '.xlsx';
+          document.body.appendChild(a); a.click();
+          document.body.removeChild(a); URL.revokeObjectURL(url);
+          showToast('✓ Excel exported');
+        }).catch(function(err) { showToast('Excel error: ' + err.message, true); });
+      }
+
+      eid("inv-date").value = new Date().toISOString().split("T")[0];
+      render();
+
+      window.CI = {
+        handleImport: handleImport, handleReasonSel: handleReasonSel,
+        render: render, downloadTemplate: downloadTemplate,
+        openAddModal: openAddModal, clearAll: clearAll,
+        validateAndExport: validateAndExport, exportPDF: exportPDF, exportExcel: exportExcel,
+        saveItem: saveItem, closeModal: closeModal, confirmMap: confirmMap,
+        updateCurMap: updateCurMap, removeItem: removeItem
+      };
+    })();
+    </script>
+
     </section>
 
   </main>
