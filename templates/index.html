@@ -1349,9 +1349,9 @@ ITEM-002,10,10,8,12.0,1</code>
           + '<th class="r" style="width:44px">Taxed</th>'
           + '<th class="r" style="width:90px">Amount (' + currency + ')</th>'
           + '</tr></thead><tbody>' + rowsHtml + '</tbody></table>'
-          + '<table style="width:100%;border-collapse:collapse;border-top:2px solid #1e3a6e;table-layout:fixed">'
+          + '<table style="width:100%;border-collapse:collapse;table-layout:fixed">'
           + '<tr>'
-          + '<td style="vertical-align:top;border-right:1px solid #d1d5db">'
+          + '<td style="vertical-align:top;border-top:2px solid #1e3a6e;border-right:1px solid #d1d5db">'
           + '<div class="ci-customs-bar">FOR CUSTOMS PURPOSES ONLY</div>'
           + '<div class="ci-customs-notes">'
           + (cooStr ? '<strong>' + cooStr + '</strong>' : '')
@@ -1395,16 +1395,67 @@ ITEM-002,10,10,8,12.0,1</code>
         var opts = { scale: 2, useCORS: true, allowTaint: true, backgroundColor: "#ffffff",
           logging: false, width: el.offsetWidth, height: el.offsetHeight };
         html2canvas(el, opts).then(function(canvas) {
-          var imgData = canvas.toDataURL("image/png");
-          // Scale to fit US Letter portrait (8.5×11 in) with 10mm margins
-          var pageW = 215.9, pageH = 279.4, margin = 10;
-          var usableW = pageW - margin * 2, usableH = pageH - margin * 2;
-          var imgMmW = (canvas.width  / 2) * 25.4 / 96;
-          var imgMmH = (canvas.height / 2) * 25.4 / 96;
-          var scale  = Math.min(usableW / imgMmW, usableH / imgMmH, 1);
-          var finalW = imgMmW * scale, finalH = imgMmH * scale;
-          var pdf = new window.jspdf.jsPDF({ orientation: "portrait", unit: "mm", format: "letter" });
-          pdf.addImage(imgData, "PNG", margin, margin, finalW, finalH);
+          // Fit width to letter with 0.5in margins; height spans as many pages as needed
+          var pageW = 215.9, pageH = 279.4, margin = 12.7; // 0.5 in = 12.7 mm
+          var usableW  = pageW - margin * 2, usableH = pageH - margin * 2;
+          var imgMmW   = (canvas.width  / 2) * 25.4 / 96;
+          var imgMmH   = (canvas.height / 2) * 25.4 / 96;
+          var scale    = Math.min(usableW / imgMmW, 1);
+          var finalW   = imgMmW * scale, finalH = imgMmH * scale;
+          var pxPerMm  = canvas.height / finalH; // canvas px per PDF mm
+          var usableHPx = Math.floor(usableH * pxPerMm);
+
+          // Build a sorted list of safe cut-points (bottom edges of every <tr>)
+          // so we never slice through the middle of a row.
+          var elRect   = el.getBoundingClientRect();
+          var safeCuts = [0];
+          el.querySelectorAll('tr').forEach(function(tr) {
+            var r  = tr.getBoundingClientRect();
+            var px = Math.round((r.bottom - elRect.top) * 2); // ×2 for scale:2 capture
+            if (px > 0 && px < canvas.height) safeCuts.push(px);
+          });
+          safeCuts.push(canvas.height);
+          safeCuts = safeCuts
+            .filter(function(v, i, a) { return a.indexOf(v) === i; })
+            .sort(function(a, b) { return a - b; });
+
+          var pdf       = new window.jspdf.jsPDF({ orientation: "portrait", unit: "mm", format: "letter" });
+          var pageStart = 0, firstPage = true;
+
+          while (pageStart < canvas.height) {
+            if (!firstPage) pdf.addPage("letter", "portrait");
+            firstPage = false;
+
+            var idealEnd = pageStart + usableHPx;
+            var pageEnd;
+
+            if (idealEnd >= canvas.height) {
+              pageEnd = canvas.height; // last page — take whatever remains
+            } else {
+              // Snap to the largest safe cut-point that fits within this page
+              pageEnd = pageStart; // fallback (updated below)
+              for (var j = 0; j < safeCuts.length; j++) {
+                if (safeCuts[j] > pageStart && safeCuts[j] <= idealEnd) {
+                  pageEnd = safeCuts[j];
+                }
+              }
+              if (pageEnd <= pageStart) {
+                // Single row taller than a full page — cut anyway to avoid infinite loop
+                pageEnd = idealEnd;
+              }
+            }
+
+            var srcH = pageEnd - pageStart;
+            var tmp  = document.createElement('canvas');
+            tmp.width  = canvas.width;
+            tmp.height = srcH;
+            tmp.getContext('2d').drawImage(
+              canvas, 0, pageStart, canvas.width, srcH, 0, 0, canvas.width, srcH);
+            pdf.addImage(tmp.toDataURL('image/png'), 'PNG', margin, margin,
+              finalW, srcH / pxPerMm);
+
+            pageStart = pageEnd;
+          }
           pdf.save("CI_" + (gv("inv-num") || "invoice") + ".pdf");
           showToast("✓ PDF saved");
         }).catch(function(err) { showToast("PDF error: " + err.message, true); });
@@ -1677,7 +1728,7 @@ ITEM-002,10,10,8,12.0,1</code>
         row++;
 
         // ── Line items ─────────────────────────────────────────
-        var displayRows = Math.max(items.length, 8);
+        var displayRows = items.length;
         for (i = 0; i < displayRows; i++) {
           it = items[i];
           ws.getRow(row).height = 18;
@@ -1803,9 +1854,10 @@ ITEM-002,10,10,8,12.0,1</code>
         }
 
         addTotRow('Subtotal', subtotal);
-        if (taxable > 0) addTotRow('Taxable Amount', taxable);
-        if (taxRate  > 0) { addTotRow('Tax Rate', taxRate + '%'); addTotRow('Tax Due', taxDue); }
-        if (shipAmt  > 0) addTotRow('Shipping', shipAmt);
+        addTotRow('Taxable Amount', taxable);
+        addTotRow('Tax Rate', taxRate > 0 ? taxRate + '%' : '0%');
+        addTotRow('Tax Due', taxDue);
+        addTotRow('Shipping', shipAmt);
         addTotRow('TOTAL', total, true, true);
 
         // Download
