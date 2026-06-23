@@ -725,13 +725,14 @@ ITEM-002,10,10,8,12.0,1</code>
         </div>
         <div class="ci-section">
           <div class="ci-section-title">Import</div>
-          <div class="ci-import-zone" onclick="document.getElementById('ci-xlsxInput').click()">
+          <button class="ci-btn ci-btn-teal" onclick="CI.downloadTemplate()">⬇ Download Import Template</button>
+          <a class="ci-btn ci-btn-primary" href="https://4848284.app.netsuite.com/app/common/search/searchresults.nl?searchid=116500&whence=" target="_blank" rel="noopener noreferrer" style="text-decoration:none">🔍 Filter Items from Here</a>
+          <button class="ci-btn ci-btn-primary" onclick="CI.openAddModal()">＋ Add Additional Line Item</button>
+          <div class="ci-import-zone" style="margin-top:12px" onclick="document.getElementById('ci-xlsxInput').click()">
             <div style="font-size:12px">📂 Click to import Excel / CSV</div>
             <p>Columns auto-mapped. Any header naming works.</p>
             <input type="file" id="ci-xlsxInput" accept=".xlsx,.xls,.csv" onchange="CI.handleImport(event)">
           </div>
-          <button class="ci-btn ci-btn-teal" onclick="CI.downloadTemplate()">⬇ Download Import Template</button>
-          <button class="ci-btn ci-btn-primary" onclick="CI.openAddModal()">＋ Add Line Item Manually</button>
         </div>
         <div class="ci-section">
           <div class="ci-section-title">Invoice Header</div>
@@ -853,6 +854,19 @@ ITEM-002,10,10,8,12.0,1</code>
       </div>
     </div>
 
+    <!-- CI: Duplicate SKU Warning Modal -->
+    <div class="ci-modal-overlay" id="ci-modal-dup" style="z-index:1000">
+      <div class="ci-modal">
+        <h3>⚠ Duplicate SKUs Found</h3>
+        <p class="ci-sub">The following SKUs already exist in your list and will be overwritten:</p>
+        <ul id="ci-dup-list" style="margin:10px 0 14px;padding-left:20px;color:#f87171;font-size:12px;max-height:180px;overflow-y:auto"></ul>
+        <div class="ci-modal-actions">
+          <button class="ci-btn ci-btn-danger" onclick="CI.closeModal('ci-modal-dup')">Cancel</button>
+          <button class="ci-btn ci-btn-primary" style="width:auto;background:#b45309" onclick="CI.confirmDup()">Continue &amp; Overwrite</button>
+        </div>
+      </div>
+    </div>
+
     <div class="ci-toast" id="ci-toast"></div>
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.3.0/exceljs.min.js"></script>
@@ -873,6 +887,7 @@ ITEM-002,10,10,8,12.0,1</code>
       var pendingHeaders = [];
       var curMap = {};
       var pendingExportFn = null;
+      var pendingDupAction = null;
 
       var REQUIRED_FIELDS = [
         { key:"sku", label:"SKU" }, { key:"description", label:"Description" },
@@ -1153,6 +1168,32 @@ ITEM-002,10,10,8,12.0,1</code>
 
       function confirmMap() { closeModal("ci-modal-map"); applyMap(curMap); }
 
+      function findItemBySku(sku) {
+        var lo = sku.toLowerCase();
+        for (var i = 0; i < items.length; i++) {
+          if (items[i].sku && items[i].sku.toLowerCase() === lo) { return i; }
+        }
+        return -1;
+      }
+
+      function mergeItems(newItems) {
+        for (var i = 0; i < newItems.length; i++) {
+          var existIdx = newItems[i].sku ? findItemBySku(newItems[i].sku) : -1;
+          if (existIdx >= 0) { items[existIdx] = newItems[i]; } else { items.push(newItems[i]); }
+        }
+      }
+
+      function showDupModal(skus, onConfirm) {
+        eid("ci-dup-list").innerHTML = skus.map(function(s) { return "<li>" + s + "</li>"; }).join("");
+        pendingDupAction = onConfirm;
+        eid("ci-modal-dup").classList.add("open");
+      }
+
+      function confirmDup() {
+        closeModal("ci-modal-dup");
+        if (pendingDupAction) { pendingDupAction(); pendingDupAction = null; }
+      }
+
       function applyMap(mapping) {
         var newItems = [], i, row, sku, desc, upc, hts, coo, qty, rate, taxedRaw, tv;
         for (i = 0; i < pendingRows.length; i++) {
@@ -1169,9 +1210,12 @@ ITEM-002,10,10,8,12.0,1</code>
           tv       = (taxedRaw === "x" || taxedRaw === "yes" || taxedRaw === "1") ? "X" : "";
           newItems.push({ sku:sku, upc:upc, hts:hts, coo:coo, qty:qty, rate:rate, description:desc, taxed:tv });
         }
-        items = newItems;
-        render();
-        showToast("✓ Imported " + newItems.length + " line items");
+        var dupSkus = [];
+        for (i = 0; i < newItems.length; i++) {
+          if (newItems[i].sku && findItemBySku(newItems[i].sku) >= 0) { dupSkus.push(newItems[i].sku); }
+        }
+        function doMerge() { mergeItems(newItems); render(); showToast("✓ Imported " + newItems.length + " line items"); }
+        if (dupSkus.length > 0) { showDupModal(dupSkus, doMerge); } else { doMerge(); }
       }
 
       function downloadTemplate() {
@@ -1225,9 +1269,13 @@ ITEM-002,10,10,8,12.0,1</code>
       function saveItem() {
         var item = { sku:gv("m-sku"), upc:gv("m-upc"), hts:gv("m-hts"), coo:gv("m-coo"),
           qty:gv("m-qty"), rate:gv("m-rate"), description:gv("m-desc"), taxed:gv("m-taxed") };
-        if (editIdx !== null) { items[editIdx] = item; } else { items.push(item); }
-        closeModal("ci-modal-item");
-        render();
+        if (editIdx !== null) { items[editIdx] = item; closeModal("ci-modal-item"); render(); return; }
+        var existIdx = item.sku ? findItemBySku(item.sku) : -1;
+        if (existIdx >= 0) {
+          showDupModal([item.sku], function() { items[existIdx] = item; closeModal("ci-modal-item"); render(); });
+        } else {
+          items.push(item); closeModal("ci-modal-item"); render();
+        }
       }
 
       function removeItem(i) { items.splice(i, 1); render(); }
@@ -1881,7 +1929,7 @@ ITEM-002,10,10,8,12.0,1</code>
         openAddModal: openAddModal, clearAll: clearAll,
         validateAndExport: validateAndExport, exportPDF: exportPDF, exportExcel: exportExcel,
         saveItem: saveItem, closeModal: closeModal, confirmMap: confirmMap,
-        updateCurMap: updateCurMap, removeItem: removeItem
+        updateCurMap: updateCurMap, removeItem: removeItem, confirmDup: confirmDup
       };
     })();
     </script>
