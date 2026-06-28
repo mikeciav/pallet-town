@@ -998,7 +998,7 @@ function setupBulk() {
 
   document.getElementById('dl-template').addEventListener('click', e => {
     e.preventDefault();
-    const csv = 'sku,length,width,height,case_weight,case_pack_qty\nITEM-001,12,8,6,18.5,4\nITEM-002,10,10,8,12.0,1\nITEM-003,14,6,5,9.75,2\n';
+    const csv = 'Child SKU,Casepack Outer,Master Carton Depth (in),Master Carton Width (in),Master Carton Height (in),Master Carton Weight (lbs)\nITEM-001,4,12,8,6,18.5\nITEM-002,1,10,10,8,12.0\nITEM-003,2,14,6,5,9.75\n';
     dlString(csv, 'pallet-town-template.csv', 'text/csv');
   });
 }
@@ -1021,7 +1021,7 @@ function parseCSV(text, filename) {
 
   const headers = lines[0].toLowerCase().split(',').map(s => s.trim());
   const idx = name => headers.findIndex(h => h.includes(name));
-  const si = idx('sku'), li = idx('len'), wi = idx('wid'), hi = idx('hei'), cpi = idx('pack'), cwi = idx('weight');
+  const si = idx('sku'), li = idx('len') !== -1 ? idx('len') : idx('dep'), wi = idx('wid'), hi = idx('hei'), cpi = idx('pack'), cwi = idx('weight');
 
   if (li === -1 || wi === -1 || hi === -1) {
     setBulkStatus('CSV needs length, width, height columns.', true);
