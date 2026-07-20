@@ -118,7 +118,6 @@ function setupNav() {
     calculator: 'PALLET BUILDER',
     bulk:       'BULK IMPORT',
     retailers:  'RETAILER CONFIGURATIONS',
-    invoice:    'COMMERCIAL INVOICE',
   };
 
   navItems.forEach(btn => {
@@ -128,7 +127,6 @@ function setupNav() {
       btn.classList.add('active');
       document.getElementById(`tab-${btn.dataset.tab}`).classList.add('active');
       document.getElementById('page-title').textContent = TITLES[btn.dataset.tab] || '';
-      document.getElementById('topbar-beta').style.display = btn.dataset.tab === 'invoice' ? '' : 'none';
       // Refresh retailer info on the newly visible tab so notes/config stay in sync
       if (btn.dataset.tab === 'calculator') updateInfoBar();
       if (btn.dataset.tab === 'bulk')       refreshBulkRetailerInfo();
